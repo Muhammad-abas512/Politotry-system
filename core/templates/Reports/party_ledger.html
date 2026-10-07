@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Parties Ledger - Politory{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --primary-color: #667eea;
+    }
+
+    .ledger-card { border-radius: 1rem; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.08); background: #fff; }
+    .btn-search { background: var(--primary-gradient); color: white; border: none; padding: 8px 25px; border-radius: 8px; font-weight: 600; transition: 0.3s; }
+    .btn-search:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); color: white; }
+    .btn-print { background: #6c757d; color: white; border: none; padding: 8px 25px; border-radius: 8px; font-weight: 600; transition: 0.3s; margin-left: 5px;}
+    .btn-print:hover { background: #5a6268; color: white; }
+    
+    .table-container { border-radius: 12px; overflow: hidden; }
+    .table thead { background: var(--primary-gradient); color: white; }
+    .table thead th { font-weight: 500; font-size: 0.75rem; text-transform: uppercase; border: none; padding: 12px; }
+    .table tbody td { font-size: 0.85rem; padding: 10px 12px; vertical-align: middle; border-bottom: 1px solid #f0f0f0; }
+    
+    .text-dr { color: #dc3545; font-weight: 600; }
+    .text-cr { color: #28a745; font-weight: 600; }
+    .balance-col { background: #f8f9ff; font-weight: 700; }
+    
+    .summary-box { padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+    .summary-title { font-size: 0.75rem; text-transform: uppercase; color: #6c757d; }
+    .summary-value { font-size: 1.1rem; font-weight: 700; }
+
+    @media print {
+        .btn-search, .btn-print, #ledgerFilterForm { display: none !important; }
+        .ledger-card { box-shadow: none !important; border: 1px solid #ddd !important; }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold mb-0"><i class="bi bi-journal-text text-primary me-2"></i> Parties Ledger</h4>
+    </div>
+
+    <!-- Filters -->
+    <div class="ledger-card p-4 mb-4">
+        <form id="ledgerFilterForm" class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold small">Select Party / Head</label>
+                <select class="form-select border-2" id="partySelect" required>
+                    <option value="">-- Choose Party --</option>
+                    {% for party in parties %}
+                        <option value="{{ party.id }}">{{ party.company_name|default:party.owner_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">From Date</label>
+                <input type="date" class="form-control border-2" id="fromDate" required>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label fw-semibold small">To Date</label>
+                <input type="date" class="form-control border-2" id="toDate" required>
+            </div>
+            <div class="col-12 col-md-4">
+                <button type="button" class="btn btn-search" onclick="fetchLedger()">
+                    <i class="bi bi-search me-1"></i> Search
+                </button>
+                <button type="button" class="btn btn-print" onclick="printPDF()">
+                    <i class="bi bi-printer me-1"></i> Print PDF
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Bar -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="ledger-card summary-box border-start border-4 border-primary">
+                <div class="summary-title">Opening Balance</div>
+                <div class="summary-value" id="openingBal">Rs 0.00</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="ledger-card summary-box border-start border-4 border-danger">
+                <div class="summary-title">Total Debit (Dr)</div>
+                <div class="summary-value" id="totalDr">Rs 0.00</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="ledger-card summary-box border-start border-4 border-success">
+                <div class="summary-title">Total Credit (Cr)</div>
+                <div class="summary-value" id="totalCr">Rs 0.00</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="ledger-card summary-box border-start border-4 border-dark" style="background:#eef2f7;">
+                <div class="summary-title">Closing Balance</div>
+                <div class="summary-value" id="closingBal">Rs 0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="ledger-card">
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="ledgerTable">
+                    <thead>
+                        <tr>
+                            <th width="4%">Sr#</th>
+                            <th width="15%">Party Name</th>
+                            <th width="10%">Date</th>
+                            <th width="18%">Description</th>
+                            <th width="8%">M-Rate</th>
+                            <th width="8%">Weight</th>
+                            <th width="8%">Rate</th>
+                            <th width="10%">Debit (Dr)</th>
+                            <th width="10%">Credit (Cr)</th>
+                            <th width="9%">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerBody">
+                        <tr><td colspan="10" class="text-center py-5 text-muted">Select a party and date range.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    document.getElementById('fromDate').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    document.getElementById('toDate').value = now.toISOString().split('T')[0];
+});
+
+function formatCurrency(amt, type="") {
+    let formatted = "Rs " + parseFloat(amt).toLocaleString(undefined, {minimumFractionDigits: 2});
+    return type ? `${formatted} ${type}` : formatted;
+}
+
+function fetchLedger() {
+    const party = document.getElementById('partySelect').value;
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+
+    if(!party) { alert("Please select a party first!"); return; }
+
+    const body = document.getElementById('ledgerBody');
+    body.innerHTML = `<tr><td colspan="10" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>`;
+
+    fetch(`{% url 'get_party_ledger' %}?party=${party}&from=${from}&to=${to}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                body.innerHTML = `<tr><td colspan="10" class="text-center text-danger py-5">${data.message}</td></tr>`;
+                return;
+            }
+
+            document.getElementById('openingBal').innerText = formatCurrency(data.opening_balance, data.opening_type);
+            document.getElementById('totalDr').innerText = formatCurrency(data.total_debit);
+            document.getElementById('totalCr').innerText = formatCurrency(data.total_credit);
+            document.getElementById('closingBal').innerText = formatCurrency(data.closing_balance, data.closing_type);
+
+            if (data.transactions.length === 0) {
+                body.innerHTML = `<tr><td colspan="10" class="text-center py-5">No transactions found for this period.</td></tr>`;
+            } else {
+                body.innerHTML = data.transactions.map(t => `
+                    <tr>
+                        <td>${t.sr}</td>
+                        <td>${t.party_name}</td>
+                        <td>${t.date}</td>
+                        <td>${t.description}</td>
+                        <td class="text-primary">${t.m_rate}</td>
+                        <td class="fw-bold">${t.weight}</td>
+                        <td class="text-info">${t.v_rate}</td>
+                        <td class="text-dr">${t.debit > 0 ? t.debit.toLocaleString() : '-'}</td>
+                        <td class="text-cr">${t.credit > 0 ? t.credit.toLocaleString() : '-'}</td>
+                        <td class="balance-col">${t.balance.toLocaleString()} ${t.balance_type}</td>
+                    </tr>
+                `).join('');
+            }
+        })
+        .catch(error => {
+            body.innerHTML = `<tr><td colspan="10" class="text-center text-danger py-5">Error loading ledger data.</td></tr>`;
+        });
+}
+
+function printPDF() {
+    const party = document.getElementById('partySelect').value;
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+    if(!party) { alert("Please select a party first!"); return; }
+    
+    // Yahi function PDF bhi generate karega agar hum format=pdf pass karein
+    window.open(`{% url 'get_party_ledger' %}?party=${party}&from=${from}&to=${to}&format=pdf`, '_blank');
+}
+</script>
+{% endblock %}

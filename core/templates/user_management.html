@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+
+{% block title %}User Management - Politory{% endblock %}
+
+{% block content %}
+<style>
+    .btn-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; }
+    .btn-gradient:hover { background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%); color: #fff; }
+    .card { border-radius: 1rem !important; }
+    .form-control:focus, .form-select:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; }
+    .user-mobile-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .user-mobile-card .label { font-size: 0.75rem; color: #888; font-weight: 600; text-transform: uppercase; }
+    .user-mobile-card .value { font-size: 0.95rem; color: #333; word-break: break-word; }
+    .btn-action { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.85rem; }
+    .readonly-field { background-color: #f8f9fa !important; cursor: default; }
+    .confirm-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99998; display: none; align-items: center; justify-content: center; }
+    .confirm-overlay.active { display: flex; }
+    .confirm-box { background: #fff; border-radius: 16px; padding: 30px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .confirm-box .icon-circle { width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 15px; }
+    .role-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+    .role-admin { background: #ffeaea; color: #d63031; }
+    .role-staff { background: #e8f5e9; color: #27ae60; }
+    .modal-body { max-height: 70vh; overflow-y: auto; }
+</style>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Confirm Delete -->
+<div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+        <div class="icon-circle bg-danger bg-opacity-10 text-danger"><i class="bi bi-trash3"></i></div>
+        <h5 class="fw-bold">Delete User?</h5>
+        <p class="text-muted mb-4">Are you sure? This action cannot be undone.</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <button class="btn btn-secondary px-4" onclick="closeConfirm()"><i class="bi bi-x-lg"></i> Cancel</button>
+            <button class="btn btn-danger px-4" id="confirmDeleteBtn"><i class="bi bi-trash3"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h3 class="mb-0 fw-semibold"><i class="bi bi-person-plus-fill"></i> User Management</h3>
+    <button class="btn btn-gradient" onclick="openHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
+        <i class="bi bi-clock-history"></i> Show History
+    </button>
+</div>
+
+<!-- Form -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-3 p-md-4">
+        <form id="userForm">
+            <input type="hidden" id="userId" value="">
+            <div class="row g-3">
+                <div class="col-lg-4 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" class="form-control" id="userName" placeholder="Enter username" required>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control" id="userPassword" placeholder="Enter password" required>
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
+                            <i class="bi bi-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                        <select class="form-select" id="userRole" required>
+                            <option value="">Select Role</option>
+                            <option value="Staff">Staff</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Mobile Number</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-phone"></i></span>
+                        <input type="text" class="form-control" id="userPhone" placeholder="03XX-XXXXXXX">
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="email" class="form-control" id="userEmail" placeholder="email@example.com">
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Address</label>
+                    <textarea class="form-control" rows="2" id="userAddress" placeholder="Enter address"></textarea>
+                </div>
+                <div class="col-12 d-flex gap-2 mt-3 flex-wrap">
+                    <button type="submit" class="btn btn-gradient flex-fill" id="saveBtn">
+                        <i class="bi bi-check-circle"></i> Save User
+                    </button>
+                    <button type="button" class="btn btn-secondary flex-fill" onclick="resetForm()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> Saved Users History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="historyBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrfToken = '{{ csrf_token }}';
+    const API_URL = "{% url 'user_management' %}";
+    let deleteUserId = null;
+    let isViewMode = false;
+
+    function togglePassword() {
+        const p = document.getElementById('userPassword'), e = document.getElementById('eyeIcon');
+        if (p.type === 'password') { p.type = 'text'; e.classList.replace('bi-eye','bi-eye-slash'); }
+        else { p.type = 'password'; e.classList.replace('bi-eye-slash','bi-eye'); }
+    }
+
+    function showToast(msg, type='success') {
+        const c = document.getElementById('toastContainer');
+        const icons = { success:'bi-check-circle-fill', danger:'bi-x-circle-fill', warning:'bi-exclamation-triangle-fill' };
+        const t = document.createElement('div');
+        t.className = `toast show align-items-center text-white bg-${type} border-0 mb-2`;
+        t.innerHTML = `<div class="d-flex"><div class="toast-body"><i class="bi ${icons[type]||icons.success} me-2"></i>${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button></div>`;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+    }
+
+    function resetForm() {
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('saveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Save User';
+        isViewMode = false;
+        setFormReadonly(false);
+    }
+
+    function setFormReadonly(r) {
+        ['userName','userPassword','userPhone','userEmail','userAddress'].forEach(id => {
+            const el = document.getElementById(id);
+            el.readOnly = r;
+            r ? el.classList.add('readonly-field') : el.classList.remove('readonly-field');
+        });
+        const s = document.getElementById('userRole');
+        s.disabled = r;
+        r ? s.classList.add('readonly-field') : s.classList.remove('readonly-field');
+        document.getElementById('saveBtn').style.display = r ? 'none' : '';
+    }
+
+    document.getElementById('userForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (isViewMode) return;
+        const userId = document.getElementById('userId').value;
+        const data = {
+            action: 'save',
+            name: document.getElementById('userName').value.trim(),
+            password: document.getElementById('userPassword').value.trim(),
+            role: document.getElementById('userRole').value,
+            phone_number: document.getElementById('userPhone').value.trim(),
+            email: document.getElementById('userEmail').value.trim(),
+            address: document.getElementById('userAddress').value.trim(),
+        };
+        if (!data.name || !data.password || !data.role) { showToast('Please fill all required fields!','warning'); return; }
+        if (userId) data.id = userId;
+        fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(r => { if(r.status==='success'){ showToast(r.message,'success'); resetForm(); } else showToast(r.message,'danger'); })
+        .catch(() => showToast('Something went wrong!','danger'));
+    });
+
+    function openHistory() {
+        fetch(API_URL, { headers: { 'X-Requested-With':'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(r => {
+            const users = r.users, body = document.getElementById('historyBody');
+            if (!users.length) {
+                body.innerHTML = `<div class="text-center py-5 text-muted"><i class="bi bi-inbox" style="font-size:3rem;"></i><p class="mt-2 mb-0 fs-5">No users saved yet</p></div>`;
+                return;
+            }
+            let tbl = `<div class="d-none d-md-block"><div class="table-responsive"><table class="table table-hover table-bordered align-middle mb-0">
+                <thead style="background:linear-gradient(135deg,#667eea,#764ba2);"><tr class="text-white"><th>#</th><th>Username</th><th>Role</th><th>Mobile</th><th>Email</th><th>Address</th><th class="text-center">Action</th></tr></thead><tbody>`;
+            users.forEach((u, i) => {
+                const badge = u.role==='Admin' ? `<span class="role-badge role-admin">Admin</span>` : `<span class="role-badge role-staff">Staff</span>`;
+                tbl += `<tr><td class="fw-bold">${i+1}</td><td><i class="bi bi-person-circle text-primary me-1"></i>${u.name||'-'}</td><td>${badge}</td><td>${u.phone_number||'-'}</td><td>${u.email||'-'}</td><td>${u.address||'-'}</td>
+                <td class="text-center">
+                    <button class="btn btn-info btn-action text-white me-1" onclick='loadUser(${JSON.stringify(u)},true)'><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-warning btn-action text-white me-1" onclick='loadUser(${JSON.stringify(u)},false)'><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-danger btn-action" onclick="confirmDelete(${u.id})"><i class="bi bi-trash3"></i></button>
+                </td></tr>`;
+            });
+            tbl += `</tbody></table></div></div>`;
+
+            let mob = `<div class="d-md-none">`;
+            users.forEach((u) => {
+                const badge = u.role==='Admin' ? `<span class="role-badge role-admin">Admin</span>` : `<span class="role-badge role-staff">Staff</span>`;
+                mob += `<div class="user-mobile-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2"><div><span class="label">Username</span><div class="value fw-bold"><i class="bi bi-person-circle text-primary me-1"></i>${u.name||'-'}</div></div><div>${badge}</div></div>
+                    <div class="row g-2 mb-2"><div class="col-6"><span class="label">Mobile</span><div class="value">${u.phone_number||'-'}</div></div><div class="col-6"><span class="label">Email</span><div class="value">${u.email||'-'}</div></div></div>
+                    <div class="mb-3"><span class="label">Address</span><div class="value">${u.address||'-'}</div></div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-info btn-sm text-white flex-fill" onclick='loadUser(${JSON.stringify(u)},true)'><i class="bi bi-eye"></i> View</button>
+                        <button class="btn btn-warning btn-sm text-white flex-fill" onclick='loadUser(${JSON.stringify(u)},false)'><i class="bi bi-pencil"></i> Edit</button>
+                        <button class="btn btn-danger btn-sm flex-fill" onclick="confirmDelete(${u.id})"><i class="bi bi-trash3"></i> Delete</button>
+                    </div></div>`;
+            });
+            mob += `</div>`;
+            body.innerHTML = tbl + mob;
+        })
+        .catch(() => showToast('Failed to load users!','danger'));
+    }
+
+    function loadUser(u, readonly) {
+        bootstrap.Modal.getInstance(document.getElementById('historyModal')).hide();
+        isViewMode = readonly;
+        document.getElementById('userId').value = u.id;
+        document.getElementById('userName').value = u.name || '';
+        document.getElementById('userPassword').value = u.password || '';
+        document.getElementById('userRole').value = u.role || '';
+        document.getElementById('userPhone').value = u.phone_number || '';
+        document.getElementById('userEmail').value = u.email || '';
+        document.getElementById('userAddress').value = u.address || '';
+        setFormReadonly(readonly);
+        if (!readonly) document.getElementById('saveBtn').innerHTML = '<i class="bi bi-arrow-repeat"></i> Update User';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function confirmDelete(id) { deleteUserId = id; document.getElementById('confirmOverlay').classList.add('active'); }
+    function closeConfirm() { deleteUserId = null; document.getElementById('confirmOverlay').classList.remove('active'); }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (!deleteUserId) return;
+        fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ action:'delete', id: deleteUserId })
+        })
+        .then(r => r.json())
+        .then(r => {
+            closeConfirm();
+            if (r.status==='success') { showToast(r.message,'success'); openHistory(); }
+            else showToast(r.message,'danger');
+        })
+        .catch(() => { closeConfirm(); showToast('Failed to delete!','danger'); });
+    });
+</script>
+{% endblock %}

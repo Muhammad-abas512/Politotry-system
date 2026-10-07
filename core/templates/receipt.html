@@ -1,0 +1,430 @@
+{% extends 'base.html' %}
+
+{% block title %}Receipt - Politory{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --primary-color: #667eea;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+    }
+
+    .btn-gradient {
+        background: var(--primary-gradient);
+        color: #fff;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-outline-sales {
+        border: 2px solid var(--primary-color);
+        color: var(--primary-color);
+        background: transparent;
+        transition: all 0.3s ease;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    .btn-outline-sales:hover {
+        background: var(--primary-gradient);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .card {
+        border-radius: 1rem !important;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.7rem;
+        border-radius: 8px;
+    }
+
+    .form-label-sm {
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #495057;
+    }
+
+    .modal-content {
+        border-radius: 1rem;
+        border: none;
+    }
+    .modal-header {
+        background: var(--primary-gradient);
+        color: #fff;
+        border-radius: 1rem 1rem 0 0;
+    }
+
+    .search-box {
+        position: relative;
+    }
+    .search-box .search-input {
+        padding-left: 42px;
+        border-radius: 25px;
+        border: 2px solid #e9ecef;
+        height: 42px;
+    }
+    .search-box i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+    }
+
+    .table-sticky thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f8f9fa;
+    }
+</style>
+
+<!-- ================= TOAST CONTAINER ================= -->
+<div id="toastContainer"
+     style="position:fixed;top:20px;right:20px;z-index:9999;max-width:400px;width:100%;pointer-events:none;">
+</div>
+
+<!-- ================= MAIN FORM ================= -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3 p-md-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-plus-circle text-primary"></i> New Payment Receipt
+            </h5>
+            <button type="button" class="btn-outline-sales"
+                    data-bs-toggle="modal" data-bs-target="#partiesModal">
+                <i class="bi bi-search"></i> Select From Pending Parties
+            </button>
+        </div>
+
+        <form id="receiptForm">
+            {% csrf_token %}
+
+            <!-- Hidden field — party code (not sell number anymore) -->
+            <input type="hidden" id="selectedPartyCode" name="party_code">
+
+            <div class="row g-3">
+
+                <!-- Date -->
+                <div class="col-6 col-md-2">
+                    <label class="form-label-sm">Date</label>
+                    <input type="date" name="date" id="receiptDate"
+                           class="form-control form-control-sm" required>
+                </div>
+
+                <!-- Party -->
+                <div class="col-12 col-md-3">
+                    <label class="form-label-sm">Party Name</label>
+                    <select class="form-select form-select-sm"
+                            name="party" id="partySelect" required>
+                        <option value="">-- Choose Party --</option>
+                        {% for party in parties %}
+                            <option value="{{ party.code }}"
+                                    data-name="{{ party.company_name|default:party.owner_name }}">
+                                {{ party.code|default:'' }} - {{ party.company_name|default:party.owner_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Amount -->
+                <div class="col-6 col-md-2">
+                    <label class="form-label-sm">Amount to Pay</label>
+                    <input type="number" step="0.01" name="amount"
+                           id="receiptAmount" class="form-control form-control-sm"
+                           placeholder="0.00" required>
+                </div>
+
+                <!-- Description -->
+                <div class="col-12 col-md-3">
+                    <label class="form-label-sm">Description / Remarks</label>
+                    <input type="text" name="description" id="receiptDesc"
+                           class="form-control form-control-sm"
+                           placeholder="e.g. Partial payment">
+                </div>
+
+                <!-- Payment Mode -->
+                <div class="col-6 col-md-2">
+                    <label class="form-label-sm">Payment Mode</label>
+                    <select class="form-select form-select-sm"
+                            name="payment_mode" id="paymentMode" required>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Online">Online</option>
+                    </select>
+                </div>
+
+                <div class="col-12 mt-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-gradient btn-sm px-4">
+                            <i class="bi bi-save me-1"></i> Save Payment
+                        </button>
+                        <button type="reset" class="btn btn-light btn-sm px-4 border"
+                                onclick="resetForm()">
+                            <i class="bi bi-arrow-clockwise"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= PENDING PARTIES MODAL ================= -->
+<div class="modal fade" id="partiesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-table me-2"></i> Pending Parties (Due / Advance)
+                </h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="search-box mb-3">
+                    <i class="bi bi-search"></i>
+                    <input type="text" class="form-control search-input"
+                           id="partySearch"
+                           placeholder="Search by party name or code...">
+                </div>
+
+                <div id="partiesList">
+                    <!-- Table dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ================= TOAST SYSTEM =================
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: white; border-radius: 8px; padding: 12px 20px; margin-bottom: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-left: 5px solid ${type === 'success' ? '#28a745' : '#dc3545'};
+        pointer-events: auto; transition: 0.3s; opacity: 0; transform: translateX(20px);
+    `;
+    toast.innerHTML = `<div class="d-flex align-items-center gap-2">
+        <strong>${type === 'success' ? '✅' : '⚠️'}</strong>
+        <span>${message}</span>
+    </div>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '1'; toast.style.transform = 'translateX(0)'; }, 10);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ================= DATE INIT =================
+document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('receiptDate').value = today;
+});
+
+// ================= PARTY DROPDOWN → code hidden set =================
+document.getElementById('partySelect').addEventListener('change', function () {
+    const opt = this.options[this.selectedIndex];
+    document.getElementById('selectedPartyCode').value = opt.value || '';
+});
+
+// ================= FETCH PENDING PARTIES =================
+document.getElementById('partiesModal').addEventListener('show.bs.modal', function () {
+    const list = document.getElementById('partiesList');
+    list.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
+    fetch(`?action=get_sales`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) renderPartiesTable(data.data);
+            else list.innerHTML = '<p class="text-danger text-center">Failed to load data.</p>';
+        })
+        .catch(() => {
+            list.innerHTML = '<p class="text-danger text-center">Server error.</p>';
+        });
+});
+
+// ================= RENDER PARTIES TABLE =================
+function renderPartiesTable(list) {
+    const partiesList = document.getElementById('partiesList');
+    const searchInput = document.getElementById('partySearch');
+
+    const draw = (filter = '') => {
+        const f = filter.toLowerCase();
+        const filtered = list.filter(p =>
+            (p.party_name || '').toLowerCase().includes(f) ||
+            (p.part_code  || '').toLowerCase().includes(f)
+        );
+
+        if (!filtered.length) {
+            partiesList.innerHTML = '<p class="text-center py-4">No matching parties found.</p>';
+            return;
+        }
+
+        let html = `
+            <div class="table-responsive" style="max-height:500px;">
+                <table class="table table-hover border table-sticky">
+                    <thead>
+                        <tr>
+                            <th>Party Code</th>
+                            <th>Party Name</th>
+                            <th>Due</th>
+                            <th>Advance</th>
+                            <th>Last Date</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filtered.map(p => `
+                            <tr>
+                                <td>
+                                    <span class="badge bg-light text-dark border fw-bold p-2">
+                                        ${p.part_code || '-'}
+                                    </span>
+                                </td>
+                                <td class="fw-semibold">${p.party_name || '-'}</td>
+                                <td>
+                                    ${p.due > 0
+                                        ? `<span class="badge bg-danger">Rs ${Number(p.due).toLocaleString()}</span>`
+                                        : `<span class="badge bg-secondary">0</span>`}
+                                </td>
+                                <td>
+                                    ${p.advance > 0
+                                        ? `<span class="badge bg-success">Rs ${Number(p.advance).toLocaleString()}</span>`
+                                        : `<span class="badge bg-secondary">0</span>`}
+                                </td>
+                                <td>${p.date || '-'}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-primary"
+                                        onclick="selectParty(
+                                            '${p.part_code}',
+                                            '${(p.party_name || '').replace(/'/g, "\\'")}',
+                                            ${p.due || 0},
+                                            ${p.advance || 0}
+                                        )">
+                                        <i class="bi bi-arrow-right me-1"></i> Select
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        partiesList.innerHTML = html;
+    };
+
+    draw();
+    searchInput.oninput = (e) => draw(e.target.value);
+}
+
+// ================= SELECT PARTY =================
+function selectParty(code, name, due, advance) {
+    // Set hidden party code
+    document.getElementById('selectedPartyCode').value = code;
+
+    // Ensure party exists in dropdown; if not, add temp option
+    const sel = document.getElementById('partySelect');
+    let found = false;
+    for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === code) {
+            sel.selectedIndex = i;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        const opt = new Option(`${code} - ${name}`, code, true, true);
+        opt.dataset.name = name;
+        sel.add(opt);
+    }
+
+    // Suggested amount = due (only if due > 0)
+    const amtInput = document.getElementById('receiptAmount');
+    amtInput.value = due > 0 ? due : '';
+
+    // Remarks hint
+    const desc = document.getElementById('receiptDesc');
+    if (advance > 0) {
+        desc.value = `Advance already: Rs ${Number(advance).toLocaleString()}`;
+    } else {
+        desc.value = '';
+    }
+
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('partiesModal')).hide();
+    showToast(`Party ${code} - ${name} selected`, 'success');
+
+    // Focus amount
+    setTimeout(() => { amtInput.focus(); amtInput.select(); }, 350);
+}
+
+// ================= FORM SUBMIT (AJAX) =================
+document.getElementById('receiptForm').onsubmit = function (e) {
+    e.preventDefault();
+
+    const partyCode = document.getElementById('selectedPartyCode').value;
+    const amount    = parseFloat(document.getElementById('receiptAmount').value || 0);
+
+    if (!partyCode) {
+        showToast('Please select a party (from dropdown or pending parties modal).', 'error');
+        return;
+    }
+    if (amount <= 0) {
+        showToast('Amount must be greater than 0.', 'error');
+        return;
+    }
+
+    const formData = new FormData(this);
+
+    fetch("{% url 'receipt' %}", {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Payment Saved Successfully!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(() => showToast('Server Error', 'error'));
+};
+
+// ================= RESET =================
+function resetForm() {
+    document.getElementById('selectedPartyCode').value = '';
+    document.getElementById('partySelect').value = '';
+    const today = new Date().toISOString().split('T')[0];
+    setTimeout(() => {
+        document.getElementById('receiptDate').value = today;
+    }, 10);
+}
+</script>
+{% endblock %}

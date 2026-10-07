@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+
+{% block title %}Waste Payment - Politory{% endblock %}
+
+{% block content %}
+<style>
+    .btn-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; }
+    .btn-gradient:hover { background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%); color: #fff; }
+    .card { border-radius: 1rem !important; }
+    .form-control:focus, .form-select:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+
+    .form-control-sm, .form-select-sm {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.6rem;
+    }
+    .form-label-sm {
+        font-size: 0.8rem;
+        margin-bottom: 4px;
+    }
+
+    .receipt-mobile-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .receipt-mobile-card .label {
+        font-size: 0.72rem;
+        color: #888;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .receipt-mobile-card .value {
+        font-size: 0.92rem;
+        color: #333;
+        word-break: break-word;
+    }
+
+    .btn-action {
+        width: 32px; height: 32px; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 8px; font-size: 0.85rem;
+    }
+
+    .amount-value {
+        font-weight: 700;
+        color: #27ae60;
+        font-size: 1rem;
+    }
+
+    .mode-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+    .mode-fat { background: #fff3cd; color: #856404; }
+    .mode-waste { background: #d1ecf1; color: #0c5460; }
+
+    .history-card { max-height: 500px; overflow-y: auto; }
+
+    .search-box { position: relative; }
+    .search-box .search-input {
+        padding-left: 40px;
+        border-radius: 25px;
+        border: 2px solid #e0e0e0;
+    }
+    .search-box .search-input:focus { border-color: #667eea; }
+    .search-box i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+    }
+
+    .highlight { background: yellow; font-weight: bold; }
+</style>
+
+<!-- Form -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3 p-md-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-cash-coin text-primary"></i> New Waste Payment</h5>
+        <form id="wastePaymentForm">
+            <div class="row g-2">
+
+                <div class="col-lg-2 col-md-4 col-6">
+                    <label class="form-label form-label-sm fw-semibold">Date</label>
+                    <input type="date" id="wpDate" class="form-control form-control-sm">
+                </div>
+
+                <div class="col-lg-3 col-md-4 col-6">
+                    <label class="form-label form-label-sm fw-semibold">Party <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" required>
+                        <option value="">Select Party</option>
+                        <option value="MJ Poultries Group">MJ Poultries Group</option>
+                        <option value="Al-Madina Traders">Al-Madina Traders</option>
+                        <option value="Fresh Chicken Suppliers">Fresh Chicken Suppliers</option>
+                        <option value="Green Farm Ltd">Green Farm Ltd</option>
+                        <option value="Golden Poultry">Golden Poultry</option>
+                        <option value="Ali Traders">Ali Traders</option>
+                        <option value="Bilal Enterprises">Bilal Enterprises</option>
+                        <option value="Hassan Foods">Hassan Foods</option>
+                    </select>
+                </div>
+
+                <div class="col-lg-2 col-md-4 col-6">
+                    <label class="form-label form-label-sm fw-semibold">Mode <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="wpMode" required>
+                        <option value="">Select Mode</option>
+                        <option value="Fat">Fat</option>
+                        <option value="Waste">Waste</option>
+                    </select>
+                </div>
+
+                <div class="col-lg-2 col-md-4 col-6">
+                    <label class="form-label form-label-sm fw-semibold">Qty <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" id="wpQty" class="form-control form-control-sm" placeholder="Quantity" required>
+                </div>
+
+                <div class="col-lg-2 col-md-4 col-6">
+                    <label class="form-label form-label-sm fw-semibold">Rate <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" id="wpRate" class="form-control form-control-sm" placeholder="Rate" required>
+                </div>
+
+                <div class="col-lg-1 col-md-4 col-6">
+                    <label class="form-label form-label-sm fw-semibold">Amount</label>
+                    <input type="text" id="wpAmount" class="form-control form-control-sm" placeholder="Auto" readonly style="background:#f8f9fa;">
+                </div>
+
+                <div class="col-12 d-flex gap-2 mt-3 flex-wrap">
+                    <button type="submit" class="btn btn-gradient btn-sm flex-fill">
+                        <i class="bi bi-check-circle"></i> Save Payment
+                    </button>
+                    <button type="reset" class="btn btn-secondary btn-sm flex-fill" onclick="document.getElementById('wpAmount').value=''">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 pb-2 px-3 px-md-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history text-primary"></i> Waste Payment History</h5>
+        </div>
+        <!-- Search -->
+        <div class="search-box mt-3">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control search-input" id="searchInput" placeholder="Search by party, mode...">
+        </div>
+    </div>
+    <div class="card-body p-3 p-md-4 history-card">
+
+        <!-- Desktop Table -->
+        <div class="d-none d-md-block">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0">
+                    <thead style="background:linear-gradient(135deg,#667eea,#764ba2);">
+                        <tr class="text-white">
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Party Name</th>
+                            <th>Mode</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wpTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div class="d-md-none" id="wpMobileList"></div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Set current date by default
+    (function() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('wpDate').value = `${yyyy}-${mm}-${dd}`;
+    })();
+
+    // Auto calculate amount = qty * rate
+    function calcAmount() {
+        const qty = parseFloat(document.getElementById('wpQty').value) || 0;
+        const rate = parseFloat(document.getElementById('wpRate').value) || 0;
+        const amount = qty * rate;
+        document.getElementById('wpAmount').value = amount ? amount.toFixed(2) : '';
+    }
+    document.getElementById('wpQty').addEventListener('input', calcAmount);
+    document.getElementById('wpRate').addEventListener('input', calcAmount);
+
+    const wpData = [
+        { id: 1, date: "16 Aug 2025", party: "MJ Poultries Group", mode: "Fat", qty: 50.5, rate: 320.00, amount: 16160.00 },
+        { id: 2, date: "15 Aug 2025", party: "Al-Madina Traders", mode: "Waste", qty: 120.0, rate: 150.00, amount: 18000.00 },
+        { id: 3, date: "14 Aug 2025", party: "Fresh Chicken Suppliers", mode: "Fat", qty: 75.25, rate: 335.50, amount: 25246.38 },
+        { id: 4, date: "13 Aug 2025", party: "Green Farm Ltd", mode: "Waste", qty: 200.0, rate: 155.00, amount: 31000.00 },
+        { id: 5, date: "12 Aug 2025", party: "Golden Poultry", mode: "Fat", qty: 45.0, rate: 340.75, amount: 15333.75 },
+        { id: 6, date: "11 Aug 2025", party: "Ali Traders", mode: "Waste", qty: 180.5, rate: 148.75, amount: 26849.38 },
+        { id: 7, date: "10 Aug 2025", party: "Bilal Enterprises", mode: "Fat", qty: 60.0, rate: 350.25, amount: 21015.00 },
+        { id: 8, date: "09 Aug 2025", party: "Hassan Foods", mode: "Waste", qty: 95.75, rate: 160.00, amount: 15320.00 },
+    ];
+
+    function getModeBadge(mode) {
+        const cls = mode === 'Fat' ? 'mode-fat' : 'mode-waste';
+        const icon = mode === 'Fat' ? 'bi-droplet-fill' : 'bi-trash3-fill';
+        return `<span class="mode-badge ${cls}"><i class="bi ${icon} me-1"></i>${mode||'-'}</span>`;
+    }
+
+    function renderWP(list, searchTerm = '') {
+        const highlight = (text) => {
+            if (!text) return '-';
+            if (!searchTerm) return text;
+            const regex = new RegExp('(' + searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            return String(text).replace(regex, '<span class="highlight">$1</span>');
+        };
+
+        if (!list.length) {
+            document.getElementById('wpTableBody').innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size:2rem;"></i><p class="mb-0 mt-2">No payments found</p></td></tr>`;
+            document.getElementById('wpMobileList').innerHTML = `<div class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size:2rem;"></i><p class="mb-0 mt-2">No payments found</p></div>`;
+            return;
+        }
+
+        // Table
+        let rows = '';
+        list.forEach((w, i) => {
+            rows += `<tr>
+                <td class="fw-bold">${i+1}</td>
+                <td>${w.date}</td>
+                <td><i class="bi bi-building text-primary me-1"></i>${highlight(w.party)}</td>
+                <td>${getModeBadge(w.mode)}</td>
+                <td>${w.qty}</td>
+                <td>Rs ${w.rate.toFixed(2)}</td>
+                <td><span class="amount-value">Rs ${w.amount.toLocaleString(undefined,{minimumFractionDigits:2})}</span></td>
+                <td class="text-center">
+                    <button class="btn btn-warning btn-action text-white me-1" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-danger btn-action" title="Delete"><i class="bi bi-trash3"></i></button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('wpTableBody').innerHTML = rows;
+
+        // Mobile Cards
+        let cards = '';
+        list.forEach(w => {
+            cards += `<div class="receipt-mobile-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="label">Party</span>
+                        <div class="value fw-bold"><i class="bi bi-building text-primary me-1"></i>${highlight(w.party)}</div>
+                    </div>
+                    <div>${getModeBadge(w.mode)}</div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-4">
+                        <span class="label">Qty</span>
+                        <div class="value">${w.qty}</div>
+                    </div>
+                    <div class="col-4">
+                        <span class="label">Rate</span>
+                        <div class="value">Rs ${w.rate.toFixed(2)}</div>
+                    </div>
+                    <div class="col-4">
+                        <span class="label">Date</span>
+                        <div class="value">${w.date}</div>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <span class="label">Amount</span>
+                    <div class="value amount-value">Rs ${w.amount.toLocaleString(undefined,{minimumFractionDigits:2})}</div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-warning btn-sm text-white flex-fill"><i class="bi bi-pencil"></i> Edit</button>
+                    <button class="btn btn-danger btn-sm flex-fill"><i class="bi bi-trash3"></i> Delete</button>
+                </div>
+            </div>`;
+        });
+        document.getElementById('wpMobileList').innerHTML = cards;
+    }
+
+    // Real-time search
+    document.getElementById('searchInput').addEventListener('input', function() {
+        const term = this.value.trim().toLowerCase();
+        if (!term) { renderWP(wpData); return; }
+        const filtered = wpData.filter(w =>
+            (w.party || '').toLowerCase().includes(term) ||
+            (w.mode || '').toLowerCase().includes(term)
+        );
+        renderWP(filtered, term);
+    });
+
+    renderWP(wpData);
+</script>
+{% endblock %}

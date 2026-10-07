@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+
+{% block title %}Purchase Entry - Politory{% endblock %}
+
+{% block content %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<style>
+    .compact-row .form-control, .compact-row .form-select, .select2-selection {
+        font-size: 0.85rem !important;
+        min-height: 38px !important;
+    }
+    .table-responsive { font-size: 0.9rem; }
+    .btn-action { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+    .header-gradient { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 14px 18px; border-radius: 8px 8px 0 0; }
+    .select2-container--bootstrap-5 .select2-selection { height: 38px; }
+    .active-warning-banner { background: linear-gradient(135deg, #ff6b6b, #feca57); border-radius: 10px; padding: 14px 18px; color: white; font-weight: 500; }
+    .active-badge { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    .form-disabled { opacity: 0.5; pointer-events: none; user-select: none; }
+    .amount-field { background: linear-gradient(135deg, #667eea20, #764ba220) !important; border: 1.5px solid #667eea !important; color: #333 !important; font-weight: 700 !important; cursor: not-allowed; }
+    .amount-label { color: #667eea; font-weight: 700 !important; }
+    .code-field { background: #f0f4ff !important; font-weight: 600; color: #4b3f9e !important; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+    .custom-toast { min-width: 300px; max-width: 400px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); animation: slideIn 0.4s ease-out; border: none; overflow: hidden; background: #ffffff; }
+    .custom-toast.toast-success { border-left: 5px solid #28a745; }
+    .custom-toast.toast-error { border-left: 5px solid #dc3545; }
+    .toast-body-custom { display: flex; align-items: center; gap: 10px; padding: 14px 18px; font-size: 0.9rem; font-weight: 600; color: #333; }
+    .toast-progress { height: 3px; background: linear-gradient(90deg, #28a745, #20c997); animation: shrink 2.5s linear forwards; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+</style>
+
+<!-- TOAST NOTIFICATIONS -->
+<div class="toast-container">
+    {% for message in messages %}
+    <div class="custom-toast toast-{{ message.tags }} mb-2">
+        <div class="toast-body-custom">
+            {% if 'success' in message.tags %}✅{% elif 'error' in message.tags %}❌{% else %}ℹ️{% endif %}
+            <span>{{ message }}</span>
+        </div>
+        <div class="toast-progress {% if 'error' in message.tags %}bg-danger{% endif %}"></div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container-fluid mt-3 px-2 px-md-3">
+    <!-- ACTIVE PURCHASE WARNING -->
+    {% if active_purchase and not edit_obj %}
+    <div class="active-warning-banner mb-3">
+        <div class="row align-items-center">
+            <div class="col-12 col-md-8">
+                <span class="active-badge badge bg-white text-danger me-2">🔴 ACTIVE</span>
+                <strong>{{ active_purchase.vendor_name }}</strong> ki purchase active hai!
+                Remaining: <strong>{{ active_purchase.remaining_weight }} kg</strong>
+            </div>
+            <div class="col-12 col-md-4 text-md-end">
+                <span class="small">🔒 Nai entry locked hai</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- PURCHASE FORM -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="header-gradient d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-cart-plus-fill me-2"></i>{% if edit_obj %}Update{% else %}New{% endif %} Purchase</h6>
+        </div>
+        <div class="card-body p-2 p-md-3">
+            <form method="POST" id="purchaseForm">
+                {% csrf_token %}
+                <input type="hidden" name="record_id" value="{{ edit_obj.id|default:'' }}">
+
+                <!-- Hidden party_code -->
+                <input type="hidden" name="party_code" id="partyCodeHidden"
+                       value="{% if edit_obj %}{{ edit_obj.party_code|default:'' }}{% endif %}">
+
+                <div class="{% if active_purchase and not edit_obj %}form-disabled{% endif %}">
+                    <div class="row g-2 compact-row">
+
+                        <!-- Vendor -->
+                        <div class="col-12 col-sm-6 col-lg-2">
+                            <label class="small fw-bold">Vendor</label>
+                            <select name="vendor_name" id="vendorSelect" class="form-select select2-search" required
+                                    {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                                <option value="">Search Vendor...</option>
+                                {% for vendor in vendor_list %}
+                                <option value="{{ vendor.company_name }}"
+                                        data-code="{{ vendor.code|default:'' }}"
+                                        {% if edit_obj.vendor_name == vendor.company_name %}selected{% endif %}>
+                                    {{ vendor.code|default:'' }} - {{ vendor.company_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 👇 Visible Code Field (auto-filled) -->
+                        <div class="col-6 col-sm-3 col-lg-1">
+                            <label class="small fw-bold">Code</label>
+                            <input type="text" id="vendorCodeDisplay" class="form-control code-field" readonly
+                                   value="{% if edit_obj %}{{ edit_obj.party_code|default:'' }}{% endif %}"
+                                   placeholder="Auto">
+                        </div>
+
+                        <!-- Description -->
+                        <div class="col-6 col-sm-3 col-lg-2">
+                            <label class="small fw-bold">Description</label>
+                            <input type="text" name="description" class="form-control"
+                                   value="{{ edit_obj.description|default:'' }}"
+                                   {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                        </div>
+
+                        <!-- Date -->
+                        <div class="col-6 col-sm-6 col-lg-2">
+                            <label class="small fw-bold">Date</label>
+                            <input type="date" name="date" id="dateField" class="form-control"
+                                   value="{% if edit_obj %}{{ edit_obj.date|date:'Y-m-d' }}{% else %}{{ current_date }}{% endif %}"
+                                   required {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                        </div>
+
+                        <!-- Vendor Rate -->
+                        <div class="col-6 col-sm-4 col-lg-1">
+                            <label class="small fw-bold">V.Rate</label>
+                            <input type="number" name="vendor_rate" id="vendorRate" class="form-control"
+                                   value="{{ edit_obj.vendor_rate|default:'' }}"
+                                   {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                        </div>
+
+                        <!-- Market Rate -->
+                        <div class="col-6 col-sm-4 col-lg-1">
+                            <label class="small fw-bold">M.Rate</label>
+                            <input type="number" name="market_rate" id="marketRate" class="form-control"
+                                   value="{% if edit_obj %}{{ edit_obj.market_rate|default:'' }}{% else %}{{ latest_market_rate|default:'' }}{% endif %}"
+                                   {% if active_purchase and not edit_obj %}disabled{% endif %} readonly>
+                        </div>
+
+                        <!-- Weight -->
+                        <div class="col-6 col-sm-4 col-lg-1">
+                            <label class="small fw-bold">Weight</label>
+                            <input type="number" step="0.01" name="weight" id="weightField" class="form-control"
+                                   value="{{ edit_obj.weight|default:'' }}"
+                                   {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                        </div>
+
+                        <!-- Amount -->
+                        <div class="col-12 col-sm-6 col-lg-2">
+                            <label class="small amount-label">Amount</label>
+                            <input type="hidden" name="amount" id="amountHidden" value="{{ edit_obj.amount|default:'0' }}">
+                            <input type="text" id="amountDisplay" class="form-control amount-field"
+                                   value="{{ edit_obj.amount|default:'' }}" readonly>
+                        </div>
+
+                        <!-- Vehicle -->
+                        <div class="col-12 col-sm-6 col-lg-1">
+                            <label class="small fw-bold">Vehicle</label>
+                            <input type="text" name="vehicle_number" class="form-control"
+                                   value="{{ edit_obj.vehicle_number|default:'' }}"
+                                   {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="col-12 col-lg-2 d-flex align-items-end gap-2">
+                            <button type="submit" class="btn btn-success btn-sm w-100 py-2"
+                                    {% if active_purchase and not edit_obj %}disabled{% endif %}>
+                                {% if edit_obj %}Update{% else %}{% if active_purchase %}Locked{% else %}Save{% endif %}{% endif %}
+                            </button>
+                            {% if edit_obj %}
+                            <a href="{% url 'purchase_receiving' %}" class="btn btn-secondary btn-sm py-2">Cancel</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- HISTORY TABLE -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold">Recent History</h6>
+            {% if active_purchase %}
+            <span class="badge bg-danger">🔴 {{ active_purchase.vendor_name }} Active</span>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Date</th>
+                            <th>Rate</th>
+                            <th>Weight</th>
+                            <th>Remaining</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in history %}
+                        <tr {% if row.status == 'Active' %}class="table-warning"{% endif %}>
+                            <td class="fw-bold">{{ row.vendor_name }}</td>
+                            <td>{{ row.date|date:"d M, Y" }}</td>
+                            <td>{{ row.vendor_rate }}</td>
+                            <td>{{ row.weight }} kg</td>
+                            <td>
+                                {% if row.remaining_weight %}
+                                    {% if row.remaining_weight|floatformat:2 >= "0" %}
+                                        <span class="badge bg-info">{{ row.remaining_weight }} kg</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{ row.remaining_weight }} kg</span>
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-success fw-bold">{{ row.amount }}</td>
+                            <td>
+                                {% if row.status == 'Active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Done</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="?edit_id={{ row.id }}" class="btn btn-warning btn-action text-white">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                <a href="?delete_id={{ row.id }}" class="btn btn-danger btn-action"
+                                   onclick="return confirm('Delete?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center py-4">No records found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('.select2-search').select2({ theme: 'bootstrap-5', width: '100%' });
+
+        // ============================================
+        // ✅ Vendor select → party_code auto-fill
+        // ============================================
+        function syncPartyCode() {
+            var $sel = $('#vendorSelect').find(':selected');
+            var code = $sel.data('code') || '';
+
+            if (code) {
+                $('#partyCodeHidden').val(code);
+                $('#vendorCodeDisplay').val(code);
+            } else {
+                var vendorName = $('#vendorSelect').val();
+                if (!vendorName) {
+                    $('#partyCodeHidden').val('');
+                    $('#vendorCodeDisplay').val('');
+                    return;
+                }
+                $.ajax({
+                    url: "{% url 'purchase_receiving' %}",
+                    type: "GET",
+                    data: { action: 'get_party_code', vendor_name: vendorName },
+                    success: function (res) {
+                        $('#partyCodeHidden').val(res.code || '');
+                        $('#vendorCodeDisplay').val(res.code || '');
+                    },
+                    error: function () {
+                        $('#partyCodeHidden').val('');
+                        $('#vendorCodeDisplay').val('');
+                    }
+                });
+            }
+        }
+
+        syncPartyCode();
+        $('#vendorSelect').on('change', syncPartyCode);
+        $('#vendorSelect').on('select2:select', syncPartyCode);
+
+        // ============================================
+        // Amount calculation
+        // ============================================
+        function calculateAmount() {
+            var rate = parseFloat($('#vendorRate').val()) || 0;
+            var weight = parseFloat($('#weightField').val()) || 0;
+            var amount = rate * weight;
+            $('#amountDisplay').val(amount > 0 ? amount.toLocaleString() : '');
+            $('#amountHidden').val(amount);
+        }
+
+        $('#vendorRate, #weightField').on('input', calculateAmount);
+        calculateAmount();
+
+        // ============================================
+        // Date change → fetch market rate
+        // ============================================
+        $('#dateField').on('change', function () {
+            var selectedDate = $(this).val();
+            if (selectedDate) {
+                $.ajax({
+                    url: "{% url 'purchase_receiving' %}",
+                    type: "GET",
+                    data: { action: 'get_market_rate', date: selectedDate },
+                    success: function (response) {
+                        $('#marketRate').val(response.rate);
+                    },
+                    error: function () {
+                        console.log("Error fetching market rate");
+                    }
+                });
+            }
+        });
+
+        // Toast auto-hide
+        setTimeout(function () {
+            $('.custom-toast').fadeOut();
+        }, 3000);
+    });
+</script>
+{% endblock %}

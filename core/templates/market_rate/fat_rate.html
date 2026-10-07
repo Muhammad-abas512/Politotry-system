@@ -1,0 +1,526 @@
+{% extends 'base.html' %}
+
+{% block title %}Fat Rate - Politory{% endblock %}
+
+{% block content %}
+<style>
+    .btn-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; }
+    .btn-gradient:hover { background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%); color: #fff; }
+    .card { border-radius: 1rem !important; }
+    .form-control:focus, .form-select:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+
+    .rate-mobile-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .rate-mobile-card .label { font-size: 0.75rem; color: #888; font-weight: 600; text-transform: uppercase; }
+    .rate-mobile-card .value { font-size: 0.95rem; color: #333; }
+
+    .btn-action { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.85rem; }
+
+    .rate-value { font-weight: 700; color: #f57c00; font-size: 1.05rem; }
+
+    .history-card { max-height: 520px; overflow-y: auto; }
+    .history-card::-webkit-scrollbar { width: 6px; }
+    .history-card::-webkit-scrollbar-thumb { background: #667eea; border-radius: 4px; }
+
+    .search-box { position: relative; }
+    .search-box .search-input { padding-left: 40px; border-radius: 25px; border: 2px solid #e0e0e0; }
+    .search-box .search-input:focus { border-color: #667eea; }
+    .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999; }
+
+    .highlight { background: #fff59d; font-weight: bold; padding: 0 2px; border-radius: 2px; }
+    .no-results { text-align: center; padding: 40px 20px; color: #999; }
+    .no-results i { font-size: 3rem; display: block; margin-bottom: 10px; }
+
+    .mode-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-left: 10px; }
+    .mode-edit { background: #fff3e0; color: #f57c00; }
+
+    .date-warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        color: #856404;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        margin-top: 6px;
+        display: none;
+    }
+    .date-warning.show { display: block; }
+
+    .is-invalid-custom {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220,53,69,0.15) !important;
+    }
+
+    .month-badge {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    input[type="month"] { font-weight: 500; }
+
+    /* ============ FAST TOP-RIGHT TOAST NOTIFICATION (1.8s) ============ */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+    }
+    .custom-toast {
+        min-width: 280px;
+        max-width: 380px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        color: #fff;
+        font-weight: 500;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        pointer-events: auto;
+        animation: slideIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    .custom-toast.hide {
+        animation: slideOut 0.25s ease-in forwards;
+    }
+    .custom-toast.success { background: linear-gradient(135deg, #10b981, #059669); }
+    .custom-toast.error   { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .custom-toast.info    { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .custom-toast.warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .custom-toast i.toast-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .custom-toast .toast-msg { flex: 1; font-size: 0.88rem; line-height: 1.3; }
+    .custom-toast .toast-close {
+        background: none; border: none; color: #fff; cursor: pointer;
+        font-size: 1rem; opacity: 0.8; padding: 0;
+    }
+    .custom-toast .toast-close:hover { opacity: 1; }
+    .custom-toast .toast-progress {
+        position: absolute; bottom: 0; left: 0; height: 3px;
+        background: rgba(255,255,255,0.6); animation: toastProgress 1.8s linear forwards;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(110%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(110%); opacity: 0; }
+    }
+    @keyframes toastProgress {
+        from { width: 100%; }
+        to { width: 0%; }
+    }
+
+    @media (max-width: 576px) {
+        .toast-container { top: 12px; right: 12px; left: 12px; }
+        .custom-toast { min-width: 100%; max-width: 100%; }
+    }
+</style>
+
+<!-- Top Right Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Form -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3 p-md-4">
+        <h5 class="mb-3 fw-bold">
+            <i class="bi bi-droplet-half text-warning"></i> Fat Rate Entry
+            <span id="modeBadge"></span>
+        </h5>
+        <form id="fatForm">
+            <input type="hidden" id="rateId" value="">
+
+            <div class="row g-3">
+                <div class="col-lg-6 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Month & Year <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+                        <input type="month" class="form-control" id="rateMonthYear" value="{{ current_month_year }}" required>
+                    </div>
+                    <small class="text-muted">Month & Year select karein</small>
+                    <div class="date-warning" id="dateWarning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span id="dateWarningText"></span>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Rate <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-currency-rupee"></i></span>
+                        <input type="number" step="0.01" min="1" class="form-control" id="rateValue" placeholder="Enter fat rate" required>
+                        <span class="input-group-text">Rs</span>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex gap-2 mt-3 flex-wrap">
+                    <button type="submit" class="btn btn-gradient flex-fill" id="saveBtn">
+                        <i class="bi bi-check-circle"></i> Save Rate
+                    </button>
+                    <button type="button" class="btn btn-secondary flex-fill" onclick="resetForm()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 pb-2 px-3 px-md-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history text-warning"></i> Fat Rate History</h5>
+            <div class="search-box" style="min-width:250px;">
+                <i class="bi bi-search"></i>
+                <input type="text" class="form-control form-control-sm search-input" id="searchInput" placeholder="Search by month, year or rate...">
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-3 p-md-4 history-card">
+        <div id="historyBody">
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        </div>
+        <div id="resultCount" class="text-muted small mt-2 text-end"></div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Kya aap waqai is Fat Rate ko delete karna chahte hain?</p>
+                <div id="deleteInfo" class="alert alert-warning mb-0 small"></div>
+                <small class="text-muted d-block mt-2">Delete karne ke baad is month par naya rate enter kiya ja sakega.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="bi bi-trash3"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% csrf_token %}
+<script>
+    const FAT_URL = "{% url 'fat_rate' %}";
+    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const CURRENT_MONTH_YEAR = "{{ current_month_year }}";
+
+    let searchTimeout = null;
+    let checkTimeout = null;
+    let deleteId = null;
+    let hasDuplicate = false;
+
+    // ============ TOP-RIGHT TOAST (1.8s auto dismiss) ============
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const icons = {
+            success: 'bi-check-circle-fill',
+            error: 'bi-x-circle-fill',
+            info: 'bi-info-circle-fill',
+            warning: 'bi-exclamation-triangle-fill'
+        };
+        const toast = document.createElement('div');
+        toast.className = `custom-toast ${type}`;
+        toast.innerHTML = `
+            <i class="bi ${icons[type] || icons.info} toast-icon"></i>
+            <div class="toast-msg">${message}</div>
+            <button class="toast-close" onclick="this.parentElement.remove()"><i class="bi bi-x-lg"></i></button>
+            <div class="toast-progress"></div>
+        `;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('hide');
+            setTimeout(() => toast.remove(), 250);
+        }, 1800);
+    }
+
+    // ============ RESET FORM ============
+    function resetForm() {
+        document.getElementById('fatForm').reset();
+        document.getElementById('rateId').value = '';
+        document.getElementById('rateMonthYear').value = CURRENT_MONTH_YEAR;
+        document.getElementById('modeBadge').innerHTML = '';
+        document.getElementById('saveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Save Rate';
+        clearWarning();
+        checkDuplicate();
+    }
+
+    // ============ LIVE DUPLICATE CHECK ============
+    function clearWarning() {
+        document.getElementById('dateWarning').classList.remove('show');
+        document.getElementById('rateMonthYear').classList.remove('is-invalid-custom');
+        hasDuplicate = false;
+    }
+
+    function checkDuplicate() {
+        const monthYear = document.getElementById('rateMonthYear').value;
+        const excludeId = document.getElementById('rateId').value;
+
+        if (!monthYear) { clearWarning(); return; }
+
+        let url = `${FAT_URL}?action=check_duplicate&month_year=${encodeURIComponent(monthYear)}`;
+        if (excludeId) url += `&exclude_id=${excludeId}`;
+
+        fetch(url)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success && res.exists) {
+                    hasDuplicate = true;
+                    document.getElementById('rateMonthYear').classList.add('is-invalid-custom');
+                    document.getElementById('dateWarningText').innerHTML =
+                        `Rate already exists for <strong>${res.label}</strong> (Rs ${res.existing_rate.toFixed(2)}). Please choose another month or edit/delete existing.`;
+                    document.getElementById('dateWarning').classList.add('show');
+                } else {
+                    clearWarning();
+                }
+            })
+            .catch(() => clearWarning());
+    }
+
+    document.getElementById('rateMonthYear').addEventListener('change', () => {
+        clearTimeout(checkTimeout);
+        checkTimeout = setTimeout(checkDuplicate, 150);
+    });
+
+    // ============ SAVE / UPDATE ============
+    document.getElementById('fatForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (hasDuplicate) {
+            showToast('Is month/year ka rate pehle se mojood hai!', 'error');
+            document.getElementById('rateMonthYear').focus();
+            return;
+        }
+
+        const rateVal = document.getElementById('rateValue').value;
+        if (!rateVal || parseFloat(rateVal) <= 0) {
+            showToast('Please enter a valid rate greater than 0', 'error');
+            document.getElementById('rateValue').focus();
+            return;
+        }
+
+        const payload = {
+            id: document.getElementById('rateId').value || null,
+            month_year: document.getElementById('rateMonthYear').value,
+            rate: rateVal,
+        };
+
+        const btn = document.getElementById('saveBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+
+        fetch(`${FAT_URL}?action=save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+
+            if (res.success) {
+                showToast(res.message, 'success');
+                resetForm();
+                loadList(document.getElementById('searchInput').value.trim());
+            } else {
+                showToast(res.message || 'Save failed', 'error');
+                if (res.duplicate) {
+                    document.getElementById('rateMonthYear').classList.add('is-invalid-custom');
+                    document.getElementById('rateMonthYear').focus();
+                }
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            showToast('Network error: ' + err, 'error');
+        });
+    });
+
+    // ============ LOAD LIST ============
+    function loadList(search = '') {
+        const body = document.getElementById('historyBody');
+        body.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>`;
+
+        fetch(`${FAT_URL}?action=list&search=${encodeURIComponent(search)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    renderList(res.data, search);
+                } else {
+                    body.innerHTML = `<div class="no-results"><i class="bi bi-exclamation-circle"></i>${res.message}</div>`;
+                }
+            })
+            .catch(() => {
+                body.innerHTML = `<div class="no-results"><i class="bi bi-wifi-off"></i>Network error</div>`;
+            });
+    }
+
+    // ============ RENDER ============
+    function renderList(list, searchTerm = '') {
+        const body = document.getElementById('historyBody');
+        const countEl = document.getElementById('resultCount');
+
+        if (!list.length) {
+            body.innerHTML = `<div class="no-results"><i class="bi bi-inbox"></i><p class="mb-0">${searchTerm ? 'No matching rates found' : 'No fat rates saved yet'}</p></div>`;
+            countEl.textContent = '';
+            return;
+        }
+
+        countEl.textContent = `Showing ${list.length} ${list.length === 1 ? 'record' : 'records'}`;
+
+        const highlight = (text) => {
+            if (text === null || text === undefined) return '-';
+            if (!searchTerm) return text;
+            const regex = new RegExp('(' + searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            return String(text).replace(regex, '<span class="highlight">$1</span>');
+        };
+
+        // Desktop Table
+        let tbl = `<div class="d-none d-md-block"><div class="table-responsive"><table class="table table-hover table-bordered align-middle mb-0">
+            <thead style="background:linear-gradient(135deg,#667eea,#764ba2);"><tr class="text-white">
+                <th style="width:60px;">#</th><th>Month / Year</th><th>Rate</th><th class="text-center" style="width:120px;">Action</th>
+            </tr></thead><tbody>`;
+
+        list.forEach((f, i) => {
+            tbl += `<tr>
+                <td class="fw-bold text-muted">${i+1}</td>
+                <td><i class="bi bi-calendar-event text-warning me-1"></i><span class="month-badge">${highlight(f.label)}</span></td>
+                <td><span class="rate-value">Rs ${highlight(f.rate.toFixed(2))}</span></td>
+                <td class="text-center">
+                    <button class="btn btn-warning btn-action text-white me-1" title="Edit" onclick="editItem(${f.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-danger btn-action" title="Delete" onclick="askDelete(${f.id}, '${f.label}', ${f.rate})"><i class="bi bi-trash3"></i></button>
+                </td>
+            </tr>`;
+        });
+        tbl += `</tbody></table></div></div>`;
+
+        // Mobile Cards
+        let mob = `<div class="d-md-none">`;
+        list.forEach(f => {
+            mob += `<div class="rate-mobile-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="label">Month / Year</span>
+                        <div class="value fw-bold mt-1"><span class="month-badge">${highlight(f.label)}</span></div>
+                    </div>
+                    <div class="text-end">
+                        <span class="label">Rate</span>
+                        <div class="rate-value">Rs ${highlight(f.rate.toFixed(2))}</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-warning btn-sm text-white flex-fill" onclick="editItem(${f.id})"><i class="bi bi-pencil"></i> Edit</button>
+                    <button class="btn btn-danger btn-sm flex-fill" onclick="askDelete(${f.id}, '${f.label}', ${f.rate})"><i class="bi bi-trash3"></i> Delete</button>
+                </div>
+            </div>`;
+        });
+        mob += `</div>`;
+
+        body.innerHTML = tbl + mob;
+    }
+
+    // ============ EDIT ============
+    function editItem(id) {
+        fetch(`${FAT_URL}?action=get&id=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) { showToast(res.message, 'error'); return; }
+                const d = res.data;
+                document.getElementById('rateId').value = d.id;
+                document.getElementById('rateMonthYear').value = d.month_year;
+                document.getElementById('rateValue').value = d.rate;
+
+                document.getElementById('modeBadge').innerHTML = '<span class="mode-badge mode-edit"><i class="bi bi-pencil"></i> Edit Mode</span>';
+                document.getElementById('saveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Update Rate';
+
+                clearWarning();
+                checkDuplicate();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                showToast('Edit mode activated', 'info');
+            })
+            .catch(() => showToast('Failed to load record', 'error'));
+    }
+
+    // ============ DELETE ============
+    function askDelete(id, label, rate) {
+        deleteId = id;
+        document.getElementById('deleteInfo').innerHTML =
+            `<strong>Month/Year:</strong> ${label} <br><strong>Rate:</strong> Rs ${parseFloat(rate).toFixed(2)}`;
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (!deleteId) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Deleting...';
+
+        fetch(`${FAT_URL}?action=delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ id: deleteId })
+        })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash3"></i> Delete';
+            bootstrap.Modal.getInstance(document.getElementById('deleteModal'))?.hide();
+
+            if (res.success) {
+                showToast(res.message, 'success');
+                loadList(document.getElementById('searchInput').value.trim());
+                checkDuplicate();
+
+                // Form reset agar active edit wala record delete hua ho
+                if (document.getElementById('rateId').value == deleteId) {
+                    resetForm();
+                }
+            } else {
+                showToast(res.message, 'error');
+            }
+            deleteId = null;
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash3"></i> Delete';
+            showToast('Network error: ' + err, 'error');
+        });
+    });
+
+    // ============ REAL-TIME SEARCH ============
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const term = this.value.trim();
+        searchTimeout = setTimeout(() => loadList(term), 250);
+    });
+
+    // ============ ON LOAD ============
+    loadList();
+    checkDuplicate();
+</script>
+{% endblock %}

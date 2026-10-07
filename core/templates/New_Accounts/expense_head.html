@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+
+{% block title %}Expense Head - Politory{% endblock %}
+
+{% block content %}
+<style>
+    .btn-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; }
+    .btn-gradient:hover { background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%); color: #fff; }
+    .card { border-radius: 1rem !important; }
+    .form-control:focus, .form-select:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+
+    .expense-mobile-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 15px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .expense-mobile-card .label { font-size: 0.75rem; color: #888; font-weight: 600; text-transform: uppercase; }
+    .expense-mobile-card .value { font-size: 0.95rem; color: #333; word-break: break-word; }
+
+    .btn-action { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.85rem; }
+
+    .code-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff; padding: 3px 10px; border-radius: 12px;
+        font-size: 0.75rem; font-weight: 700; font-family: monospace;
+    }
+
+    .modal-body { max-height: 70vh; overflow-y: auto; }
+    .modal-body::-webkit-scrollbar { width: 8px; }
+    .modal-body::-webkit-scrollbar-thumb { background: #667eea; border-radius: 4px; }
+
+    .search-box { position: relative; }
+    .search-box .search-input { padding-left: 40px; border-radius: 25px; border: 2px solid #e0e0e0; }
+    .search-box .search-input:focus { border-color: #667eea; }
+    .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999; }
+
+    .highlight { background: yellow; font-weight: bold; }
+    .no-results { text-align: center; padding: 40px 20px; color: #999; }
+    .no-results i { font-size: 3rem; display: block; margin-bottom: 10px; }
+
+    .mode-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-left: 10px; }
+    .mode-view { background: #e3f2fd; color: #1976d2; }
+    .mode-edit { background: #fff3e0; color: #f57c00; }
+
+    #expenseCode {
+        background: #f0f4ff !important;
+        color: #667eea;
+        font-weight: 700;
+        font-family: monospace;
+        letter-spacing: 1px;
+        cursor: not-allowed;
+    }
+
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+</style>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h3 class="mb-0 fw-semibold">
+        <i class="bi bi-cash-stack"></i> Expense Head Management
+        <span id="modeBadge"></span>
+    </h3>
+    <button class="btn btn-gradient" onclick="openHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
+        <i class="bi bi-clock-history"></i> Show History
+    </button>
+</div>
+
+<!-- Form -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-3 p-md-4">
+        <form id="expenseForm">
+            <input type="hidden" id="expenseId" value="">
+
+            <div class="row g-3">
+                <!-- Auto-generated Code -->
+                <div class="col-lg-4 col-md-4 col-12">
+                    <label class="form-label fw-semibold">Code <small class="text-muted">(auto)</small></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                        <input type="text" class="form-control" id="expenseCode" readonly placeholder="001">
+                    </div>
+                </div>
+
+                <div class="col-lg-8 col-md-8 col-12">
+                    <label class="form-label fw-semibold">Expense Head Name <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                        <input type="text" class="form-control" id="expenseName" placeholder="e.g. Office Rent, Ghar Ka Rashan, Electricity Bill" required>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex gap-2 mt-3 flex-wrap">
+                    <button type="submit" class="btn btn-gradient flex-fill" id="saveBtn">
+                        <i class="bi bi-check-circle"></i> Save Expense Head
+                    </button>
+                    <button type="button" class="btn btn-secondary flex-fill" onclick="resetForm()">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> Expense Heads History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="search-box mb-3">
+                    <i class="bi bi-search"></i>
+                    <input type="text" class="form-control search-input" id="searchInput" placeholder="Search by code or name...">
+                </div>
+                <div id="historyBody">
+                    <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+                </div>
+                <div id="resultCount" class="text-muted small mt-2 text-end"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete <strong id="deleteName"></strong>?
+                <br><small class="text-muted">This action cannot be undone.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="bi bi-trash3"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{% csrf_token %}
+<script>
+    const EXPENSE_URL = "{% url 'expense_head' %}";
+    const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    let searchTimeout = null;
+    let deleteId = null;
+
+    // ============ TOAST ============
+    function showToast(message, type = 'success') {
+        const bg = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+        const icon = type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-x-circle' : 'bi-info-circle';
+        const html = `
+            <div class="toast align-items-center text-white ${bg} border-0 show" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body"><i class="bi ${icon}"></i> ${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>`;
+        const c = document.getElementById('toastContainer');
+        c.insertAdjacentHTML('beforeend', html);
+        setTimeout(() => { c.firstElementChild?.remove(); }, 3500);
+    }
+
+    // ============ NEXT CODE PREVIEW ============
+    function loadNextCode() {
+        fetch(`${EXPENSE_URL}?action=next_code`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) document.getElementById('expenseCode').value = res.code;
+            })
+            .catch(() => { document.getElementById('expenseCode').value = ''; });
+    }
+
+    // ============ RESET ============
+    function resetForm() {
+        document.getElementById('expenseForm').reset();
+        document.getElementById('expenseId').value = '';
+        document.getElementById('modeBadge').innerHTML = '';
+        document.getElementById('saveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Save Expense Head';
+        setFormReadonly(false);
+        loadNextCode();
+    }
+
+    function setFormReadonly(readonly) {
+        document.getElementById('expenseName').readOnly = readonly;
+        document.getElementById('saveBtn').style.display = readonly ? 'none' : '';
+    }
+
+    // ============ SAVE / UPDATE ============
+    document.getElementById('expenseForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const payload = {
+            id: document.getElementById('expenseId').value || null,
+            name: document.getElementById('expenseName').value,
+        };
+
+        fetch(`${EXPENSE_URL}?action=save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) { showToast(res.message, 'success'); resetForm(); }
+            else showToast(res.message || 'Save failed', 'error');
+        })
+        .catch(err => showToast('Network error: ' + err, 'error'));
+    });
+
+    // ============ OPEN HISTORY ============
+    function openHistory() {
+        document.getElementById('searchInput').value = '';
+        loadList('');
+    }
+
+    function loadList(search = '') {
+        const body = document.getElementById('historyBody');
+        body.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>`;
+
+        fetch(`${EXPENSE_URL}?action=list&search=${encodeURIComponent(search)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) renderList(res.data, search);
+                else body.innerHTML = `<div class="no-results"><i class="bi bi-exclamation-circle"></i>${res.message}</div>`;
+            })
+            .catch(() => {
+                body.innerHTML = `<div class="no-results"><i class="bi bi-wifi-off"></i>Network error</div>`;
+            });
+    }
+
+    // ============ RENDER ============
+    function renderList(list, searchTerm = '') {
+        const body = document.getElementById('historyBody');
+        const countEl = document.getElementById('resultCount');
+
+        if (!list.length) {
+            body.innerHTML = `<div class="no-results"><i class="bi bi-inbox"></i><p class="mb-0">${searchTerm ? 'No matching records found' : 'No expense heads saved yet'}</p></div>`;
+            countEl.textContent = '';
+            return;
+        }
+
+        countEl.textContent = `Showing ${list.length} ${list.length === 1 ? 'record' : 'records'}`;
+
+        const highlight = (text) => {
+            if (!text) return '-';
+            if (!searchTerm) return text;
+            const regex = new RegExp('(' + searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+            return String(text).replace(regex, '<span class="highlight">$1</span>');
+        };
+
+        // Desktop table
+        let tbl = `<div class="d-none d-md-block"><div class="table-responsive"><table class="table table-hover table-bordered align-middle mb-0">
+            <thead style="background:linear-gradient(135deg,#667eea,#764ba2);"><tr class="text-white">
+                <th>#</th><th>Code</th><th>Expense Head Name</th><th>Entry Date</th><th class="text-center" style="min-width:130px;">Action</th>
+            </tr></thead><tbody>`;
+
+        list.forEach((e, i) => {
+            tbl += `<tr>
+                <td class="fw-bold">${i+1}</td>
+                <td><span class="code-badge">${highlight(e.code)}</span></td>
+                <td><i class="bi bi-cash-stack text-primary me-1"></i>${highlight(e.name)}</td>
+                <td><small class="text-muted">${e.entry_date || '-'}</small></td>
+                <td class="text-center">
+                    <button class="btn btn-info btn-action text-white me-1" title="View" onclick="viewItem(${e.id})"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-warning btn-action text-white me-1" title="Edit" onclick="editItem(${e.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-danger btn-action" title="Delete" onclick="askDelete(${e.id}, '${(e.name||'').replace(/'/g,"\\'")}')"><i class="bi bi-trash3"></i></button>
+                </td></tr>`;
+        });
+        tbl += `</tbody></table></div></div>`;
+
+        // Mobile cards
+        let mob = `<div class="d-md-none">`;
+        list.forEach(e => {
+            mob += `<div class="expense-mobile-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="code-badge mb-1 d-inline-block">${highlight(e.code)}</span>
+                        <div class="value fw-bold mt-1"><i class="bi bi-cash-stack text-primary me-1"></i>${highlight(e.name)}</div>
+                    </div>
+                </div>
+                <div class="mb-3"><span class="label">Entry Date</span><div class="value"><small>${e.entry_date || '-'}</small></div></div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-info btn-sm text-white flex-fill" onclick="viewItem(${e.id})"><i class="bi bi-eye"></i> View</button>
+                    <button class="btn btn-warning btn-sm text-white flex-fill" onclick="editItem(${e.id})"><i class="bi bi-pencil"></i> Edit</button>
+                    <button class="btn btn-danger btn-sm flex-fill" onclick="askDelete(${e.id}, '${(e.name||'').replace(/'/g,"\\'")}')"><i class="bi bi-trash3"></i> Delete</button>
+                </div>
+            </div>`;
+        });
+        mob += `</div>`;
+
+        body.innerHTML = tbl + mob;
+    }
+
+    // ============ VIEW / EDIT ============
+    function loadIntoForm(id, mode) {
+        fetch(`${EXPENSE_URL}?action=get&id=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) { showToast(res.message, 'error'); return; }
+                const d = res.data;
+                document.getElementById('expenseId').value = d.id;
+                document.getElementById('expenseCode').value = d.code;
+                document.getElementById('expenseName').value = d.name;
+
+                const badge = document.getElementById('modeBadge');
+                if (mode === 'view') {
+                    badge.innerHTML = '<span class="mode-badge mode-view"><i class="bi bi-eye"></i> View Mode</span>';
+                    setFormReadonly(true);
+                } else {
+                    badge.innerHTML = '<span class="mode-badge mode-edit"><i class="bi bi-pencil"></i> Edit Mode</span>';
+                    setFormReadonly(false);
+                    document.getElementById('saveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Update Expense Head';
+                }
+
+                bootstrap.Modal.getInstance(document.getElementById('historyModal'))?.hide();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+    }
+
+    function viewItem(id) { loadIntoForm(id, 'view'); }
+    function editItem(id) { loadIntoForm(id, 'edit'); }
+
+    // ============ DELETE ============
+    function askDelete(id, name) {
+        deleteId = id;
+        document.getElementById('deleteName').textContent = name || 'this expense head';
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (!deleteId) return;
+        fetch(`${EXPENSE_URL}?action=delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ id: deleteId })
+        })
+        .then(r => r.json())
+        .then(res => {
+            bootstrap.Modal.getInstance(document.getElementById('deleteModal'))?.hide();
+            if (res.success) {
+                showToast(res.message, 'success');
+                loadList(document.getElementById('searchInput').value.trim());
+            } else showToast(res.message, 'error');
+            deleteId = null;
+        });
+    });
+
+    // ============ REAL-TIME SEARCH ============
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const term = this.value.trim();
+        searchTimeout = setTimeout(() => loadList(term), 300);
+    });
+
+    // ============ ON LOAD ============
+    loadNextCode();
+</script>
+{% endblock %}

@@ -1,0 +1,1520 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MJ Poultries Group - Login</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --navy: #061a35;
+            --navy-2: #09294d;
+            --navy-3: #0d3765;
+            --blue: #2563eb;
+            --white: #ffffff;
+            --text: #172033;
+            --muted: #7a8799;
+            --border: #dfe6ef;
+        }
+
+        html, body {
+            width: 100%;
+            min-height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+
+            background:
+                radial-gradient(
+                    circle at 12% 10%,
+                    rgba(37, 99, 235, .20),
+                    transparent 30%
+                ),
+                radial-gradient(
+                    circle at 90% 85%,
+                    rgba(30, 64, 175, .18),
+                    transparent 35%
+                ),
+                linear-gradient(
+                    135deg,
+                    #020c19 0%,
+                    #061a35 45%,
+                    #0a2d56 100%
+                );
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 28px;
+
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ==========================================
+           BACKGROUND LOGOS
+        ========================================== */
+
+        .background-pattern {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .pattern-logo {
+            position: absolute;
+
+            width: 82px;
+            height: 82px;
+
+            object-fit: contain;
+
+            opacity: .032;
+
+            filter:
+                grayscale(1)
+                brightness(2.8);
+
+            transform: rotate(-10deg);
+        }
+
+        /* RIGHT */
+
+        .p1  { right: 2%;  top: 2%; }
+        .p2  { right: 12%; top: 13%; }
+        .p3  { right: 2%;  top: 25%; }
+        .p4  { right: 13%; top: 37%; }
+        .p5  { right: 2%;  top: 49%; }
+        .p6  { right: 13%; top: 61%; }
+        .p7  { right: 2%;  top: 73%; }
+        .p8  { right: 13%; top: 85%; }
+        .p9  { right: 2%;  top: 94%; }
+
+        /* LEFT */
+
+        .p10 { left: 2%;  top: 3%; }
+        .p11 { left: 13%; top: 15%; }
+        .p12 { left: 2%;  top: 27%; }
+        .p13 { left: 13%; top: 39%; }
+        .p14 { left: 2%;  top: 51%; }
+        .p15 { left: 13%; top: 63%; }
+        .p16 { left: 2%;  top: 75%; }
+        .p17 { left: 13%; top: 87%; }
+        .p18 { left: 2%;  top: 96%; }
+
+        /* TOP */
+
+        .p19 { left: 25%;  top: 2%; }
+        .p20 { left: 39%;  top: 4%; }
+        .p21 { right: 26%; top: 2%; }
+        .p22 { right: 40%; top: 4%; }
+
+        /* BOTTOM */
+
+        .p23 { left: 25%;  bottom: 1%; }
+        .p24 { left: 39%;  bottom: 3%; }
+        .p25 { right: 26%; bottom: 1%; }
+        .p26 { right: 40%; bottom: 3%; }
+
+        /* ==========================================
+           LOGIN MAIN CONTAINER
+        ========================================== */
+
+        .login-wrapper {
+            position: relative;
+            z-index: 2;
+
+            width: min(850px, 100%);
+
+            height: min(
+                625px,
+                calc(100vh - 56px)
+            );
+
+            min-height: 545px;
+
+            display: grid;
+            grid-template-columns: 1.08fr .92fr;
+
+            background: #ffffff;
+
+            border-radius: 22px;
+            overflow: hidden;
+
+            border: 1px solid rgba(255,255,255,.18);
+
+            box-shadow:
+                0 28px 75px rgba(0,5,15,.42);
+        }
+
+        /* ==========================================
+           LEFT CAROUSEL
+        ========================================== */
+
+        .visual-section {
+            position: relative;
+            overflow: hidden;
+            background: var(--navy);
+        }
+
+        .carousel {
+            position: absolute;
+            inset: 0;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+
+            opacity: 0;
+            visibility: hidden;
+
+            background-size: cover;
+            background-position: center;
+
+            transform: scale(1.03);
+
+            transition:
+                opacity 1s ease,
+                visibility 1s ease,
+                transform 5s ease;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1.08);
+        }
+
+.slide-1,
+.slide-2,
+.slide-3 {
+    background-image:
+        linear-gradient(
+            180deg,
+            rgba(3,16,34,.15),
+            rgba(3,18,39,.48) 48%,
+            rgba(3,18,39,.96)
+        ),
+        url("{% static 'login1.jpeg' %}");
+}
+        /* ==========================================
+           CAROUSEL TOP
+        ========================================== */
+
+        .visual-top {
+            position: absolute;
+            z-index: 10;
+
+            top: 25px;
+            left: 27px;
+            right: 27px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 10px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+
+            gap: 8px;
+
+            color: white;
+        }
+
+        .brand-icon {
+            width: 35px;
+            height: 35px;
+
+            flex-shrink: 0;
+
+            border-radius: 10px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: rgba(255,255,255,.11);
+
+            border:
+                1px solid
+                rgba(255,255,255,.18);
+
+            backdrop-filter: blur(8px);
+        }
+
+        .brand-name {
+            color: white;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+        /* ==========================================
+           POWERED BY - BIG & PROMINENT
+        ========================================== */
+
+        .powered-by {
+            display: flex;
+            align-items: center;
+
+            gap: 9px;
+
+            padding: 7px 9px 7px 11px;
+
+            border-radius: 12px;
+
+            background:
+                rgba(2, 15, 33, .62);
+
+            border:
+                1px solid
+                rgba(255,255,255,.21);
+
+            backdrop-filter: blur(11px);
+            -webkit-backdrop-filter: blur(11px);
+
+            box-shadow:
+                0 6px 18px
+                rgba(0,0,0,.15);
+        }
+
+        .powered-text {
+            color:
+                rgba(255,255,255,.78);
+
+            font-size: 10px;
+
+            line-height: 1.3;
+
+            text-align: right;
+
+            white-space: nowrap;
+        }
+
+        .powered-text strong {
+            display: block;
+
+            color: #ffffff;
+
+            font-size: 13px;
+
+            line-height: 1.25;
+
+            font-weight: 800;
+
+            letter-spacing: .1px;
+        }
+
+        .powered-by img {
+            width: 37px;
+            height: 37px;
+
+            flex-shrink: 0;
+
+            object-fit: contain;
+
+            padding: 3px;
+
+            border-radius: 8px;
+
+            background: #ffffff;
+        }
+
+        /* ==========================================
+           CAROUSEL CONTENT
+        ========================================== */
+
+        .visual-content {
+            position: absolute;
+            z-index: 10;
+
+            left: 31px;
+            right: 31px;
+            bottom: 78px;
+
+            color: white;
+        }
+
+        .small-title {
+            display: inline-block;
+
+            padding: 6px 10px;
+
+            border-radius: 30px;
+
+            color: #dbeafe;
+
+            background:
+                rgba(255,255,255,.10);
+
+            border:
+                1px solid
+                rgba(255,255,255,.15);
+
+            font-size: 8px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            margin-bottom: 13px;
+        }
+
+        .visual-content h2 {
+            color: white;
+
+            max-width: 360px;
+
+            font-size:
+                clamp(
+                    25px,
+                    3vw,
+                    36px
+                );
+
+            line-height: 1.12;
+
+            font-weight: 750;
+
+            letter-spacing: -.7px;
+        }
+
+        .visual-content p {
+            max-width: 350px;
+
+            color: #bdccdd;
+
+            font-size: 11px;
+
+            line-height: 1.65;
+
+            margin-top: 12px;
+        }
+
+        /* ==========================================
+           DOTS
+        ========================================== */
+
+        .carousel-dots {
+            position: absolute;
+
+            z-index: 11;
+
+            left: 31px;
+            bottom: 33px;
+
+            display: flex;
+
+            gap: 6px;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+
+            padding: 0;
+
+            border: none;
+            border-radius: 20px;
+
+            background:
+                rgba(255,255,255,.35);
+
+            cursor: pointer;
+
+            transition: .3s;
+        }
+
+        .dot.active {
+            width: 25px;
+            background: white;
+        }
+
+        /* ==========================================
+           LOGIN SECTION
+        ========================================== */
+
+        .login-section {
+            position: relative;
+
+            padding: 28px 34px;
+
+            background: #ffffff;
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* ==========================================
+           MJ LOGO CENTER
+        ========================================== */
+
+        .logo-container {
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            text-align: center;
+
+            margin-bottom: 16px;
+        }
+
+        .logo-container img {
+            width: 72px;
+            height: 72px;
+
+            object-fit: cover;
+
+            border-radius: 17px;
+
+            border:
+                1px solid
+                #e1e7ef;
+
+            background: white;
+
+            box-shadow:
+                0 8px 22px
+                rgba(6,26,53,.13);
+        }
+
+        /* ==========================================
+           LOGIN HEADING
+        ========================================== */
+
+        .login-heading {
+            text-align: center;
+
+            margin-bottom: 21px;
+        }
+
+        .welcome {
+            color: #2563eb;
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            letter-spacing: 1.4px;
+
+            text-transform: uppercase;
+
+            margin-bottom: 5px;
+        }
+
+        .login-heading h1 {
+            color: var(--navy);
+
+            font-size: 23px;
+
+            font-weight: 750;
+
+            letter-spacing: -.4px;
+        }
+
+        .login-heading p {
+            max-width: 270px;
+
+            margin: 6px auto 0;
+
+            color: var(--muted);
+
+            font-size: 10px;
+
+            line-height: 1.55;
+        }
+
+        /* ==========================================
+           ERROR
+        ========================================== */
+
+        .error-msg {
+            color: #b42318;
+
+            background: #fff2f0;
+
+            border:
+                1px solid
+                #ffd5d1;
+
+            padding: 9px 11px;
+
+            border-radius: 8px;
+
+            margin-bottom: 13px;
+
+            font-size: 10px;
+
+            font-weight: 600;
+
+            text-align: center;
+        }
+
+        /* ==========================================
+           FORM
+        ========================================== */
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+
+            color: #344054;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            margin-bottom: 6px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+
+            left: 13px;
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            width: 17px;
+            height: 17px;
+
+            color: #8592a5;
+
+            pointer-events: none;
+        }
+
+        .form-group input {
+            width: 100%;
+            height: 44px;
+
+            padding:
+                0 12px
+                0 40px;
+
+            color: var(--navy);
+
+            background: #fbfcfe;
+
+            border:
+                1px solid
+                var(--border);
+
+            border-radius: 9px;
+
+            font-size: 11px;
+
+            outline: none;
+
+            transition: .2s;
+        }
+
+        .form-group input::placeholder {
+            color: #a4adba;
+        }
+
+        .form-group input:focus {
+            background: white;
+
+            border-color:
+                var(--navy);
+
+            box-shadow:
+                0 0 0 3px
+                rgba(6,26,53,.07);
+        }
+
+        /* ==========================================
+           LOGIN BUTTON
+        ========================================== */
+
+        .btn-login {
+            width: 100%;
+            height: 45px;
+
+            margin-top: 5px;
+
+            border: none;
+            border-radius: 9px;
+
+            color: white;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #061a35,
+                    #0b315d
+                );
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            cursor: pointer;
+
+            box-shadow:
+                0 9px 20px
+                rgba(6,26,53,.20);
+
+            transition: .25s;
+        }
+
+        .btn-login:hover {
+            transform:
+                translateY(-2px);
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #092544,
+                    #104173
+                );
+
+            box-shadow:
+                0 12px 24px
+                rgba(6,26,53,.26);
+        }
+
+        /* ==========================================
+           SECURITY
+        ========================================== */
+
+        .security-info {
+            display: flex;
+
+            justify-content: center;
+            align-items: center;
+
+            gap: 5px;
+
+            margin-top: 13px;
+
+            color: #98a2b3;
+
+            font-size: 8px;
+        }
+
+        .security-info svg {
+            width: 11px;
+            height: 11px;
+        }
+
+        /* ==========================================
+           FOOTER POWERED BY - LARGER
+        ========================================== */
+
+        .login-footer {
+            margin-top: 14px;
+            text-align: center;
+        }
+
+        .footer-powered {
+            display: flex;
+
+            justify-content: center;
+            align-items: center;
+
+            gap: 8px;
+
+            color: #65758a;
+
+            font-size: 11px;
+
+            font-weight: 600;
+
+            margin-bottom: 5px;
+        }
+
+        .footer-powered strong {
+            color: var(--navy);
+
+            font-size: 12px;
+
+            font-weight: 800;
+        }
+
+        .footer-powered img {
+            width: 30px;
+            height: 30px;
+
+            object-fit: contain;
+
+            border-radius: 6px;
+
+            padding: 2px;
+
+            border:
+                1px solid
+                #e5eaf0;
+
+            background: white;
+        }
+
+        .copyright {
+            color: #b0b7c2;
+
+            font-size: 7px;
+        }
+
+        /* ==========================================
+           TABLET
+        ========================================== */
+
+        @media (max-width: 900px) {
+
+            .login-wrapper {
+                width: min(790px,100%);
+
+                grid-template-columns:
+                    1fr 1fr;
+            }
+
+            .visual-top {
+                left: 20px;
+                right: 20px;
+            }
+
+            .brand-name {
+                display: none;
+            }
+
+            .powered-text {
+                font-size: 9px;
+            }
+
+            .powered-text strong {
+                font-size: 11px;
+            }
+
+            .powered-by img {
+                width: 33px;
+                height: 33px;
+            }
+
+            .visual-content {
+                left: 25px;
+                right: 25px;
+            }
+
+            .carousel-dots {
+                left: 25px;
+            }
+
+            .login-section {
+                padding: 27px;
+            }
+        }
+
+        /* ==========================================
+           MOBILE
+        ========================================== */
+
+        @media (max-width: 700px) {
+
+            body {
+                padding: 18px;
+            }
+
+            .login-wrapper {
+                width: 100%;
+
+                max-width: 410px;
+
+                height: auto;
+                min-height: auto;
+
+                display: block;
+
+                border-radius: 20px;
+            }
+
+            .visual-section {
+                display: none;
+            }
+
+            .login-section {
+                min-height: 550px;
+
+                padding: 34px 31px;
+            }
+
+            .pattern-logo {
+                width: 68px;
+                height: 68px;
+
+                opacity: .025;
+            }
+
+            .p19,
+            .p20,
+            .p21,
+            .p22,
+            .p23,
+            .p24,
+            .p25,
+            .p26 {
+                display: none;
+            }
+
+            .footer-powered {
+                font-size: 10px;
+            }
+
+            .footer-powered strong {
+                font-size: 11px;
+            }
+
+            .footer-powered img {
+                width: 28px;
+                height: 28px;
+            }
+        }
+
+        /* ==========================================
+           SMALL MOBILE
+        ========================================== */
+
+        @media (max-width: 480px) {
+
+            body {
+                padding: 13px;
+            }
+
+            .login-wrapper {
+                border-radius: 17px;
+            }
+
+            .login-section {
+                min-height: auto;
+
+                padding: 31px 21px;
+            }
+
+            .logo-container img {
+                width: 69px;
+                height: 69px;
+            }
+
+            .login-heading h1 {
+                font-size: 22px;
+            }
+
+            .form-group input {
+                height: 44px;
+            }
+
+            .btn-login {
+                height: 45px;
+            }
+        }
+
+        /* ==========================================
+           SHORT DESKTOP
+        ========================================== */
+
+        @media (max-height: 600px) and (min-width: 701px) {
+
+            body {
+                padding: 15px;
+            }
+
+            .login-wrapper {
+                height: calc(100vh - 30px);
+
+                min-height: 510px;
+            }
+
+            .login-section {
+                padding: 18px 30px;
+            }
+
+            .logo-container {
+                margin-bottom: 10px;
+            }
+
+            .logo-container img {
+                width: 57px;
+                height: 57px;
+            }
+
+            .login-heading {
+                margin-bottom: 13px;
+            }
+
+            .login-heading h1 {
+                font-size: 20px;
+            }
+
+            .form-group {
+                margin-bottom: 10px;
+            }
+
+            .security-info {
+                margin-top: 8px;
+            }
+
+            .login-footer {
+                margin-top: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ==========================================
+         BACKGROUND PROGRAMMING ZONE LOGOS
+    =========================================== -->
+
+    <div class="background-pattern">
+
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p1" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p2" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p3" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p4" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p5" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p6" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p7" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p8" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p9" alt="">
+
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p10" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p11" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p12" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p13" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p14" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p15" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p16" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p17" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p18" alt="">
+
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p19" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p20" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p21" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p22" alt="">
+
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p23" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p24" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p25" alt="">
+        <img src="{% static 'mylogo.png' %}" class="pattern-logo p26" alt="">
+
+    </div>
+
+
+    <!-- ==========================================
+         LOGIN CONTAINER
+    =========================================== -->
+
+    <div class="login-wrapper">
+
+
+        <!-- LEFT CAROUSEL -->
+
+        <div class="visual-section">
+
+            <div class="carousel">
+
+                <div class="slide slide-1 active"></div>
+
+                <div class="slide slide-2"></div>
+
+                <div class="slide slide-3"></div>
+
+            </div>
+
+
+            <!-- TOP BAR -->
+
+            <div class="visual-top">
+
+                <div class="brand">
+
+                    <div class="brand-icon">
+
+                        <svg
+                            width="17"
+                            height="17"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <rect
+                                x="3"
+                                y="3"
+                                width="18"
+                                height="18"
+                                rx="3"
+                            ></rect>
+
+                            <path
+                                d="M8 12h8M12 8v8"
+                            ></path>
+                        </svg>
+
+                    </div>
+
+                    <div class="brand-name">
+                        MJ Poultries Group
+                    </div>
+
+                </div>
+
+
+                <!-- POWERED BY -->
+
+                <div class="powered-by">
+
+                    <div class="powered-text">
+
+                        Powered by
+
+                        <strong>
+                            Programming Zone
+                        </strong>
+
+                    </div>
+
+                    <img
+                        src="{% static 'mylogo.png' %}"
+                        alt="Programming Zone"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- CAROUSEL TEXT -->
+
+            <div class="visual-content">
+
+                <div class="small-title">
+                    Smart Business Management
+                </div>
+
+                <h2 id="slideHeading">
+                    Technology that powers your business.
+                </h2>
+
+                <p id="slideText">
+                    Manage daily operations, sales,
+                    purchases and business performance
+                    through one secure platform.
+                </p>
+
+            </div>
+
+
+            <!-- DOTS -->
+
+            <div class="carousel-dots">
+
+                <button
+                    type="button"
+                    class="dot active"
+                    data-slide="0"
+                    aria-label="Slide 1"
+                ></button>
+
+                <button
+                    type="button"
+                    class="dot"
+                    data-slide="1"
+                    aria-label="Slide 2"
+                ></button>
+
+                <button
+                    type="button"
+                    class="dot"
+                    data-slide="2"
+                    aria-label="Slide 3"
+                ></button>
+
+            </div>
+
+        </div>
+
+
+        <!-- ======================================
+             LOGIN SIDE
+        ======================================= -->
+
+        <div class="login-section">
+
+
+            <!-- MJ POULTRIES LOGO -->
+
+            <div class="logo-container">
+
+                <img
+                    src="{% static 'logo.jfif' %}"
+                    alt="MJ Poultries Group"
+                >
+
+            </div>
+
+
+            <!-- HEADING -->
+
+            <div class="login-heading">
+
+                <div class="welcome">
+                    Welcome Back
+                </div>
+
+                <h1>
+                    Sign in to your account
+                </h1>
+
+                <p>
+                    Enter your credentials to access the
+                    MJ Poultries management dashboard.
+                </p>
+
+            </div>
+
+
+            <!-- ERROR -->
+
+            {% if error %}
+
+                <div class="error-msg">
+                    {{ error }}
+                </div>
+
+            {% endif %}
+
+
+            <!-- ==================================
+                 BACKEND FORM UNCHANGED
+            =================================== -->
+
+            <form method="POST">
+
+                {% csrf_token %}
+
+
+                <!-- USERNAME -->
+
+                <div class="form-group">
+
+                    <label for="username">
+                        Username
+                    </label>
+
+                    <div class="input-wrapper">
+
+                        <svg
+                            class="input-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                        >
+                            <path
+                                d="M20 21a8 8 0 0 0-16 0"
+                            ></path>
+
+                            <circle
+                                cx="12"
+                                cy="7"
+                                r="4"
+                            ></circle>
+                        </svg>
+
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            placeholder="Enter your username"
+                            autocomplete="username"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <!-- PASSWORD -->
+
+                <div class="form-group">
+
+                    <label for="password">
+                        Password
+                    </label>
+
+                    <div class="input-wrapper">
+
+                        <svg
+                            class="input-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                        >
+                            <rect
+                                x="4"
+                                y="10"
+                                width="16"
+                                height="11"
+                                rx="2"
+                            ></rect>
+
+                            <path
+                                d="M8 10V7a4 4 0 0 1 8 0v3"
+                            ></path>
+                        </svg>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="btn-login"
+                >
+                    Sign In
+                </button>
+
+            </form>
+
+
+            <!-- SECURITY -->
+
+            <div class="security-info">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
+                    <path
+                        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                    ></path>
+                </svg>
+
+                Secure access to your business data
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div class="login-footer">
+
+                <div class="footer-powered">
+
+                    <span>
+                        Powered by
+                        <strong>Programming Zone</strong>
+                    </span>
+
+                    <img
+                        src="{% static 'mylogo.png' %}"
+                        alt="Programming Zone"
+                    >
+
+                </div>
+
+                <div class="copyright">
+                    © MJ Poultries Group
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==========================================
+         CAROUSEL JS
+    =========================================== -->
+
+    <script>
+        document.addEventListener(
+            "DOMContentLoaded",
+            function () {
+
+                const slides =
+                    document.querySelectorAll(".slide");
+
+                const dots =
+                    document.querySelectorAll(".dot");
+
+                const heading =
+                    document.getElementById("slideHeading");
+
+                const text =
+                    document.getElementById("slideText");
+
+
+                const contents = [
+
+                    {
+                        heading:
+                            "Technology that powers your business.",
+
+                        text:
+                            "Manage daily operations, sales, purchases and business performance through one secure platform."
+                    },
+
+                    {
+                        heading:
+                            "Your business data, connected.",
+
+                        text:
+                            "Keep financial and operational information organized, accessible and easy to monitor."
+                    },
+
+                    {
+                        heading:
+                            "Built for smarter management.",
+
+                        text:
+                            "Track performance and manage daily workflows through a modern centralized business system."
+                    }
+
+                ];
+
+
+                let current = 0;
+                let carouselTimer;
+
+
+                function showSlide(index) {
+
+                    slides.forEach(
+                        function (slide) {
+                            slide.classList.remove("active");
+                        }
+                    );
+
+
+                    dots.forEach(
+                        function (dot) {
+                            dot.classList.remove("active");
+                        }
+                    );
+
+
+                    slides[index]
+                        .classList
+                        .add("active");
+
+
+                    dots[index]
+                        .classList
+                        .add("active");
+
+
+                    heading.textContent =
+                        contents[index].heading;
+
+
+                    text.textContent =
+                        contents[index].text;
+
+
+                    current = index;
+                }
+
+
+                function startCarousel() {
+
+                    clearInterval(
+                        carouselTimer
+                    );
+
+
+                    carouselTimer =
+                        setInterval(
+                            function () {
+
+                                const next =
+                                    (current + 1) %
+                                    slides.length;
+
+                                showSlide(next);
+
+                            },
+                            4500
+                        );
+                }
+
+
+                dots.forEach(
+                    function (dot) {
+
+                        dot.addEventListener(
+                            "click",
+                            function () {
+
+                                const index =
+                                    parseInt(
+                                        this.dataset.slide,
+                                        10
+                                    );
+
+                                showSlide(index);
+
+                                startCarousel();
+
+                            }
+                        );
+
+                    }
+                );
+
+
+                startCarousel();
+
+            }
+        );
+    </script>
+
+</body>
+</html>

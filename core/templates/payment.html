@@ -1,0 +1,888 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment - Politory{% endblock %}
+
+{% block content %}
+
+<!-- Bootstrap 5 -->
+<link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+>
+
+<!-- FontAwesome -->
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+>
+
+<style>
+    .payment-wrapper {
+        background-color: #f4f6f9;
+        padding: 20px 0;
+        min-height: 80vh;
+    }
+
+    .navbar-custom {
+        background-color: #1e293b;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        border-radius: 10px;
+    }
+
+    .payment-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #4b5563;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+
+    .table-responsive {
+        max-height: 500px;
+    }
+
+    .unpaid-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        white-space: nowrap;
+    }
+
+    .unpaid-table td {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .purchase-selected-box {
+        display: none;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 15px;
+    }
+
+    .amount-summary {
+        font-size: 0.82rem;
+        color: #64748b;
+    }
+
+    .highlight-row {
+        animation: highlightPaymentCard 2s ease;
+    }
+
+    @keyframes highlightPaymentCard {
+        0% {
+            background-color: #fff3cd;
+            transform: scale(1.005);
+        }
+
+        100% {
+            background-color: #ffffff;
+            transform: scale(1);
+        }
+    }
+
+    .modal-content {
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .remaining-badge {
+        min-width: 90px;
+        display: inline-block;
+    }
+
+    /* ✅ Advance label badge */
+    .advance-label {
+        display: none;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: #dbeafe;
+        color: #1e40af;
+        font-weight: 700;
+        margin-left: 6px;
+    }
+
+    /* ✅ Clear advance box */
+    #clearAdvanceBox {
+        display: none;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 8px 12px;
+    }
+
+    @media (max-width: 767px) {
+        .payment-wrapper {
+            padding-top: 10px;
+        }
+
+        .navbar-custom {
+            border-radius: 8px;
+        }
+
+        .navbar-custom .navbar-brand span {
+            font-size: 0.95rem;
+        }
+
+        .navbar-custom .btn {
+            font-size: 0.72rem;
+            padding: 7px 9px !important;
+        }
+
+        .unpaid-table {
+            font-size: 0.78rem;
+        }
+    }
+</style>
+
+
+<div class="payment-wrapper">
+
+    <div class="container-fluid px-3">
+
+        <!-- ========================= -->
+        <!-- DJANGO MESSAGES -->
+        <!-- ========================= -->
+        {% if messages %}
+            {% for message in messages %}
+                <div
+                    class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-sm"
+                    role="alert"
+                >
+                    {{ message }}
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert"
+                        aria-label="Close"
+                    ></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- ========================= -->
+        <!-- HEADER -->
+        <!-- ========================= -->
+        <nav class="navbar navbar-dark navbar-custom p-3 mb-4">
+            <div
+                class="container-fluid d-flex justify-content-between align-items-center flex-nowrap px-0"
+            >
+                <a
+                    class="navbar-brand fw-bold d-flex align-items-center mb-0"
+                    href="#"
+                >
+                    <i class="fa-solid fa-wallet text-warning me-2 fs-4"></i>
+                    <span>Payment Gate</span>
+                </a>
+
+                <!-- PENDING PARTIES BUTTON -->
+                <button
+                    type="button"
+                    class="btn btn-warning fw-bold position-relative shadow-sm d-flex align-items-center"
+                    data-bs-toggle="modal"
+                    data-bs-target="#pendingPartiesModal"
+                >
+                    <i class="fa-solid fa-bell text-danger me-2"></i>
+                    <span>Pending Parties</span>
+                    <span
+                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white"
+                    >
+                        {{ pending_parties|length }}
+                    </span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- ========================= -->
+        <!-- PAYMENT CARD -->
+        <!-- ========================= -->
+        <div
+            class="card payment-card p-3 p-md-4 mb-4"
+            id="paymentCard"
+        >
+            <!-- CARD HEADER -->
+            <div
+                class="border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"
+            >
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="fa-solid fa-circle-dollar-to-slot text-primary me-2"></i>
+                    Record Party Payment
+                </h5>
+
+                <span class="badge bg-success py-2 px-3">
+                    <i class="fa-solid fa-circle-check me-1"></i>
+                    Active Session
+                </span>
+            </div>
+
+            <!-- ========================= -->
+            <!-- SELECTED PARTY INFO -->
+            <!-- ========================= -->
+            <div
+                class="purchase-selected-box"
+                id="selectedPurchaseBox"
+            >
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <span class="text-muted small">Selected Party</span>
+                        <div class="fw-bold text-primary">
+                            <i class="fa-solid fa-receipt me-1"></i>
+                            <span id="selectedPartyCode"></span> -
+                            <span id="selectedPartyName"></span>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <div class="amount-summary">
+                            Total:
+                            <strong id="selectedTotal">0</strong>
+                            &nbsp; | &nbsp;
+                            Paid:
+                            <strong id="selectedPaid">0</strong>
+                        </div>
+                        <div>
+                            Due:
+                            <span class="badge bg-danger" id="selectedDue">0</span>
+                            &nbsp;
+                            Advance:
+                            <span class="badge bg-info text-dark" id="selectedAdvance">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================= -->
+            <!-- PAYMENT FORM -->
+            <!-- ========================= -->
+            <form
+                action="{% url 'payment' %}"
+                method="POST"
+                id="paymentForm"
+            >
+                {% csrf_token %}
+
+                <!-- Hidden fields -->
+                <input type="hidden" name="party_code" id="hidden_party_code" value="">
+                <input type="hidden" name="party_name" id="hidden_party_name" value="">
+
+                <div class="row g-3 align-items-end">
+
+                    <!-- PARTY -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label for="party_select" class="form-label">
+                            Party / Vendor
+                        </label>
+                        <select
+                            class="form-select form-select-sm"
+                            id="party_select"
+                            required
+                        >
+                            <option value="" selected disabled>Choose Party...</option>
+                            {% for party in parties %}
+                                <option
+                                    value="{{ party.code }}"
+                                    data-name="{{ party.company_name|default:party.owner_name }}"
+                                    data-due="{{ party.balance_due|default:0 }}"
+                                    data-advance="{{ party.balance_adv|default:0 }}"
+                                >
+                                    {{ party.code }} - {{ party.company_name|default:party.owner_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- DATE -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label for="payment_date" class="form-label">
+                            Payment Date
+                        </label>
+                        <input
+                            type="date"
+                            class="form-control form-control-sm"
+                            id="payment_date"
+                            name="payment_date"
+                            required
+                        >
+                    </div>
+
+                    <!-- AMOUNT -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label for="paying_amount" class="form-label">
+                            Payment Amount
+                            <span class="advance-label" id="advanceLabel">Advance</span>
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light">
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                            </span>
+                            <input
+                                type="number"
+                                class="form-control"
+                                id="paying_amount"
+                                name="paying_amount"
+                                placeholder="0"
+                                min="0"
+                                step="1"
+                                required
+                            >
+                        </div>
+                        <div class="text-danger small mt-1 d-none" id="amountError">
+                            Amount cannot exceed remaining amount.
+                        </div>
+                    </div>
+
+                    <!-- PAYMENT MODE -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label for="payment_mode" class="form-label">
+                            Payment Mode
+                        </label>
+                        <select
+                            class="form-select form-select-sm"
+                            id="payment_mode"
+                            name="payment_mode"
+                            required
+                        >
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Online">Online Wallet</option>
+                        </select>
+                    </div>
+
+                    <!-- REMARKS -->
+                    <div class="col-12 col-lg">
+                        <label for="remarks" class="form-label">
+                            Remarks
+                        </label>
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            id="remarks"
+                            name="remarks"
+                            maxlength="50"
+                            placeholder="Payment notes..."
+                        >
+                    </div>
+
+                    <!-- SAVE -->
+                    <div class="col-12 col-lg-auto d-grid">
+                        <button
+                            type="submit"
+                            class="btn btn-primary btn-sm px-4 py-2 fw-bold"
+                            id="savePaymentButton"
+                        >
+                            <i class="fa-solid fa-paper-plane me-1"></i>
+                            Save Payment
+                        </button>
+                    </div>
+
+                    <!-- ✅ CLEAR ADVANCE CHECKBOX -->
+                    <div class="col-12" id="clearAdvanceBox">
+                        <div class="form-check d-flex align-items-center gap-2">
+                            <input
+                                class="form-check-input mt-0"
+                                type="checkbox"
+                                name="clear_advance"
+                                id="clear_advance"
+                            >
+                            <label
+                                class="form-check-label small fw-bold text-danger mb-0"
+                                for="clear_advance"
+                            >
+                                <i class="fa-solid fa-rotate-left me-1"></i>
+                                Clear Advance — Refund to Party (Due 0 / Advance 0)
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ================================================= -->
+<!-- PENDING PARTIES MODAL -->
+<!-- ================================================= -->
+<div
+    class="modal fade"
+    id="pendingPartiesModal"
+    tabindex="-1"
+    aria-labelledby="pendingPartiesModalLabel"
+    aria-hidden="true"
+>
+    <div
+        class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"
+    >
+        <div class="modal-content shadow-lg border-0">
+
+            <!-- MODAL HEADER -->
+            <div class="modal-header bg-dark text-white p-3">
+                <div>
+                    <h5
+                        class="modal-title fw-bold mb-0"
+                        id="pendingPartiesModalLabel"
+                    >
+                        <i class="fa-solid fa-receipt text-warning me-2"></i>
+                        Pending Parties (Due / Advance)
+                    </h5>
+                    <small class="text-white-50">
+                        Only parties with pending due or advance are shown.
+                    </small>
+                </div>
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                ></button>
+            </div>
+
+            <!-- MODAL BODY -->
+            <div class="modal-body p-3">
+
+                {% if pending_parties %}
+                    <!-- SEARCH -->
+                    <div class="row mb-3">
+                        <div class="col-12 col-md-5">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </span>
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="partySearch"
+                                    placeholder="Search party code or name..."
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table
+                            class="table table-bordered table-striped table-hover unpaid-table text-center mb-0"
+                            id="pendingPartyTable"
+                        >
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Party Code</th>
+                                    <th>Party Name</th>
+                                    <th>Date</th>
+                                    <th>Total Amount</th>
+                                    <th>Paid Amount</th>
+                                    <th>Due</th>
+                                    <th>Advance</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in pending_parties %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-light text-dark border p-2 fw-bold">
+                                                {{ item.party_code|default:"-" }}
+                                            </span>
+                                        </td>
+                                        <td class="fw-semibold text-start">
+                                            {{ item.party_name|default:"-" }}
+                                        </td>
+                                        <td>
+                                            {% if item.date %}
+                                                {{ item.date|date:"d M, Y" }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="fw-bold">
+                                            {{ item.totall_amount|default:"0" }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info text-dark">
+                                                {{ item.payed_amount|default:"0" }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if item.due and item.due > 0 %}
+                                                <span class="badge bg-danger remaining-badge">
+                                                    {{ item.due }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.advanced and item.advanced > 0 %}
+                                                <span class="badge bg-success remaining-badge">
+                                                    {{ item.advanced }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button
+                                                type="button"
+                                                class="btn btn-success btn-sm proceed-btn fw-bold"
+                                                data-code="{{ item.party_code|default:'' }}"
+                                                data-name="{{ item.party_name|default:'' }}"
+                                                data-total="{{ item.totall_amount|default:'0' }}"
+                                                data-paid="{{ item.payed_amount|default:'0' }}"
+                                                data-due="{{ item.due|default:'0' }}"
+                                                data-advance="{{ item.advanced|default:'0' }}"
+                                                data-bs-dismiss="modal"
+                                            >
+                                                <i class="fa-solid fa-arrow-right me-1"></i>
+                                                Proceed
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+
+                                <tr id="noSearchResults" style="display:none;">
+                                    <td colspan="8" class="py-4 text-muted">
+                                        <i class="fa-solid fa-magnifying-glass me-2"></i>
+                                        No matching party found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success border-0 shadow-sm d-flex align-items-center p-4 mb-0">
+                        <i class="fa-solid fa-circle-check fs-2 text-success me-3"></i>
+                        <div>
+                            <h6 class="fw-bold mb-1">All Clear</h6>
+                            <p class="mb-0 small">
+                                There are currently no parties with pending due or advance.
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
+
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div class="modal-footer bg-light">
+                <span class="me-auto small text-muted">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    Select Proceed to record payment against a party.
+                </span>
+                <button
+                    type="button"
+                    class="btn btn-secondary btn-sm px-4"
+                    data-bs-dismiss="modal"
+                >
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    // =====================================================
+    // ELEMENTS
+    // =====================================================
+    const paymentForm      = document.getElementById('paymentForm');
+    const partySelect      = document.getElementById('party_select');
+    const partyCodeHidden  = document.getElementById('hidden_party_code');
+    const partyNameHidden  = document.getElementById('hidden_party_name');
+    const paymentDate      = document.getElementById('payment_date');
+    const amountInput      = document.getElementById('paying_amount');
+    const remarksInput     = document.getElementById('remarks');
+    const amountError      = document.getElementById('amountError');
+    const saveButton       = document.getElementById('savePaymentButton');
+    const paymentCard      = document.getElementById('paymentCard');
+
+    const advanceLabel     = document.getElementById('advanceLabel');
+    const clearAdvanceBox  = document.getElementById('clearAdvanceBox');
+    const clearAdvanceChk  = document.getElementById('clear_advance');
+    const selectedBox      = document.getElementById('selectedPurchaseBox');
+
+    // =====================================================
+    // TODAY'S DATE
+    // =====================================================
+    const now = new Date();
+    const today =
+        now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0');
+
+    if (paymentDate && !paymentDate.value) {
+        paymentDate.value = today;
+    }
+
+    // =====================================================
+    // HELPERS
+    // =====================================================
+    function setAmountEditable() {
+        amountInput.disabled = false;
+        amountInput.readOnly = false;
+        amountInput.classList.remove('bg-light');
+    }
+
+    function setAmountReadOnly() {
+        amountInput.disabled = false;   // disabled ki jagah readOnly use karo
+        amountInput.readOnly = true;    // value POST hoti rahegi
+        amountInput.classList.add('bg-light');
+    }
+
+    // =====================================================
+    // APPLY PARTY BALANCE (dropdown / modal se call hoga)
+    // =====================================================
+    function applyPartyBalance(partyCode, partyName, due, adv) {
+        due = parseFloat(due || 0);
+        adv = parseFloat(adv || 0);
+
+        // hidden fields
+        partyCodeHidden.value = partyCode || '';
+        partyNameHidden.value = partyName || '';
+
+        // sync dropdown
+        let found = false;
+        for (let i = 0; i < partySelect.options.length; i++) {
+            if (partySelect.options[i].value === partyCode) {
+                partySelect.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+        if (!found && partyCode) {
+            const opt = new Option(
+                partyCode + ' - ' + partyName, partyCode, true, true
+            );
+            opt.dataset.name = partyName;
+            opt.dataset.due = due;
+            opt.dataset.advance = adv;
+            partySelect.add(opt);
+        }
+
+        // Selected info box
+        document.getElementById('selectedPartyCode').textContent = partyCode || '-';
+        document.getElementById('selectedPartyName').textContent = partyName || '-';
+        document.getElementById('selectedDue').textContent = due;
+        document.getElementById('selectedAdvance').textContent = adv;
+        selectedBox.style.display = 'block';
+
+        // reset checkbox + editable state
+        clearAdvanceChk.checked = false;
+        clearAdvanceChk.disabled = false;
+        setAmountEditable();
+        advanceLabel.style.display = 'none';
+        amountInput.setAttribute('required', 'required');
+
+        // Auto-fill logic
+        if (due > 0) {
+            amountInput.value = due;
+            amountInput.placeholder = 'Due: ' + due;
+            clearAdvanceBox.style.display = 'none';
+
+        } else if (adv > 0) {
+            amountInput.value = adv;
+            amountInput.placeholder = 'Advance: ' + adv;
+            advanceLabel.style.display = 'inline-block';
+            clearAdvanceBox.style.display = 'block';
+
+        } else {
+            amountInput.value = '';
+            amountInput.placeholder = '0';
+            clearAdvanceBox.style.display = 'block';
+        }
+
+        // Clear errors
+        amountError.classList.add('d-none');
+        amountInput.classList.remove('is-invalid');
+    }
+
+    // =====================================================
+    // DROPDOWN CHANGE → auto-fill due/advance
+    // =====================================================
+    partySelect.addEventListener('change', function () {
+        const selectedOpt = this.options[this.selectedIndex];
+        if (!selectedOpt || !selectedOpt.value) return;
+
+        applyPartyBalance(
+            selectedOpt.value,
+            selectedOpt.dataset.name || '',
+            selectedOpt.dataset.due || 0,
+            selectedOpt.dataset.advance || 0
+        );
+    });
+
+    // =====================================================
+    // PROCEED BUTTON (Modal)
+    // =====================================================
+    const proceedButtons = document.querySelectorAll('.proceed-btn');
+    proceedButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const partyCode = this.dataset.code || '';
+            const partyName = this.dataset.name || '';
+            const totalAmt  = this.dataset.total || '0';
+            const paidAmt   = this.dataset.paid  || '0';
+            const dueAmt    = this.dataset.due   || '0';
+            const advAmt    = this.dataset.advance || '0';
+
+            applyPartyBalance(partyCode, partyName, dueAmt, advAmt);
+
+            document.getElementById('selectedTotal').textContent = totalAmt;
+            document.getElementById('selectedPaid').textContent  = paidAmt;
+
+            paymentDate.value = today;
+
+            setTimeout(function () {
+                paymentCard.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                paymentCard.classList.add('highlight-row');
+            }, 300);
+
+            setTimeout(function () {
+                paymentCard.classList.remove('highlight-row');
+            }, 2300);
+
+            setTimeout(function () {
+                if (!clearAdvanceChk.checked && !amountInput.readOnly) {
+                    amountInput.focus();
+                    amountInput.select();
+                }
+            }, 650);
+        });
+    });
+
+    // =====================================================
+    // CLEAR ADVANCE CHECKBOX
+    // =====================================================
+    clearAdvanceChk.addEventListener('change', function () {
+        const selectedOpt = partySelect.options[partySelect.selectedIndex];
+        const adv = parseFloat(selectedOpt?.dataset.advance || 0);
+
+        if (this.checked) {
+            // ✅ Refund amount = advance value, readOnly karo
+            amountInput.value = adv;
+            setAmountReadOnly();
+            amountInput.removeAttribute('required');
+            advanceLabel.style.display = 'none';
+        } else {
+            // Restore normal state
+            setAmountEditable();
+            amountInput.setAttribute('required', 'required');
+
+            if (selectedOpt) {
+                const due = parseFloat(selectedOpt.dataset.due || 0);
+                const adv2 = parseFloat(selectedOpt.dataset.advance || 0);
+
+                if (due > 0) {
+                    amountInput.value = due;
+                } else if (adv2 > 0) {
+                    amountInput.value = adv2;
+                    advanceLabel.style.display = 'inline-block';
+                } else {
+                    amountInput.value = '';
+                }
+            }
+        }
+
+        amountError.classList.add('d-none');
+        amountInput.classList.remove('is-invalid');
+    });
+
+    // =====================================================
+    // AMOUNT VALIDATION
+    // =====================================================
+    function validatePaymentAmount() {
+        if (clearAdvanceChk.checked) {
+            amountInput.classList.remove('is-invalid');
+            amountError.classList.add('d-none');
+            return true;
+        }
+
+        const amount = parseFloat(amountInput.value || 0);
+        if (amount <= 0) {
+            amountInput.classList.add('is-invalid');
+            amountError.textContent = 'Payment amount must be greater than 0.';
+            amountError.classList.remove('d-none');
+            return false;
+        }
+
+        amountInput.classList.remove('is-invalid');
+        amountError.classList.add('d-none');
+        return true;
+    }
+
+    amountInput.addEventListener('input', validatePaymentAmount);
+
+    // =====================================================
+    // FORM SUBMIT
+    // =====================================================
+    paymentForm.addEventListener('submit', function (event) {
+        if (!partyCodeHidden.value.trim()) {
+            event.preventDefault();
+            alert('Please select a party (from dropdown or Pending Parties modal).');
+            return;
+        }
+
+        if (!validatePaymentAmount()) {
+            event.preventDefault();
+            amountInput.focus();
+            return;
+        }
+
+        saveButton.disabled = true;
+        saveButton.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+    });
+
+    // =====================================================
+    // MODAL SEARCH
+    // =====================================================
+    const searchInput = document.getElementById('partySearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const searchValue = this.value.trim().toLowerCase();
+            const rows = document.querySelectorAll(
+                '#pendingPartyTable tbody tr:not(#noSearchResults)'
+            );
+
+            let visibleRows = 0;
+            rows.forEach(function (row) {
+                const rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchValue)) {
+                    row.style.display = '';
+                    visibleRows++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            const noResults = document.getElementById('noSearchResults');
+            if (noResults) {
+                noResults.style.display = visibleRows === 0 ? '' : 'none';
+            }
+        });
+    }
+
+});
+</script>
+
+{% endblock %}

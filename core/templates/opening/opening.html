@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Opening Stock - Politory{% endblock %}
+
+{% block content %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<style>
+    .compact-row .form-control,
+    .compact-row .form-select,
+    .select2-selection {
+        font-size: 0.85rem !important;
+        min-height: 38px !important;
+    }
+    .table-responsive { font-size: 0.9rem; }
+
+    .btn-action {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+    }
+    .header-gradient {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 14px 18px;
+        border-radius: 8px 8px 0 0;
+    }
+    .select2-container--bootstrap-5 .select2-selection { height: 38px; }
+
+    .code-field {
+        background: #f0f4ff !important;
+        font-weight: 600;
+        color: #4b3f9e !important;
+    }
+    .amount-field {
+        background: linear-gradient(135deg, #667eea20, #764ba220) !important;
+        border: 1.5px solid #667eea !important;
+        color: #333 !important;
+        font-weight: 700 !important;
+    }
+    .amount-label { color: #667eea; font-weight: 700 !important; }
+
+    /* Toast */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    .custom-toast {
+        min-width: 300px;
+        max-width: 400px;
+        border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+        animation: slideIn 0.4s ease-out;
+        border: none;
+        overflow: hidden;
+        background: #ffffff;
+    }
+    .custom-toast.toast-success { border-left: 5px solid #28a745; }
+    .custom-toast.toast-error   { border-left: 5px solid #dc3545; }
+    .custom-toast.toast-info    { border-left: 5px solid #17a2b8; }
+    .custom-toast.toast-warning { border-left: 5px solid #ffc107; }
+    .toast-body-custom {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #333;
+    }
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to   { transform: translateX(0);    opacity: 1; }
+    }
+</style>
+
+<!-- TOAST NOTIFICATIONS -->
+<div class="toast-container">
+    {% for message in messages %}
+    <div class="custom-toast toast-{{ message.tags }} mb-2">
+        <div class="toast-body-custom">
+            {% if 'success' in message.tags %}✅
+            {% elif 'error' in message.tags %}❌
+            {% elif 'warning' in message.tags %}⚠️
+            {% else %}ℹ️{% endif %}
+            <span>{{ message }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="container-fluid mt-3 px-2 px-md-3">
+
+    <!-- ============ OPENING STOCK FORM ============ -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="header-gradient d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-box-seam me-2"></i>
+                {% if edit_obj %}Update{% else %}New{% endif %} Opening Stock
+            </h6>
+            {% if edit_obj %}
+            <span class="badge bg-white text-success fw-bold">Editing #{{ edit_obj.id }}</span>
+            {% endif %}
+        </div>
+
+        <div class="card-body p-2 p-md-3">
+            <form method="POST" id="openingForm">
+                {% csrf_token %}
+                <input type="hidden" name="record_id" value="{{ edit_obj.id|default:'' }}">
+                <input type="hidden" name="party_code" id="partyCodeHidden"
+                       value="{{ edit_obj.vendor_code|default:'' }}">
+                <input type="hidden" name="amount" id="amountHidden"
+                       value="{{ edit_obj.amount|default:'0' }}">
+
+                <div class="row g-2 compact-row">
+
+                    <!-- Party (from Parties model) -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label class="small fw-bold">Party Name <span class="text-danger">*</span></label>
+                        <select name="party_name" id="partySelect"
+                                class="form-select select2-search" required>
+                            <option value="">Search Party...</option>
+                            {% for party in all_parties %}
+                            <option value="{{ party.company_name }}"
+                                    data-code="{{ party.code|default:'' }}"
+                                    data-type="{{ party.party_type|default:'' }}"
+                                    {% if edit_obj.vendor_name == party.company_name %}selected{% endif %}>
+                                {% if party.party_type %}[{{ party.party_type }}] {% endif %}{{ party.code|default:'' }} - {{ party.company_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Code (auto-filled) -->
+                    <div class="col-6 col-sm-3 col-lg-1">
+                        <label class="small fw-bold">Code</label>
+                        <input type="text" id="partyCodeDisplay"
+                               class="form-control code-field" readonly
+                               value="{{ edit_obj.vendor_code|default:'' }}"
+                               placeholder="Auto">
+                    </div>
+
+                    <!-- Description -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label class="small fw-bold">Description</label>
+                        <input type="text" name="description" class="form-control"
+                               value="{{ edit_obj.discription|default:'' }}"
+                               placeholder="Description">
+                    </div>
+
+                    <!-- Date -->
+                    <div class="col-6 col-sm-6 col-lg-2">
+                        <label class="small fw-bold">Date</label>
+                        <input type="date" name="date" id="dateField"
+                               class="form-control"
+                               value="{% if edit_obj %}{{ edit_obj.date|date:'Y-m-d' }}{% else %}{{ current_date|date:'Y-m-d' }}{% endif %}"
+                               required>
+                    </div>
+
+                    <!-- Debit / Credit (label only, no sign stored) -->
+                    <div class="col-6 col-sm-3 col-lg-2">
+                        <label class="small fw-bold">Entry Type</label>
+                        <select name="entry_type" id="entryType" class="form-select">
+                            <option value="debit" selected>Debit</option>
+                            <option value="credit">Credit</option>
+                        </select>
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="col-6 col-sm-3 col-lg-1">
+                        <label class="small amount-label">Amount</label>
+                        <input type="number" id="amountInput"
+                               class="form-control amount-field"
+                               step="0.01" min="0"
+                               value="{% if edit_obj %}{{ edit_obj.amount }}{% endif %}"
+                               placeholder="0" required>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="col-12 col-lg-1 d-flex align-items-end gap-1">
+                        <button type="submit" class="btn btn-success btn-sm w-100 py-2">
+                            {% if edit_obj %}Update{% else %}Save{% endif %}
+                        </button>
+                        {% if edit_obj %}
+                        <a href="{% url 'opening' %}"
+                           class="btn btn-secondary btn-sm py-2" title="Cancel">✕</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+   
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function () {
+
+        // Init Select2
+        $('.select2-search').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Search Party...',
+            allowClear: true
+        });
+
+        // -------- Auto-fill party code --------
+        function syncPartyCode() {
+            var $sel = $('#partySelect').find(':selected');
+            var code = $sel.data('code') || '';
+            if (code) {
+                $('#partyCodeHidden').val(code);
+                $('#partyCodeDisplay').val(code);
+            } else {
+                $('#partyCodeHidden').val('');
+                $('#partyCodeDisplay').val('');
+            }
+        }
+
+        syncPartyCode();
+        $('#partySelect').on('change', syncPartyCode);
+        $('#partySelect').on('select2:select', syncPartyCode);
+        $('#partySelect').on('select2:clear', syncPartyCode);
+
+        // -------- Keep hidden amount in sync --------
+        $('#amountInput').on('input', function () {
+            $('#amountHidden').val($(this).val() || '0');
+        });
+
+        // -------- Auto-hide toasts --------
+        setTimeout(function () {
+            $('.custom-toast').fadeOut(400);
+        }, 3000);
+
+        // -------- Ctrl+S shortcut to submit --------
+        $(document).on('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                $('#openingForm').submit();
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,1059 @@
+{% extends 'base.html' %}
+
+{% block title %}Expense - Politory{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --primary-color: #667eea;
+        --danger-color: #dc3545;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    /* ================= TOAST NOTIFICATION STYLES ================= */
+    #toastContainer {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+        width: 100%;
+        pointer-events: none;
+    }
+    
+    .toast-notification {
+        background: white;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transform: translateX(120%);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        pointer-events: auto;
+        border-left: 4px solid var(--primary-color);
+        min-width: 280px;
+    }
+    
+    .toast-notification.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .toast-notification.hide {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    
+    .toast-notification .toast-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    
+    .toast-notification .toast-icon.success {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .toast-notification .toast-icon.error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .toast-notification .toast-icon.warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .toast-notification .toast-icon.info {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .toast-notification .toast-content {
+        flex: 1;
+    }
+    
+    .toast-notification .toast-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #1a1a1a;
+        margin-bottom: 2px;
+    }
+    
+    .toast-notification .toast-message {
+        font-size: 0.82rem;
+        color: #555;
+        line-height: 1.4;
+    }
+    
+    .toast-notification .toast-close {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        color: #999;
+        cursor: pointer;
+        padding: 0 4px;
+        transition: color 0.2s;
+        pointer-events: auto;
+    }
+    .toast-notification .toast-close:hover {
+        color: #333;
+    }
+    
+    .toast-notification.success {
+        border-left-color: var(--success-color);
+    }
+    .toast-notification.error {
+        border-left-color: var(--danger-color);
+    }
+    .toast-notification.warning {
+        border-left-color: var(--warning-color);
+    }
+    .toast-notification.info {
+        border-left-color: var(--primary-color);
+    }
+
+    /* ================= RESPONSIVE TOAST ================= */
+    @media (max-width: 576px) {
+        #toastContainer {
+            top: 10px;
+            right: 10px;
+            left: 10px;
+            max-width: none;
+            width: auto;
+        }
+        .toast-notification {
+            min-width: auto;
+            padding: 14px 16px;
+            font-size: 0.85rem;
+        }
+        .toast-notification .toast-icon {
+            font-size: 1.2rem;
+            width: 30px;
+            height: 30px;
+        }
+        .toast-notification .toast-title {
+            font-size: 0.85rem;
+        }
+        .toast-notification .toast-message {
+            font-size: 0.78rem;
+        }
+    }
+
+    /* ================= REST OF THE STYLES ================= */
+    .btn-gradient {
+        background: var(--primary-gradient);
+        color: #fff;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd6 0%, #6a4292 100%);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .card {
+        border-radius: 1rem !important;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    .card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25);
+    }
+
+    .form-control-sm, .form-select-sm {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.7rem;
+        border-radius: 8px;
+    }
+    
+    .form-label-sm {
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #495057;
+    }
+
+    .expense-mobile-card {
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 12px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+    }
+    .expense-mobile-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+    }
+    .expense-mobile-card .label {
+        font-size: 0.7rem;
+        color: #6c757d;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .expense-mobile-card .value {
+        font-size: 0.92rem;
+        color: #212529;
+        word-break: break-word;
+    }
+
+    .btn-action {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    .btn-action:hover {
+        transform: scale(1.05);
+    }
+
+    .amount-value {
+        font-weight: 700;
+        color: var(--danger-color);
+        font-size: 1rem;
+    }
+
+    .head-badge {
+        background: #e7f1ff;
+        color: #0d6efd;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .history-card {
+        max-height: 550px;
+        overflow-y: auto;
+    }
+    .history-card::-webkit-scrollbar {
+        width: 6px;
+    }
+    .history-card::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    .history-card::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 10px;
+    }
+
+    .search-box {
+        position: relative;
+    }
+    .search-box .search-input {
+        padding-left: 42px;
+        border-radius: 25px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+        height: 42px;
+    }
+    .search-box .search-input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.15);
+    }
+    .search-box i {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        font-size: 1rem;
+    }
+
+    .highlight-text {
+        background: #fff3cd;
+        font-weight: bold;
+        padding: 0 4px;
+        border-radius: 3px;
+    }
+
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #e9ecef;
+    }
+
+    .total-strip {
+        background: var(--primary-gradient);
+        color: #fff;
+        border-radius: 12px;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .total-strip .total-amount {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .dropdown-menu-custom {
+        max-height: 250px;
+        overflow-y: auto;
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+        background: white;
+        position: absolute;
+        z-index: 1000;
+        width: 100%;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+    .dropdown-menu-custom::-webkit-scrollbar {
+        width: 4px;
+    }
+    .dropdown-menu-custom::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 10px;
+    }
+    
+    .head-option {
+        cursor: pointer;
+        padding: 10px 15px;
+        transition: all 0.15s ease;
+        border-bottom: 1px solid #f1f3f5;
+    }
+    .head-option:last-child {
+        border-bottom: none;
+    }
+    .head-option:hover {
+        background: #f0f4ff;
+    }
+    .head-option .code {
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 0.85rem;
+    }
+    .head-option .name {
+        color: #212529;
+        font-size: 0.85rem;
+    }
+    
+    .position-relative {
+        position: relative;
+    }
+
+    .table {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+    .table thead th {
+        font-weight: 600;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 10px;
+        border: none;
+    }
+    .table tbody td {
+        padding: 10px;
+        vertical-align: middle;
+        border-color: #f1f3f5;
+    }
+    .table tbody tr:hover {
+        background-color: #f8f9ff;
+    }
+
+    @media (max-width: 768px) {
+        .total-strip {
+            flex-direction: column;
+            align-items: stretch;
+            text-align: center;
+        }
+        .total-strip .total-amount {
+            font-size: 1rem;
+        }
+        .filter-card .row > div {
+            margin-bottom: 8px;
+        }
+        .filter-card .row > div:last-child {
+            margin-bottom: 0;
+        }
+        .btn-action {
+            width: 30px;
+            height: 30px;
+            font-size: 0.75rem;
+        }
+        .card-body {
+            padding: 12px !important;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .form-label-sm {
+            font-size: 0.7rem;
+        }
+        .form-control-sm, .form-select-sm {
+            font-size: 0.78rem;
+            padding: 0.3rem 0.5rem;
+        }
+        .head-badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+        }
+        .amount-value {
+            font-size: 0.85rem;
+        }
+        .expense-mobile-card {
+            padding: 12px;
+        }
+        .total-strip {
+            padding: 10px 15px;
+        }
+        .total-strip .total-amount {
+            font-size: 0.95rem;
+        }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .expense-mobile-card {
+        animation: fadeIn 0.3s ease;
+    }
+    .table tbody tr {
+        animation: fadeIn 0.3s ease;
+    }
+</style>
+
+<!-- ================= TOAST CONTAINER ================= -->
+<div id="toastContainer"></div>
+
+<!-- ================= MESSAGES (HIDDEN - Used by Django) ================= -->
+<div id="djangoMessages" style="display:none;">
+    {% if messages %}
+        {% for message in messages %}
+            <div data-tag="{{ message.tags }}" data-message="{{ message }}"></div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- ================= FORM ================= -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3 p-md-4">
+        <h5 class="fw-bold mb-3" id="formTitle">
+            <i class="bi bi-cash-stack text-primary"></i> New Expense
+        </h5>
+        
+        <form id="expenseForm" method="POST" action="{% url 'expenses' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="formAction" value="save">
+            <input type="hidden" name="expense_id" id="expense_id">
+            
+            <div class="row g-2 g-md-3">
+                <!-- Date -->
+                <div class="col-6 col-md-2">
+                    <label class="form-label form-label-sm">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="expense_date" id="expDate" class="form-control form-control-sm" value="{{ today_date }}" required>
+                </div>
+
+                <!-- Head Name -->
+                <div class="col-12 col-md-4">
+                    <label class="form-label form-label-sm">Head Name <span class="text-danger">*</span></label>
+                    <div class="position-relative">
+                        <input type="text" 
+                               class="form-control form-control-sm" 
+                               id="headSearch" 
+                               placeholder="Type to search head..." 
+                               autocomplete="off"
+                               required>
+                        <input type="hidden" name="head_code" id="head_code">
+                        <input type="hidden" name="head_name" id="head_name">
+                        <div class="dropdown-menu-custom" id="headDropdown" style="display:none;">
+                            <div id="headOptions">
+                                {% for head in expense_heads %}
+                                    <div class="head-option" data-code="{{ head.code }}" data-name="{{ head.name }}">
+                                        <span class="code">{{ head.code }}</span>
+                                        <span class="name">- {{ head.name }}</span>
+                                    </div>
+                                {% empty %}
+                                    <div class="px-3 py-2 text-muted text-center">No heads available</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amount -->
+                <div class="col-6 col-md-2">
+                    <label class="form-label form-label-sm">Amount <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" name="amount" id="expAmount" class="form-control form-control-sm" placeholder="0.00" required>
+                </div>
+
+                <!-- Description -->
+                <div class="col-12 col-md-4">
+                    <label class="form-label form-label-sm">Description</label>
+                    <input type="text" name="remarks" id="expRemarks" class="form-control form-control-sm" placeholder="Enter description...">
+                </div>
+
+                <!-- Buttons -->
+                <div class="col-12 mt-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-gradient btn-sm flex-fill" id="saveBtn" style="min-width:120px;">
+                            <i class="bi bi-check-circle"></i> <span id="saveBtnText">Save Expense</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm flex-fill" onclick="resetForm()" style="min-width:100px;">
+                            <i class="bi bi-arrow-clockwise"></i> Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= HISTORY ================= -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 pb-2 px-3 px-md-4">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history text-primary"></i> Expense History</h5>
+
+        <!-- Filters -->
+        <div class="filter-card mt-3">
+            <div class="row g-2 g-md-3 align-items-end">
+                <div class="col-6 col-md-3">
+                    <label class="form-label form-label-sm"><i class="bi bi-calendar-event me-1"></i> From Date</label>
+                    <input type="date" id="fromDate" class="form-control form-control-sm" value="{{ from_date }}">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label form-label-sm"><i class="bi bi-calendar-check me-1"></i> To Date</label>
+                    <input type="date" id="toDate" class="form-control form-control-sm" value="{{ to_date }}">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label form-label-sm"><i class="bi bi-hash me-1"></i> Head Code</label>
+                    <input type="text" id="headCodeFilter" class="form-control form-control-sm" placeholder="e.g. H001">
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-gradient btn-sm flex-fill" onclick="applyFilters()">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                        <button class="btn btn-secondary btn-sm flex-fill" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-box mt-3">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control search-input" id="searchInput" placeholder="Search by head name, description, code...">
+        </div>
+
+        <!-- Total Strip -->
+        <div class="total-strip mt-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-list-ul fs-5"></i>
+                <span><span id="countLabel">{{ expenses|length }}</span> records</span>
+            </div>
+            <div class="total-amount">
+                <i class="bi bi-currency-rupee"></i> 
+                Total: <span id="totalLabel">Rs {{ total_amount|floatformat:2 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body p-3 p-md-4 history-card">
+
+        <!-- Desktop Table -->
+        <div class="d-none d-md-block">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0">
+                    <thead style="background:var(--primary-gradient);">
+                        <tr class="text-white">
+                            <th style="width:50px;">#</th>
+                            <th style="width:120px;">Date</th>
+                            <th style="width:120px;">Head Code</th>
+                            <th>Head Name</th>
+                            <th>Description</th>
+                            <th style="width:120px;">Amount</th>
+                            <th style="width:100px;" class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expTableBody">
+                        {% for exp in expenses %}
+                        <tr>
+                            <td class="fw-bold">{{ forloop.counter }}</td>
+                            <td>{{ exp.date|date:"d M Y" }}</td>
+                            <td><span class="head-badge">{{ exp.head_code|default:"-" }}</span></td>
+                            <td><i class="bi bi-tag-fill text-primary me-1"></i>{{ exp.head_name|default:"-" }}</td>
+                            <td>{{ exp.remarks|default:"-" }}</td>
+                            <td><span class="amount-value">Rs {{ exp.amount|default:"0"|floatformat:2 }}</span></td>
+                            <td class="text-center">
+                                <button class="btn btn-warning btn-action text-white me-1" title="Edit" onclick="editExpense({{ exp.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-danger btn-action" title="Delete" onclick="deleteExpense({{ exp.id }})">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                                <p class="mb-0 mt-2">No expenses found for today</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div class="d-md-none" id="expMobileList">
+            {% for exp in expenses %}
+            <div class="expense-mobile-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="flex-grow-1">
+                        <span class="label">Head</span>
+                        <div class="value fw-bold"><i class="bi bi-tag-fill text-primary me-1"></i>{{ exp.head_name|default:"-" }}</div>
+                    </div>
+                    <span class="head-badge ms-2">{{ exp.head_code|default:"-" }}</span>
+                </div>
+                <div class="mb-2">
+                    <span class="label">Description</span>
+                    <div class="value">{{ exp.remarks|default:"-" }}</div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <span class="label">Amount</span>
+                        <div class="value amount-value">Rs {{ exp.amount|default:"0"|floatformat:2 }}</div>
+                    </div>
+                    <div class="col-6">
+                        <span class="label">Date</span>
+                        <div class="value"><i class="bi bi-calendar-event text-muted me-1"></i>{{ exp.date|date:"d M Y" }}</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-warning btn-sm text-white flex-fill" onclick="editExpense({{ exp.id }})">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button class="btn btn-danger btn-sm flex-fill" onclick="deleteExpense({{ exp.id }})">
+                        <i class="bi bi-trash3"></i> Delete
+                    </button>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                <p class="mb-0 mt-2">No expenses found for today</p>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ================= TOAST NOTIFICATION SYSTEM =================
+function showToast(message, type = 'success', duration = 1500) {
+    const container = document.getElementById('toastContainer');
+    
+    // Icon mapping
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    const titles = {
+        success: 'Success!',
+        error: 'Error!',
+        warning: 'Warning!',
+        info: 'Information'
+    };
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon ${type}">${icons[type] || 'ℹ️'}</div>
+        <div class="toast-content">
+            <div class="toast-title">${titles[type] || 'Notification'}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+    
+    // Auto remove after duration
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 300);
+    }, duration);
+}
+
+// ================= PROCESS DJANGO MESSAGES =================
+function processDjangoMessages() {
+    const messageContainer = document.getElementById('djangoMessages');
+    if (!messageContainer) return;
+    
+    const messages = messageContainer.querySelectorAll('div[data-tag]');
+    messages.forEach(msg => {
+        const tag = msg.dataset.tag;
+        const message = msg.dataset.message;
+        
+        // Map Django message tags to toast types
+        let type = 'info';
+        if (tag === 'success') type = 'success';
+        else if (tag === 'error') type = 'error';
+        else if (tag === 'warning') type = 'warning';
+        else if (tag === 'info') type = 'info';
+        
+        // Show toast with 1.5 second duration
+        showToast(message, type, 1500);
+    });
+}
+
+// ================= SETUP =================
+document.addEventListener('DOMContentLoaded', function() {
+    // Process Django messages on page load
+    processDjangoMessages();
+    
+    // Setup head search dropdown
+    setupHeadSearch();
+});
+
+// ================= HEAD SEARCH DROPDOWN =================
+function setupHeadSearch() {
+    const searchInput = document.getElementById('headSearch');
+    const dropdown = document.getElementById('headDropdown');
+    const options = document.querySelectorAll('.head-option');
+
+    searchInput.addEventListener('focus', function() {
+        dropdown.style.display = 'block';
+        filterHeadOptions(this.value);
+    });
+
+    searchInput.addEventListener('blur', function() {
+        setTimeout(() => { dropdown.style.display = 'none'; }, 250);
+    });
+
+    searchInput.addEventListener('input', function() {
+        filterHeadOptions(this.value);
+        dropdown.style.display = 'block';
+    });
+
+    options.forEach(opt => {
+        opt.addEventListener('click', function() {
+            const code = this.dataset.code;
+            const name = this.dataset.name;
+            searchInput.value = name;
+            document.getElementById('head_code').value = code;
+            document.getElementById('head_name').value = name;
+            dropdown.style.display = 'none';
+            document.getElementById('expAmount').focus();
+        });
+    });
+
+    function filterHeadOptions(search) {
+        const term = search.toLowerCase().trim();
+        let visible = false;
+        options.forEach(opt => {
+            const code = opt.dataset.code.toLowerCase();
+            const name = opt.dataset.name.toLowerCase();
+            const match = code.includes(term) || name.includes(term);
+            opt.style.display = match ? '' : 'none';
+            if (match) visible = true;
+        });
+        const noResult = document.getElementById('noResult');
+        if (!visible && term) {
+            if (!noResult) {
+                const div = document.createElement('div');
+                div.id = 'noResult';
+                div.className = 'px-3 py-2 text-muted text-center';
+                div.textContent = 'No matching heads found';
+                document.getElementById('headOptions').appendChild(div);
+            }
+        } else if (noResult) {
+            noResult.remove();
+        }
+    }
+}
+
+// ================= LOAD FILTERED EXPENSES =================
+function loadExpenses() {
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+    const headCode = document.getElementById('headCodeFilter').value;
+    const search = document.getElementById('searchInput').value;
+
+    let url = "{% url 'expenses' %}?action=get_expenses";
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (headCode) url += `&head_code=${headCode}`;
+    if (search) url += `&search=${search}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderExpenses(data.data, search);
+                document.getElementById('countLabel').textContent = data.count;
+                document.getElementById('totalLabel').textContent = data.total_formatted;
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// ================= RENDER EXPENSES =================
+function renderExpenses(list, searchTerm = '') {
+    const highlight = (text) => {
+        if (!text) return '-';
+        if (!searchTerm) return text;
+        const regex = new RegExp('(' + searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        return String(text).replace(regex, '<span class="highlight-text">$1</span>');
+    };
+
+    if (!list || !list.length) {
+        document.getElementById('expTableBody').innerHTML = 
+            `<tr><td colspan="7" class="text-center text-muted py-4">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                <p class="mb-0 mt-2">No expenses found</p>
+            </td></tr>`;
+        document.getElementById('expMobileList').innerHTML = 
+            `<div class="text-center text-muted py-4">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                <p class="mb-0 mt-2">No expenses found</p>
+            </div>`;
+        return;
+    }
+
+    // Table
+    let rows = '';
+    list.forEach((e, i) => {
+        rows += `<tr>
+            <td class="fw-bold">${i+1}</td>
+            <td>${e.date}</td>
+            <td><span class="head-badge">${highlight(e.head_code)}</span></td>
+            <td><i class="bi bi-tag-fill text-primary me-1"></i>${highlight(e.head_name)}</td>
+            <td>${highlight(e.remarks)}</td>
+            <td><span class="amount-value">${e.amount_formatted}</span></td>
+            <td class="text-center">
+                <button class="btn btn-warning btn-action text-white me-1" title="Edit" onclick="editExpense(${e.id})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-danger btn-action" title="Delete" onclick="deleteExpense(${e.id})">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    document.getElementById('expTableBody').innerHTML = rows;
+
+    // Mobile Cards
+    let cards = '';
+    list.forEach(e => {
+        cards += `<div class="expense-mobile-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="flex-grow-1">
+                    <span class="label">Head</span>
+                    <div class="value fw-bold"><i class="bi bi-tag-fill text-primary me-1"></i>${highlight(e.head_name)}</div>
+                </div>
+                <span class="head-badge ms-2">${highlight(e.head_code)}</span>
+            </div>
+            <div class="mb-2">
+                <span class="label">Description</span>
+                <div class="value">${highlight(e.remarks)}</div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <span class="label">Amount</span>
+                    <div class="value amount-value">${e.amount_formatted}</div>
+                </div>
+                <div class="col-6">
+                    <span class="label">Date</span>
+                    <div class="value"><i class="bi bi-calendar-event text-muted me-1"></i>${e.date}</div>
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-warning btn-sm text-white flex-fill" onclick="editExpense(${e.id})">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm flex-fill" onclick="deleteExpense(${e.id})">
+                    <i class="bi bi-trash3"></i> Delete
+                </button>
+            </div>
+        </div>`;
+    });
+    document.getElementById('expMobileList').innerHTML = cards;
+}
+
+// ================= FILTERS =================
+function applyFilters() {
+    loadExpenses();
+}
+
+function clearFilters() {
+    document.getElementById('fromDate').value = '{{ today_date }}';
+    document.getElementById('toDate').value = '{{ today_date }}';
+    document.getElementById('headCodeFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    loadExpenses();
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    loadExpenses();
+});
+
+// ================= EDIT EXPENSE =================
+function editExpense(id) {
+    fetch(`{% url 'expenses' %}?action=get_expense&edit_id=${id}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('expense_id').value = data.id;
+                document.getElementById('expDate').value = data.date;
+                document.getElementById('headSearch').value = data.head_name;
+                document.getElementById('head_code').value = data.head_code;
+                document.getElementById('head_name').value = data.head_name;
+                document.getElementById('expAmount').value = data.amount;
+                document.getElementById('expRemarks').value = data.remarks;
+                
+                document.getElementById('formAction').value = 'update';
+                document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil-square text-warning"></i> Edit Expense';
+                document.getElementById('saveBtnText').textContent = 'Update Expense';
+                document.getElementById('saveBtn').className = 'btn btn-warning btn-sm flex-fill text-white';
+                isEditMode = true;
+                
+                document.querySelector('.card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showToast('📝 Edit mode activated! Update the expense and save.', 'info', 1500);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// ================= DELETE EXPENSE =================
+function deleteExpense(id) {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{% url 'expenses' %}";
+    
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    form.appendChild(csrf);
+    
+    const action = document.createElement('input');
+    action.type = 'hidden';
+    action.name = 'action';
+    action.value = 'delete';
+    form.appendChild(action);
+    
+    const expId = document.createElement('input');
+    expId.type = 'hidden';
+    expId.name = 'expense_id';
+    expId.value = id;
+    form.appendChild(expId);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// ================= RESET FORM =================
+function resetForm() {
+    document.getElementById('expense_id').value = '';
+    document.getElementById('expDate').value = '{{ today_date }}';
+    document.getElementById('headSearch').value = '';
+    document.getElementById('head_code').value = '';
+    document.getElementById('head_name').value = '';
+    document.getElementById('expAmount').value = '';
+    document.getElementById('expRemarks').value = '';
+    
+    document.getElementById('formAction').value = 'save';
+    document.getElementById('formTitle').innerHTML = '<i class="bi bi-cash-stack text-primary"></i> New Expense';
+    document.getElementById('saveBtnText').textContent = 'Save Expense';
+    document.getElementById('saveBtn').className = 'btn btn-gradient btn-sm flex-fill';
+    isEditMode = false;
+    
+    showToast('🔄 Form has been reset!', 'info', 1500);
+}
+
+// ================= KEYBOARD SHORTCUTS =================
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('headDropdown').style.display = 'none';
+    }
+});
+
+// ================= FORM SUBMIT HANDLER =================
+document.getElementById('expenseForm').addEventListener('submit', function(e) {
+    const headCode = document.getElementById('head_code').value;
+    const amount = document.getElementById('expAmount').value;
+    
+    if (!headCode) {
+        e.preventDefault();
+        showToast('⚠️ Please select a head from the dropdown!', 'warning', 1500);
+        return false;
+    }
+    
+    if (!amount || parseFloat(amount) <= 0) {
+        e.preventDefault();
+        showToast('⚠️ Please enter a valid amount!', 'warning', 1500);
+        return false;
+    }
+});
+
+console.log('✅ Expense Management System Loaded Successfully!');
+console.log('📅 Today\'s Date: {{ today_date }}');
+console.log('📊 Total Expenses Today: {{ expenses|length }}');
+</script>
+{% endblock %}

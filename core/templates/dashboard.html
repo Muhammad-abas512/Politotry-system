@@ -1,0 +1,1189 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - MJ Poultries Group{% endblock %}
+
+{% block content %}
+
+<style>
+    :root {
+        --navy: #071a35;
+        --navy-2: #0b2a52;
+        --navy-3: #123f73;
+        --blue: #2563eb;
+        --light-blue: #60a5fa;
+        --bg: #f4f7fb;
+        --white: #ffffff;
+        --border: #e5eaf1;
+        --text: #172033;
+        --muted: #7b8798;
+    }
+
+    .mj-dashboard {
+        color: var(--text);
+        font-family: inherit;
+    }
+
+    /* =========================
+       HERO
+    ========================== */
+
+    .dashboard-hero {
+        background: var(--navy);
+        color: white;
+        border-radius: 22px;
+        padding: 30px 32px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 12px 35px rgba(7, 26, 53, .18);
+    }
+
+    .dashboard-hero::before {
+        content: "";
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        border: 50px solid rgba(255,255,255,.035);
+        border-radius: 50%;
+        right: -80px;
+        top: -130px;
+    }
+
+    .dashboard-hero::after {
+        content: "";
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        background: rgba(255,255,255,.035);
+        border-radius: 50%;
+        right: 240px;
+        bottom: -100px;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .company-small {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 700;
+        color: #9fb5d1;
+    }
+
+    .dashboard-title {
+        font-size: clamp(1.6rem, 3vw, 2.45rem);
+        font-weight: 800;
+        margin: 5px 0 5px;
+    }
+
+    .dashboard-subtitle {
+        color: #aec0d6;
+        font-size: .91rem;
+        margin: 0;
+    }
+
+    /* =========================
+       NET POSITION
+    ========================== */
+
+    .net-position-box {
+        background: white;
+        color: var(--navy);
+        border-radius: 17px;
+        padding: 17px 21px;
+        min-width: 260px;
+        box-shadow: 0 10px 25px rgba(0,0,0,.12);
+    }
+
+    .net-label {
+        color: #7b8798;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        font-weight: 700;
+    }
+
+    .net-value {
+        font-size: clamp(1.5rem, 3vw, 2rem);
+        font-weight: 800;
+        margin: 3px 0;
+        color: var(--navy);
+    }
+
+    .net-formula {
+        color: #9aa5b3;
+        font-size: .7rem;
+    }
+
+    /* =========================
+       FILTER
+    ========================== */
+
+    .filter-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 17px;
+        padding: 18px 20px;
+        margin-top: 20px;
+        box-shadow: 0 4px 16px rgba(15,23,42,.045);
+    }
+
+    .filter-card label {
+        color: #586477;
+        font-size: .7rem;
+        text-transform: uppercase;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+
+    .filter-card .form-control {
+        height: 44px;
+        border-radius: 10px;
+        border: 1px solid #dce3ec;
+        color: var(--navy);
+    }
+
+    .filter-card .form-control:focus {
+        box-shadow: 0 0 0 3px rgba(7,26,53,.08);
+        border-color: var(--navy);
+    }
+
+    .btn-navy {
+        height: 44px;
+        padding: 0 20px;
+        border: none;
+        border-radius: 10px;
+        background: var(--navy);
+        color: white;
+        font-weight: 700;
+    }
+
+    .btn-navy:hover {
+        background: var(--navy-2);
+        color: white;
+    }
+
+    .btn-reset {
+        height: 44px;
+        padding: 0 20px;
+        border-radius: 10px;
+        background: #f1f5f9;
+        color: var(--navy);
+        font-weight: 700;
+        border: 1px solid #e2e8f0;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .btn-reset:hover {
+        background: #e8edf4;
+        color: var(--navy);
+    }
+
+    /* =========================
+       CARDS GRID
+    ========================== */
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 17px;
+        padding: 19px;
+        min-height: 175px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(15,23,42,.045);
+        transition: all .2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        border-color: #ccd6e3;
+        box-shadow: 0 10px 25px rgba(15,23,42,.08);
+    }
+
+    .stat-card::after {
+        content: "";
+        position: absolute;
+        width: 80px;
+        height: 3px;
+        left: 19px;
+        bottom: 0;
+        background: var(--navy);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .stat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 17px;
+    }
+
+    .stat-title {
+        color: #667085;
+        font-size: .78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        margin: 0;
+    }
+
+    .stat-icon {
+        width: 43px;
+        height: 43px;
+        border-radius: 11px;
+        background: #edf3fa;
+        color: var(--navy);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.08rem;
+    }
+
+    .stat-label {
+        color: #98a2b3;
+        font-size: .68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .stat-value {
+        color: var(--navy);
+        font-size: clamp(1.25rem, 2vw, 1.62rem);
+        font-weight: 800;
+        margin-top: 2px;
+        word-break: break-word;
+    }
+
+    .stat-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 13px;
+    }
+
+    .detail-item {
+        background: #f7f9fc;
+        border-radius: 9px;
+        padding: 8px 9px;
+    }
+
+    .detail-name {
+        color: #98a2b3;
+        text-transform: uppercase;
+        font-size: .61rem;
+        font-weight: 800;
+    }
+
+    .detail-number {
+        color: #344054;
+        font-size: .82rem;
+        font-weight: 800;
+        margin-top: 2px;
+        word-break: break-word;
+    }
+
+    /* =========================
+       PARTIES
+    ========================== */
+
+    .party-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+        margin-top: 12px;
+    }
+
+    .party-box {
+        background: #f7f9fc;
+        padding: 10px 4px;
+        text-align: center;
+        border-radius: 9px;
+    }
+
+    .party-number {
+        color: var(--navy);
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .party-label {
+        color: #98a2b3;
+        font-size: .58rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    /* =========================
+       WADYA CARD
+    ========================== */
+
+    .wadya-card {
+        background: var(--navy);
+        border-color: var(--navy);
+    }
+
+    .wadya-card::after {
+        background: white;
+    }
+
+    .wadya-card .stat-title,
+    .wadya-card .stat-label,
+    .wadya-card .stat-value {
+        color: white;
+    }
+
+    .wadya-card .stat-label {
+        opacity: .65;
+    }
+
+    .wadya-card .stat-icon {
+        background: rgba(255,255,255,.1);
+        color: white;
+    }
+
+    .wadya-info {
+        color: #aebfd3;
+        font-size: .73rem;
+        margin-top: 13px;
+    }
+
+    /* =========================
+       GRAPH
+    ========================== */
+
+    .graph-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        margin-top: 22px;
+        padding: 23px;
+        box-shadow: 0 5px 18px rgba(15,23,42,.05);
+    }
+
+    .graph-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .graph-title {
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: var(--navy);
+        margin: 0;
+    }
+
+    .graph-description {
+        color: #98a2b3;
+        font-size: .76rem;
+        margin-top: 3px;
+    }
+
+    .graph-badge {
+        color: var(--navy);
+        background: #edf3fa;
+        padding: 7px 12px;
+        border-radius: 20px;
+        font-size: .7rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .chart-container {
+        position: relative;
+        width: 100%;
+        height: 370px;
+    }
+
+    /* =========================
+       RESPONSIVE
+    ========================== */
+
+    @media (max-width: 1199px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(3, minmax(0,1fr));
+        }
+    }
+
+    @media (max-width: 991px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(2, minmax(0,1fr));
+        }
+
+        .net-position-box {
+            margin-top: 20px;
+        }
+
+        .dashboard-hero {
+            padding: 25px;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .chart-container {
+            height: 310px;
+        }
+    }
+
+    @media (max-width: 575px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .dashboard-hero {
+            border-radius: 17px;
+            padding: 21px 17px;
+        }
+
+        .net-position-box {
+            min-width: 100%;
+        }
+
+        .filter-card {
+            padding: 15px;
+        }
+
+        .filter-buttons {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .btn-reset,
+        .btn-navy {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .graph-card {
+            padding: 16px 12px;
+        }
+
+        .chart-container {
+            height: 270px;
+        }
+
+        .graph-header {
+            align-items: flex-start;
+        }
+    }
+</style>
+
+
+<div class="mj-dashboard">
+
+    <!-- HERO -->
+    <div class="dashboard-hero">
+        <div class="row align-items-center hero-content">
+
+            <div class="col-lg-7">
+                <div class="company-small">
+                    MJ Poultries Group
+                </div>
+
+                <h1 class="dashboard-title">
+                    Business Dashboard
+                </h1>
+
+                <p class="dashboard-subtitle">
+                    Welcome back, {{ user_name }} — complete business overview.
+                </p>
+            </div>
+
+            <div class="col-lg-5 d-flex justify-content-lg-end">
+                <div class="net-position-box">
+
+                    <div class="net-label">
+                        <i class="bi bi-graph-up me-1"></i>
+                        Net Position
+                    </div>
+
+                    <div class="net-value">
+                        Rs. {{ net_position|floatformat:0 }}
+                    </div>
+
+                    <div class="net-formula">
+                        Total Sales − Purchases − Expenses
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- DATE FILTER -->
+    <form method="GET" class="filter-card">
+
+        <div class="row g-3 align-items-end">
+
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <label>From Date</label>
+                <input
+                    type="date"
+                    name="date_from"
+                    class="form-control"
+                    value="{{ date_from }}"
+                >
+            </div>
+
+            <div class="col-lg-3 col-md-4 col-sm-6">
+                <label>To Date</label>
+                <input
+                    type="date"
+                    name="date_to"
+                    class="form-control"
+                    value="{{ date_to }}"
+                >
+            </div>
+
+            <div class="col-lg-6 col-md-4">
+                <div class="d-flex gap-2 filter-buttons">
+
+                    <button class="btn-navy" type="submit">
+                        <i class="bi bi-funnel me-1"></i>
+                        Apply
+                    </button>
+
+                    <a href="?" class="btn-reset">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>
+                        Reset
+                    </a>
+
+                </div>
+            </div>
+
+        </div>
+
+    </form>
+
+
+    <!-- DASHBOARD CARDS -->
+    <div class="dashboard-grid">
+
+        <!-- PURCHASE -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Total Purchases</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-cart-check"></i>
+                </div>
+            </div>
+
+            <div class="stat-label">
+                Purchase Amount
+            </div>
+
+            <div class="stat-value">
+                Rs. {{ total_purchase|floatformat:0 }}
+            </div>
+
+            <div class="stat-details">
+
+                <div class="detail-item">
+                    <div class="detail-name">Paid</div>
+                    <div class="detail-number">
+                        Rs. {{ total_purchase_paid|floatformat:0 }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-name">Remaining</div>
+                    <div class="detail-number">
+                        Rs. {{ total_purchase_remaining|floatformat:0 }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- SALES -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Total Sales</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+
+            <div class="stat-label">
+                Sales Amount
+            </div>
+
+            <div class="stat-value">
+                Rs. {{ total_sales|floatformat:0 }}
+            </div>
+
+            <div class="stat-details">
+
+                <div class="detail-item">
+                    <div class="detail-name">Received</div>
+                    <div class="detail-number">
+                        Rs. {{ total_sales_received|floatformat:0 }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-name">Remaining</div>
+                    <div class="detail-number">
+                        Rs. {{ total_sales_remaining|floatformat:0 }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- EXPENSES -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Expenses</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+            </div>
+
+            <div class="stat-label">
+                Total Expense
+            </div>
+
+            <div class="stat-value">
+                Rs. {{ total_expense|floatformat:0 }}
+            </div>
+
+            <div class="stat-details">
+
+                <div class="detail-item">
+                    <div class="detail-name">Period</div>
+                    <div class="detail-number">
+                        {% if date_from or date_to %}
+                            Filtered
+                        {% else %}
+                            All Time
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-name">Type</div>
+                    <div class="detail-number">
+                        Business
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- MORTALITY -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Mortality</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-activity"></i>
+                </div>
+            </div>
+
+            <div class="stat-label">
+                Mortality Amount
+            </div>
+
+            <div class="stat-value">
+                Rs. {{ total_mortality_amount|floatformat:0 }}
+            </div>
+
+            <div class="stat-details">
+
+                <div class="detail-item">
+                    <div class="detail-name">Weight</div>
+                    <div class="detail-number">
+                        {{ total_mortality_weight|floatformat:0 }} KG
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-name">Record</div>
+                    <div class="detail-number">
+                        Mortality
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- PARTIES -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Business Parties</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+            </div>
+
+            <div class="party-grid">
+
+                <div class="party-box">
+                    <div class="party-number">
+                        {{ total_vendors }}
+                    </div>
+                    <div class="party-label">
+                        Vendors
+                    </div>
+                </div>
+
+                <div class="party-box">
+                    <div class="party-number">
+                        {{ total_customers }}
+                    </div>
+                    <div class="party-label">
+                        Customers
+                    </div>
+                </div>
+
+                <div class="party-box">
+                    <div class="party-number">
+                        {{ total_traders }}
+                    </div>
+                    <div class="party-label">
+                        Traders
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- WASTE -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Waste</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-recycle"></i>
+                </div>
+            </div>
+
+            <div class="stat-label">
+                Waste Trading
+            </div>
+
+            <div class="stat-details">
+
+                <div class="detail-item">
+                    <div class="detail-name">Purchase</div>
+                    <div class="detail-number">
+                        {{ waste_purchase|floatformat:0 }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-name">Sell</div>
+                    <div class="detail-number">
+                        {{ waste_sell|floatformat:0 }}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- FAT -->
+        <div class="stat-card">
+
+            <div class="stat-header">
+                <h3 class="stat-title">Fat</h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-droplet"></i>
+                </div>
+            </div>
+
+            <div class="stat-label">
+                Fat Trading
+            </div>
+
+            <div class="stat-details">
+
+                <div class="detail-item">
+                    <div class="detail-name">Purchase</div>
+                    <div class="detail-number">
+                        {{ fat_purchase|floatformat:0 }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-name">Sell</div>
+                    <div class="detail-number">
+                        {{ fat_sell|floatformat:0 }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- WADYA MAAL -->
+        <div class="stat-card wadya-card">
+
+            <div class="stat-header">
+
+                <h3 class="stat-title">
+                    Wadya Maal
+                </h3>
+
+                <div class="stat-icon">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+
+            </div>
+
+            <div class="stat-label">
+                Remaining Available Weight
+            </div>
+
+            <div class="stat-value">
+                {{ wadya_maal|floatformat:2 }} KG
+            </div>
+
+            <div class="wadya-info">
+                <i class="bi bi-info-circle me-1"></i>
+                Available weight from purchase receiving
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ===============================
+         LINE GRAPH AT BOTTOM
+    ================================ -->
+
+    <div class="graph-card">
+
+        <div class="graph-header">
+
+            <div>
+                <h3 class="graph-title">
+                    Sales & Expense Performance
+                </h3>
+
+                <div class="graph-description">
+                    Daily sales and expenses comparison
+                </div>
+            </div>
+
+            <div class="graph-badge">
+                <i class="bi bi-graph-up me-1"></i>
+                Financial Overview
+            </div>
+
+        </div>
+
+
+        <div class="chart-container">
+            <canvas id="performanceChart"></canvas>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- CHART JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_sales|json_script:"chart-sales" }}
+{{ chart_expenses|json_script:"chart-expenses" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const labels = JSON.parse(
+        document.getElementById("chart-labels").textContent
+    );
+
+    const sales = JSON.parse(
+        document.getElementById("chart-sales").textContent
+    );
+
+    const expenses = JSON.parse(
+        document.getElementById("chart-expenses").textContent
+    );
+
+    const canvas = document.getElementById("performanceChart");
+
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+
+
+    /* SALES GRADIENT */
+    const salesGradient = ctx.createLinearGradient(0, 0, 0, 350);
+
+    salesGradient.addColorStop(
+        0,
+        "rgba(7, 26, 53, 0.22)"
+    );
+
+    salesGradient.addColorStop(
+        1,
+        "rgba(7, 26, 53, 0.00)"
+    );
+
+
+    /* EXPENSE GRADIENT */
+    const expenseGradient = ctx.createLinearGradient(0, 0, 0, 350);
+
+    expenseGradient.addColorStop(
+        0,
+        "rgba(96, 165, 250, 0.20)"
+    );
+
+    expenseGradient.addColorStop(
+        1,
+        "rgba(96, 165, 250, 0.00)"
+    );
+
+
+    new Chart(ctx, {
+
+        type: "line",
+
+        data: {
+
+            labels: labels,
+
+            datasets: [
+
+                {
+                    label: "Sales",
+
+                    data: sales,
+
+                    borderColor: "#071a35",
+
+                    backgroundColor: salesGradient,
+
+                    borderWidth: 3,
+
+                    pointRadius: 4,
+
+                    pointHoverRadius: 7,
+
+                    pointBackgroundColor: "#ffffff",
+
+                    pointBorderColor: "#071a35",
+
+                    pointBorderWidth: 2,
+
+                    tension: 0.4,
+
+                    fill: true
+                },
+
+                {
+                    label: "Expenses",
+
+                    data: expenses,
+
+                    borderColor: "#60a5fa",
+
+                    backgroundColor: expenseGradient,
+
+                    borderWidth: 3,
+
+                    pointRadius: 4,
+
+                    pointHoverRadius: 7,
+
+                    pointBackgroundColor: "#ffffff",
+
+                    pointBorderColor: "#60a5fa",
+
+                    pointBorderWidth: 2,
+
+                    tension: 0.4,
+
+                    fill: true
+                }
+
+            ]
+
+        },
+
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            interaction: {
+                mode: "index",
+                intersect: false
+            },
+
+
+            plugins: {
+
+                legend: {
+
+                    position: "top",
+
+                    align: "end",
+
+                    labels: {
+
+                        color: "#475467",
+
+                        usePointStyle: true,
+
+                        pointStyle: "circle",
+
+                        boxWidth: 8,
+
+                        boxHeight: 8,
+
+                        padding: 20,
+
+                        font: {
+                            size: 12,
+                            weight: "600"
+                        }
+
+                    }
+
+                },
+
+
+                tooltip: {
+
+                    backgroundColor: "#071a35",
+
+                    titleColor: "#ffffff",
+
+                    bodyColor: "#ffffff",
+
+                    padding: 12,
+
+                    cornerRadius: 9,
+
+                    displayColors: true,
+
+                    callbacks: {
+
+                        label: function(context) {
+
+                            const value =
+                                Number(context.raw || 0);
+
+                            return " " +
+                                context.dataset.label +
+                                ": Rs. " +
+                                value.toLocaleString();
+
+                        }
+
+                    }
+
+                }
+
+            },
+
+
+            scales: {
+
+                x: {
+
+                    border: {
+                        display: false
+                    },
+
+                    grid: {
+                        display: false
+                    },
+
+                    ticks: {
+                        color: "#98a2b3",
+                        maxRotation: 0
+                    }
+
+                },
+
+
+                y: {
+
+                    beginAtZero: true,
+
+                    border: {
+                        display: false
+                    },
+
+                    grid: {
+                        color: "rgba(15, 23, 42, 0.06)",
+                        drawTicks: false
+                    },
+
+                    ticks: {
+
+                        color: "#98a2b3",
+
+                        padding: 10,
+
+                        callback: function(value) {
+
+                            if (value >= 1000000) {
+                                return "Rs " +
+                                    (value / 1000000)
+                                        .toFixed(1) +
+                                    "M";
+                            }
+
+                            if (value >= 1000) {
+                                return "Rs " +
+                                    (value / 1000)
+                                        .toFixed(0) +
+                                    "K";
+                            }
+
+                            return "Rs " + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1257 @@
+{% extends 'base.html' %}
+
+{% block title %}Sell Entry - Politory{% endblock %}
+
+{% block content %}
+
+<!-- SELECT2 -->
+<link
+    href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+    rel="stylesheet"
+>
+
+<link
+    href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+    rel="stylesheet"
+>
+
+
+<style>
+
+    .sell-wrapper {
+        padding: 15px 10px;
+        background: #f5f7fb;
+        min-height: 80vh;
+    }
+
+    /* ==========================================
+       STOCK CARD
+    ========================================== */
+
+    .stock-card {
+        background:
+            linear-gradient(
+                135deg,
+                #667eea,
+                #764ba2
+            );
+
+        color: white;
+        border-radius: 13px;
+        padding: 17px 20px;
+        box-shadow:
+            0 5px 18px rgba(0,0,0,.12);
+    }
+
+    .stock-label {
+        color: rgba(255,255,255,.68);
+        font-size: .76rem;
+        margin-bottom: 2px;
+    }
+
+    .stock-data {
+        font-weight: 700;
+        font-size: .95rem;
+    }
+
+    .stock-number {
+        font-size: 1.7rem;
+        line-height: 1.1;
+        font-weight: 900;
+    }
+
+    .stock-positive {
+        color: #69f0ae;
+    }
+
+    .stock-zero {
+        color: #ffd54f;
+    }
+
+    .stock-negative {
+        color: #ff8a80;
+    }
+
+    .purchase-badge {
+        display: inline-block;
+        color: white;
+        background: rgba(255,255,255,.18);
+        border: 1px solid rgba(255,255,255,.25);
+        padding: 5px 12px;
+        border-radius: 50px;
+        font-weight: 800;
+    }
+
+
+    /* ==========================================
+       FORM
+    ========================================== */
+
+    .sell-card {
+        border: 0;
+        border-radius: 13px;
+        overflow: hidden;
+        box-shadow:
+            0 4px 14px rgba(0,0,0,.07);
+    }
+
+    .sell-header {
+        background:
+            linear-gradient(
+                135deg,
+                #f093fb,
+                #f5576c
+            );
+
+        color: white;
+        padding: 14px 18px;
+    }
+
+    .balance-pill {
+        background: rgba(255,255,255,.20);
+        border: 1px solid rgba(255,255,255,.30);
+        padding: 7px 12px;
+        border-radius: 8px;
+        font-size: .83rem;
+        font-weight: 800;
+    }
+
+    .form-label {
+        font-size: .78rem;
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 4px;
+    }
+
+    .form-control,
+    .form-select,
+    .select2-selection {
+        min-height: 38px !important;
+        font-size: .85rem !important;
+    }
+
+    .readonly-field {
+        background: #f5f6f8 !important;
+        font-weight: 700;
+    }
+
+    .amount-field {
+        background: #fff1f3 !important;
+        border: 1px solid #f5576c !important;
+        color: #dc3545 !important;
+        font-weight: 800;
+    }
+
+    .stock-info {
+        font-size: .72rem;
+        margin-top: 4px;
+        color: #6c757d;
+    }
+
+    .sell-button {
+        min-height: 38px;
+        font-weight: 700;
+    }
+
+
+    /* ==========================================
+       HISTORY
+    ========================================== */
+
+    .history-card {
+        border: 0;
+        border-radius: 13px;
+        overflow: hidden;
+        box-shadow:
+            0 4px 14px rgba(0,0,0,.07);
+    }
+
+    .history-table {
+        font-size: .83rem;
+    }
+
+    .history-table th,
+    .history-table td {
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .history-purchase {
+        background: #667eea;
+        color: white;
+        padding: 4px 9px;
+        border-radius: 20px;
+        font-size: .73rem;
+        font-weight: 800;
+    }
+
+
+    /* ==========================================
+       TOAST
+    ========================================== */
+
+    .toast-container-custom {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 99999;
+    }
+
+    .message-toast {
+        min-width: 310px;
+        max-width: 450px;
+        padding: 13px 16px;
+        border-radius: 9px;
+        background: white;
+        box-shadow:
+            0 8px 25px rgba(0,0,0,.18);
+        font-weight: 600;
+    }
+
+    .message-toast.success {
+        border-left: 5px solid #198754;
+    }
+
+    .message-toast.error {
+        border-left: 5px solid #dc3545;
+    }
+
+
+    /* ==========================================
+       MOBILE
+    ========================================== */
+
+    @media(max-width: 767px) {
+
+        .sell-wrapper {
+            padding: 8px 4px;
+        }
+
+        .stock-card {
+            padding: 14px;
+        }
+
+        .stock-number {
+            font-size: 1.35rem;
+        }
+
+        .history-table {
+            font-size: .74rem;
+        }
+
+        .toast-container-custom {
+            left: 10px;
+            right: 10px;
+        }
+
+        .message-toast {
+            width: 100%;
+            min-width: 0;
+        }
+
+    }
+
+</style>
+
+
+
+<!-- ===================================================== -->
+<!-- DJANGO MESSAGES -->
+<!-- ===================================================== -->
+
+<div class="toast-container-custom">
+
+    {% for message in messages %}
+
+        <div
+            class="message-toast {{ message.tags }} mb-2"
+        >
+
+            {% if 'success' in message.tags %}
+
+                ✅
+
+            {% elif 'error' in message.tags %}
+
+                ❌
+
+            {% else %}
+
+                ℹ️
+
+            {% endif %}
+
+            {{ message }}
+
+        </div>
+
+    {% endfor %}
+
+</div>
+
+
+
+<div class="container-fluid sell-wrapper">
+
+
+    <!-- ================================================= -->
+    <!-- CURRENT / LATEST PURCHASE -->
+    <!-- ================================================= -->
+
+    {% if active_purchase %}
+
+    <div class="stock-card mb-3">
+
+        <div class="row align-items-center g-3">
+
+
+            <!-- VENDOR -->
+
+            <div class="col-12 col-sm-6 col-lg-3">
+
+                <div class="stock-label">
+                    Current Purchase
+                </div>
+
+                <div class="stock-data">
+
+                    {{ active_purchase.vendor_name|default:"-" }}
+
+                </div>
+
+            </div>
+
+
+
+            <!-- PURCHASE NUMBER -->
+
+            <div class="col-6 col-sm-3 col-lg-2">
+
+                <div class="stock-label">
+                    Purchase #
+                </div>
+
+                <span class="purchase-badge">
+
+                    {{ active_purchase.purchase_number|default:"-" }}
+
+                </span>
+
+            </div>
+
+
+
+            <!-- PURCHASED WEIGHT -->
+
+            <div class="col-6 col-sm-3 col-lg-2">
+
+                <div class="stock-label">
+                    Purchased Weight
+                </div>
+
+                <div class="stock-data">
+
+                    {{ active_purchase.weight|default:"0" }} kg
+
+                </div>
+
+            </div>
+
+
+
+            <!-- VEHICLE -->
+
+            <div class="col-6 col-lg-2">
+
+                <div class="stock-label">
+                    Vehicle
+                </div>
+
+                <div class="stock-data">
+
+                    {{ active_purchase.vehicle_number|default:"-" }}
+
+                </div>
+
+            </div>
+
+
+
+            <!-- REMAINING -->
+
+            <div class="col-6 col-lg-3 text-lg-end">
+
+                <div class="stock-label">
+                    Current Balance
+                </div>
+
+
+                <div
+                    class="stock-number
+
+                    {% if stock_negative %}
+                        stock-negative
+
+                    {% elif stock_zero %}
+                        stock-zero
+
+                    {% else %}
+                        stock-positive
+
+                    {% endif %}
+                    "
+                >
+
+                    {{ available_stock }} kg
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+
+
+    <!-- ================================================= -->
+    <!-- SELL FORM -->
+    <!-- ================================================= -->
+
+    <div class="card sell-card mb-4">
+
+
+        <div
+            class="sell-header d-flex justify-content-between align-items-center flex-wrap gap-2"
+        >
+
+            <h6 class="mb-0 fw-bold">
+
+                <i class="bi bi-cart-check-fill me-1"></i>
+
+                New Sell Entry
+
+            </h6>
+
+
+            {% if active_purchase %}
+
+                <div class="d-flex gap-2 flex-wrap">
+
+                    <div class="balance-pill">
+
+                        Balance:
+                        {{ available_stock }} kg
+
+                    </div>
+
+
+                    {% if not stock_zero and not stock_negative %}
+
+                        <button
+                            type="button"
+                            class="btn btn-warning btn-sm fw-bold"
+                            data-bs-toggle="modal"
+                            data-bs-target="#mortalityModal"
+                        >
+
+                            <i
+                                class="bi bi-exclamation-triangle me-1"
+                            ></i>
+
+                            Mortality
+
+                        </button>
+
+                    {% endif %}
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+
+
+        <div class="card-body p-3">
+
+
+            {% if active_purchase %}
+
+
+                <form
+                    method="POST"
+                    id="sellForm"
+                >
+
+                    {% csrf_token %}
+
+
+                    <div class="row g-2 align-items-end">
+
+
+                        <!-- PURCHASE -->
+
+                        <div class="col-6 col-md-3 col-xl-1">
+
+                            <label class="form-label">
+                                Purchase #
+                            </label>
+
+                            <input
+                                type="text"
+                                class="form-control readonly-field"
+                                value="{{ active_purchase.purchase_number }}"
+                                readonly
+                            >
+
+                        </div>
+
+
+
+                        <!-- CUSTOMER -->
+
+                        <div class="col-12 col-md-5 col-xl-3">
+
+                            <label class="form-label">
+
+                                Customer / Trader
+
+                            </label>
+
+
+                            <select
+                                name="customer_name"
+                                class="form-select customer-select"
+                                required
+                            >
+
+                                <option value="">
+                                    Search Customer...
+                                </option>
+
+
+                                {% for customer in customer_list %}
+
+                                    <option
+                                        value="{{ customer.company_name }}"
+                                    >
+
+                                        {{ customer.company_name }}
+
+                                        {% if customer.party_type %}
+
+                                            ({{ customer.party_type }})
+
+                                        {% endif %}
+
+                                    </option>
+
+                                {% endfor %}
+
+                            </select>
+
+                        </div>
+
+
+
+                        <!-- DATE -->
+
+                        <div class="col-12 col-md-3 col-xl-2">
+
+                        <label class="form-label">
+                            Date
+                        </label>
+
+                        <input
+                            type="date"
+                            class="form-control"
+                            value="{{ current_date }}"
+                        >
+
+                    </div>
+
+
+
+                        <!-- WEIGHT -->
+
+                        <div class="col-6 col-md-2 col-xl-1">
+
+                            <label class="form-label">
+                                Weight
+                            </label>
+
+                            <input
+                                type="number"
+                                name="weight"
+                                id="weightField"
+                                class="form-control"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0"
+                                required
+                            >
+
+
+                        </div>
+
+
+
+                        <!-- RATE -->
+
+                        <div class="col-6 col-md-3 col-xl-1">
+
+                            <label class="form-label">
+                                Rate
+                            </label>
+
+                            <input
+                                type="number"
+                                name="rate"
+                                id="rateField"
+                                class="form-control"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0"
+                                required
+                            >
+
+                        </div>
+
+
+
+                        <!-- AMOUNT -->
+
+                        <div class="col-6 col-md-3 col-xl-1">
+
+                            <label class="form-label text-danger">
+
+                                Amount
+
+                            </label>
+
+                            <input
+                                type="text"
+                                id="amountDisplay"
+                                class="form-control amount-field"
+                                placeholder="Auto"
+                                readonly
+                            >
+
+                        </div>
+
+
+
+                        <!-- VEHICLE -->
+
+                        <div class="col-6 col-md-3 col-xl-1">
+
+                            <label class="form-label">
+                                Vehicle
+                            </label>
+
+                            <input
+                                type="text"
+                                name="vehicle_no"
+                                class="form-control readonly-field"
+                                value="{{ auto_vehicle }}"
+                                readonly
+                            >
+
+                        </div>
+
+
+
+                        <!-- SAVE -->
+
+                        <div class="col-6 col-md-3 col-xl-1 d-grid">
+
+                            <button
+                                type="submit"
+                                id="submitBtn"
+                                class="btn btn-danger sell-button"
+                            >
+
+                                <i class="bi bi-save me-1"></i>
+
+                                Save
+
+                            </button>
+
+                        </div>
+
+
+                    </div>
+
+                </form>
+
+
+            {% else %}
+
+
+                <!-- Only possible when PurchaseReceiving table
+                     itself has no records -->
+
+                <div class="alert alert-warning mb-0">
+
+                    <i
+                        class="bi bi-exclamation-triangle me-1"
+                    ></i>
+
+                    No Purchase Receiving record exists yet.
+
+                </div>
+
+
+            {% endif %}
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- HISTORY -->
+    <!-- ================================================= -->
+
+    <div class="card history-card">
+
+
+        <div class="card-header bg-white py-3">
+
+            <div
+                class="d-flex justify-content-between align-items-center flex-wrap gap-2"
+            >
+
+                <h6 class="fw-bold mb-0">
+
+                    <i class="bi bi-clock-history me-1"></i>
+
+                    Sell History
+
+                </h6>
+
+
+                {% if active_purchase %}
+
+                    <span class="badge bg-primary">
+
+                        Current Purchase:
+                        {{ active_purchase.purchase_number }}
+
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+
+        <div class="card-body p-0">
+
+
+            <div class="table-responsive">
+
+
+                <table
+                    class="table table-hover history-table mb-0"
+                >
+
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>#</th>
+
+                            <th>Sell #</th>
+
+                            <th>Purchase #</th>
+
+                            <th>Customer</th>
+
+                            <th>Date</th>
+
+                            <th>Weight</th>
+
+                            <th>Rate</th>
+
+                            <th>Amount</th>
+
+                            <th>Vehicle</th>
+
+                            <th>Action</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+
+                        {% for row in history %}
+
+                            <tr>
+
+
+                                <td>
+
+                                    {{ forloop.counter }}
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="badge bg-dark">
+
+                                        {{ row.sells_no|default:"-" }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="history-purchase">
+
+                                        {{ row.purchase_number|default:"-" }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td class="fw-bold">
+
+                                    {{ row.customer_name|default:"-" }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ row.entry_date|date:"d-m-Y" }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ row.weight }} kg
+
+                                </td>
+
+
+                                <td>
+
+                                    Rs. {{ row.rate }}
+
+                                </td>
+
+
+                                <td class="fw-bold text-danger">
+
+                                    Rs. {{ row.total_display }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {{ row.vehicle_no|default:"-" }}
+
+                                </td>
+
+
+                                <td>
+
+                                    <a
+                                        href="?delete_id={{ row.id }}"
+                                        class="btn btn-danger btn-sm"
+                                        onclick="return confirm(
+                                            'Delete this sell and restore its weight to Purchase Receiving?'
+                                        );"
+                                    >
+
+                                        <i class="bi bi-trash"></i>
+
+                                    </a>
+
+                                </td>
+
+
+                            </tr>
+
+
+                        {% empty %}
+
+
+                            <tr>
+
+                                <td
+                                    colspan="10"
+                                    class="text-center py-4 text-muted"
+                                >
+
+                                    No sell records found.
+
+                                </td>
+
+                            </tr>
+
+
+                        {% endfor %}
+
+
+                    </tbody>
+
+
+                </table>
+
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+
+
+<!-- ===================================================== -->
+<!-- MORTALITY -->
+<!-- ===================================================== -->
+
+{% if active_purchase and not stock_zero and not stock_negative %}
+
+<div
+    class="modal fade"
+    id="mortalityModal"
+    tabindex="-1"
+>
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content border-0 shadow">
+
+
+            <div class="modal-header bg-danger text-white">
+
+                <h5 class="modal-title">
+
+                    Mortality Entry
+
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="modal"
+                ></button>
+
+            </div>
+
+
+            <form method="POST">
+
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="mortality"
+                >
+
+
+                <div class="modal-body">
+
+                    <p>
+
+                        Move current remaining stock to Mortality?
+
+                    </p>
+
+
+                    <div class="alert alert-warning mb-0">
+
+                        <div
+                            class="d-flex justify-content-between"
+                        >
+
+                            <span>Purchase</span>
+
+                            <strong>
+
+                                {{ active_purchase.purchase_number }}
+
+                            </strong>
+
+                        </div>
+
+                        <hr>
+
+                        <div
+                            class="d-flex justify-content-between"
+                        >
+
+                            <span>Weight</span>
+
+                            <strong>
+
+                                {{ available_stock }} kg
+
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+
+                        Cancel
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-danger"
+                    >
+
+                        Confirm
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+
+
+<!-- ===================================================== -->
+<!-- JS -->
+<!-- ===================================================== -->
+
+<script
+    src="https://code.jquery.com/jquery-3.6.0.min.js"
+></script>
+
+<script
+    src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"
+></script>
+
+
+<script>
+
+$(document).ready(function () {
+
+
+    // ==================================================
+    // CUSTOMER SEARCH
+    // ==================================================
+
+    $('.customer-select').select2({
+
+        theme: 'bootstrap-5',
+
+        width: '100%',
+
+        placeholder:
+            'Search Customer...'
+
+    });
+
+
+
+    // ==================================================
+    // CALCULATE AMOUNT
+    // ==================================================
+
+    function calculateAmount() {
+
+
+        const weight =
+            parseFloat(
+                $('#weightField').val()
+            ) || 0;
+
+
+        const rate =
+            parseFloat(
+                $('#rateField').val()
+            ) || 0;
+
+
+        const amount =
+            weight * rate;
+
+
+        if (amount > 0) {
+
+            $('#amountDisplay').val(
+
+                'Rs. '
+                +
+                amount.toLocaleString(
+                    'en-PK',
+                    {
+                        maximumFractionDigits: 2
+                    }
+                )
+
+            );
+
+        } else {
+
+            $('#amountDisplay').val('');
+
+        }
+
+    }
+
+
+    $('#weightField').on(
+        'input',
+        calculateAmount
+    );
+
+
+    $('#rateField').on(
+        'input',
+        calculateAmount
+    );
+
+
+
+    // ==================================================
+    // SUBMIT
+    //
+    // IMPORTANT:
+    // Current stock ke against koi max validation nahi.
+    //
+    // 0 stock par bhi sale.
+    // -100 stock par bhi sale.
+    // ==================================================
+
+    $('#sellForm').on(
+        'submit',
+        function (event) {
+
+
+            const weight =
+                parseFloat(
+                    $('#weightField').val()
+                ) || 0;
+
+
+            const rate =
+                parseFloat(
+                    $('#rateField').val()
+                ) || 0;
+
+
+            if (weight <= 0) {
+
+                event.preventDefault();
+
+                alert(
+                    'Weight must be greater than 0.'
+                );
+
+                return false;
+
+            }
+
+
+            if (rate <= 0) {
+
+                event.preventDefault();
+
+                alert(
+                    'Rate must be greater than 0.'
+                );
+
+                return false;
+
+            }
+
+
+            $('#submitBtn')
+                .prop('disabled', true)
+                .html(
+                    '<span class="spinner-border spinner-border-sm me-1"></span> Saving...'
+                );
+
+        }
+    );
+
+
+
+    // ==================================================
+    // MESSAGE AUTO HIDE
+    // ==================================================
+
+    $('.message-toast').each(
+        function (index) {
+
+
+            const element = $(this);
+
+
+            setTimeout(
+                function () {
+
+                    element.fadeOut(
+                        400,
+                        function () {
+                            element.remove();
+                        }
+                    );
+
+                },
+
+                3500 + (index * 200)
+            );
+
+        }
+    );
+
+
+});
+
+</script>
+
+{% endblock %}
