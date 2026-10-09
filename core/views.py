@@ -661,24 +661,36 @@ def _pk_now():
     return timezone.now().astimezone(PK_TZ).replace(tzinfo=None)
 
 
-# ============================================================
-# RECEIPT VIEW
-# ============================================================
+from datetime import datetime
+from django.db import transaction
+from django.db.models import Max  # ID generation aur balance calculation ke liye
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+
+# Apne models ke imports yahan check kar lein
+from .models import (
+    CashRecord,
+    Parties,
+    ReceiptHistory,
+    SellsInvoice,
+    Sellspayment,
+)
+
+
 def receipt(request):
-    if not request.session.get('user_id'):
-        return redirect('login')
+    if not request.session.get("user_id"):
+        return redirect("login")
 
     # ========================================================
     # 1. SAVE RECEIPT (POST)
     # ========================================================
-    if request.method == 'POST':
-        # 👇 Frontend se ab ye teen alag fields aayenge
-        party_code_post = (request.POST.get('party_code') or '').strip()
-        party_name_post = (request.POST.get('party_name') or '').strip()
-        received_amt_input = request.POST.get('amount')
-        payment_method = request.POST.get('payment_mode')
-        description = (request.POST.get('description') or '').strip()
-        entry_date_str = request.POST.get('date')
+    if request.method == "POST":
+        party_code_post = (request.POST.get("party_code") or "").strip()
+        party_name_post = (request.POST.get("party_name") or "").strip()
+        received_amt_input = request.POST.get("amount")
+        payment_method = request.POST.get("payment_mode")
+        description = (request.POST.get("description") or "").strip()
+        entry_date_str = request.POST.get("date")
 
         try:
             # ---------------- Pakistan local time ----------------
@@ -687,7 +699,7 @@ def receipt(request):
             if entry_date_str:
                 try:
                     selected_date = datetime.strptime(
-                        entry_date_str, '%Y-%m-%d'
+                        entry_date_str, "%Y-%m-%d"
                     ).date()
                     final_entry_date = datetime.combine(
                         selected_date, pk_now.time()
@@ -700,50 +712,58 @@ def receipt(request):
             # ---------------- Amount validation ----------------
             amt_to_receive = _to_decimal(received_amt_input)
             if amt_to_receive <= 0:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Please enter a valid amount greater than 0.'
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Please enter a valid amount greater than 0.",
+                    }
+                )
 
             # ---------------- Party resolution ----------------
-            # Priority: frontend se aaya code
             party_code = party_code_post
             party_name = party_name_post
 
             if not party_code and party_name:
-                # Fallback — agar code na aaya ho
-                p = Parties.objects.filter(company_name=party_name).first() \
+                p = (
+                    Parties.objects.filter(company_name=party_name).first()
                     or Parties.objects.filter(owner_name=party_name).first()
+                )
                 if p:
-                    party_code = p.code or ''
+                    party_code = p.code or ""
                     party_name = p.company_name or p.owner_name or party_name
 
             if not party_code:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Party code missing — please select a party from the modal.'
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Party code missing — please select a party from the modal.",
+                    }
+                )
 
             if not party_name:
-                # Try to resolve name from code
                 p = Parties.objects.filter(code=party_code).first()
                 if p:
-                    party_name = p.company_name or p.owner_name or ''
+                    party_name = p.company_name or p.owner_name or ""
 
             # ==================================================
-            # TRANSACTION
+            # TRANSACTION (Atomic)
             # ==================================================
             with transaction.atomic():
 
                 # -------- Previous due / advance --------
                 last_hist = (
-                    ReceiptHistory.objects
-                    .filter(part_code=party_code)
-                    .order_by('-id')
+                    ReceiptHistory.objects.filter(part_code=party_code)
+                    .order_by("-id")
                     .first()
                 )
-                prev_due = int(last_hist.due) if last_hist and last_hist.due else 0
-                prev_adv = int(last_hist.advance) if last_hist and last_hist.advance else 0
+                prev_due = (
+                    int(last_hist.due) if last_hist and last_hist.due else 0
+                )
+                prev_adv = (
+                    int(last_hist.advance)
+                    if last_hist and last_hist.advance
+                    else 0
+                )
 
                 net_before = prev_due - prev_adv
 
@@ -753,10 +773,9 @@ def receipt(request):
                 cash_pool = amt_to_receive
 
                 unpaid_invoices = (
-                    SellsInvoice.objects
-                    .select_for_update()
+                    SellsInvoice.objects.select_for_update()
                     .filter(customer_name=party_name)
-                    .order_by('entry_date', 'id')
+                    .order_by("entry_date", "id")
                 )
 
                 for inv in unpaid_invoices:
@@ -779,7 +798,9 @@ def receipt(request):
 
                     inv.received_amount = str(new_received)
                     inv.remaining_amount = str(new_remaining)
-                    inv.save(update_fields=['received_amount', 'remaining_amount'])
+                    inv.save(
+                        update_fields=["received_amount", "remaining_amount"]
+                    )
 
                     Sellspayment.objects.create(
                         sell_no=inv.sells_no,
@@ -791,7 +812,7 @@ def receipt(request):
                         received_amount=str(apply_now),
                         description=description,
                         payment_method=payment_method,
-                        entry_date=final_entry_date
+                        entry_date=final_entry_date,
                     )
 
                     cash_pool -= apply_now
@@ -816,16 +837,57 @@ def receipt(request):
                     advance=new_adv,
                 )
 
-            return JsonResponse({'success': True})
+                # ==================================================
+                # NEW ADDITION: CASHRECORD INTEGRATION
+                # ==================================================
+                # Database se sabse latest Cash Record nikalte hain
+                last_cash = CashRecord.objects.order_by("-id").first()
+                prev_cash_in_hand = (
+                    last_cash.cash_in_hand
+                    if (last_cash and last_cash.cash_in_hand)
+                    else 0
+                )
+                prev_cash_in_bank = (
+                    last_cash.cash_in_bank
+                    if (last_cash and last_cash.cash_in_bank)
+                    else 0
+                )
+
+                # Amount ko integer me convert karte hain
+                received_amount_int = int(amt_to_receive)
+
+                new_cash_in_hand = prev_cash_in_hand
+                new_cash_in_bank = prev_cash_in_bank
+
+                # Payment mode check kar ke relevant field update karenge
+                if payment_method == "Cash":
+                    new_cash_in_hand += received_amount_int
+                elif payment_method == "Bank Transfer":
+                    new_cash_in_bank += received_amount_int
+
+                # ID sequence error (1364) se bachne ke liye safe next ID generate karenge
+                max_cash_id = CashRecord.objects.aggregate(Max("id"))["id__max"]
+                next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
+
+                # CashRecord table me details save karna
+                CashRecord.objects.create(
+                    id=next_cash_id,
+                    cash_in_hand=new_cash_in_hand,
+                    cash_in_bank=new_cash_in_bank,
+                    date=final_entry_date,  # Selected date with time
+                    discription=description,  # Remarks / Description column
+                )
+
+            return JsonResponse({"success": True})
 
         except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)})
+            return JsonResponse({"success": False, "message": str(e)})
 
     # ========================================================
     # 2. AJAX — PENDING PARTIES (from receipt_history)
     # ========================================================
-    if request.GET.get('action') == 'get_sales':
-        history_qs = ReceiptHistory.objects.order_by('part_code', '-id')
+    if request.GET.get("action") == "get_sales":
+        history_qs = ReceiptHistory.objects.order_by("part_code", "-id")
 
         latest_entries = {}
         for row in history_qs:
@@ -838,41 +900,49 @@ def receipt(request):
             adv = row.advance or 0
             if due <= 0 and adv <= 0:
                 continue
-            data.append({
-                'part_code':  row.part_code or '',
-                'party_name': row.party_name or '',
-                'due':        due,
-                'advance':    adv,
-                'date':       row.date.strftime('%d %b %Y') if row.date else '-',
-            })
+            data.append(
+                {
+                    "part_code": row.part_code or "",
+                    "party_name": row.party_name or "",
+                    "due": due,
+                    "advance": adv,
+                    "date": (
+                        row.date.strftime("%d %b %Y") if row.date else "-"
+                    ),
+                }
+            )
 
-        data.sort(key=lambda x: (x['party_name'] or '').lower())
-        return JsonResponse({'success': True, 'data': data})
+        data.sort(key=lambda x: (x["party_name"] or "").lower())
+        return JsonResponse({"success": True, "data": data})
 
     # ========================================================
     # 3. DEFAULT PAGE
     # ========================================================
     pk_now = _pk_now()
-    today_date = pk_now.strftime('%Y-%m-%d')
-    parties = Parties.objects.all().order_by('company_name')
+    today_date = pk_now.strftime("%Y-%m-%d")
+    parties = Parties.objects.all().order_by("company_name")
 
     context = {
-        'parties':    parties,
-        'today_date': today_date,
+        "parties": parties,
+        "today_date": today_date,
     }
-    return render(request, 'receipt.html', context)
-
-
+    return render(request, "receipt.html", context)
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Max
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
 import pytz
 from django.utils import timezone
 
-from .models import Parties, PurchaseReceiving, PurchasePayments, PurchasePaymentHistory
+from .models import (
+    Parties,
+    PurchaseReceiving,
+    PurchasePayments,
+    PurchasePaymentHistory,
+    CashRecord,
+)
 
 
 def payment(request):
@@ -962,6 +1032,44 @@ def payment(request):
                         new_due, new_adv = 0, abs(net)
                     final_payed_val = paying_amount
 
+                amount_to_pay = int(final_payed_val)
+
+                # ==================================================
+                # CASHRECORD CHECK & VALIDATION
+                # ==================================================
+                last_cash = (
+                    CashRecord.objects
+                    .select_for_update()
+                    .order_by('-id')
+                    .first()
+                )
+                prev_cash_in_hand = (
+                    int(last_cash.cash_in_hand)
+                    if (last_cash and last_cash.cash_in_hand is not None)
+                    else 0
+                )
+                prev_cash_in_bank = (
+                    int(last_cash.cash_in_bank)
+                    if (last_cash and last_cash.cash_in_bank is not None)
+                    else 0
+                )
+
+                if payment_mode == 'Bank Transfer':
+                    if amount_to_pay > prev_cash_in_bank:
+                        raise ValueError(
+                            f"cash in bank mai itni amount nhi hy jitni ap pay kr rai ho (Mojooda Cash in Bank: Rs. {prev_cash_in_bank:,})"
+                        )
+                    new_cash_in_bank = prev_cash_in_bank - amount_to_pay
+                    new_cash_in_hand = prev_cash_in_hand
+                else:
+                    # Cash in Hand
+                    if amount_to_pay > prev_cash_in_hand:
+                        raise ValueError(
+                            f"cash in hand mai itni amount nhi hy jitni ap pay kr rai ho (Mojooda Cash in Hand: Rs. {prev_cash_in_hand:,})"
+                        )
+                    new_cash_in_hand = prev_cash_in_hand - amount_to_pay
+                    new_cash_in_bank = prev_cash_in_bank
+
                 # 3) FIFO Logic: Update PurchaseReceiving
                 if not clear_advance:
                     temp_amount = paying_amount
@@ -987,7 +1095,7 @@ def payment(request):
 
                             purchase.save()
 
-                # 4) Insert into PurchasePaymentHistory  ← remarks added here
+                # 4) Insert into PurchasePaymentHistory
                 PurchasePaymentHistory.objects.create(
                     party_code    = party_code,
                     party_name    = party_name,
@@ -1010,11 +1118,31 @@ def payment(request):
                     remarks         = (remarks or ('Advance cleared' if clear_advance else ''))[:50]
                 )
 
+                # 6) CASHRECORD ENTRY (New Row)
+                if amount_to_pay > 0:
+                    max_cash_id = CashRecord.objects.aggregate(Max("id"))["id__max"]
+                    next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
+
+                    cash_description = (
+                        remarks or ('Advance cleared' if clear_advance else f'Payment to {party_name}')
+                    )[:450]
+
+                    CashRecord.objects.create(
+                        id=next_cash_id,
+                        cash_in_hand=new_cash_in_hand,
+                        cash_in_bank=new_cash_in_bank,
+                        date=final_payment_datetime,
+                        discription=cash_description,
+                    )
+
             # Success Response
             msg = f"Payment Successful! Party: {party_name} | Paid: {final_payed_val}"
             messages.success(request, msg)
             return redirect('payment')
 
+        except ValueError as e:
+            messages.error(request, str(e))
+            return redirect('payment')
         except Exception as e:
             messages.error(request, f'Error: {str(e)}')
             return redirect('payment')
@@ -1041,9 +1169,23 @@ def payment(request):
         p.balance_adv = int(bal.advanced) if bal and bal.advanced else 0
         parties_list.append(p)
 
+    last_cash = CashRecord.objects.order_by('-id').first()
+    cash_in_hand = (
+        int(last_cash.cash_in_hand)
+        if (last_cash and last_cash.cash_in_hand is not None)
+        else 0
+    )
+    cash_in_bank = (
+        int(last_cash.cash_in_bank)
+        if (last_cash and last_cash.cash_in_bank is not None)
+        else 0
+    )
+
     return render(request, 'payment.html', {
         'parties': parties_list,
         'pending_parties': pending_parties,
+        'cash_in_hand': cash_in_hand,
+        'cash_in_bank': cash_in_bank,
     })
 
 

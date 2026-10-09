@@ -295,8 +295,44 @@ def opening(request):
     return render(request, 'opening/opening.html', context)
 
 
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.utils import timezone  # Current datetime ke liye
+from .models import CashRecord
+
+
 def cash(request):
-    return render(request, 'opening/cash.html')
+    if request.method == "POST":
+        cash_in_hand = request.POST.get("cashInHand")
+        cash_in_bank = request.POST.get("cashInBank")
+        discription = request.POST.get("discription")
+
+        try:
+            # Empty check aur Integer conversion
+            hand_val = int(cash_in_hand) if cash_in_hand else 0
+            bank_val = int(cash_in_bank) if cash_in_bank else 0
+
+            # Aapke existing model me direct save
+            CashRecord.objects.create(
+                cash_in_hand=hand_val,
+                cash_in_bank=bank_val,
+                discription=discription,
+                date=timezone.now(),  # Current date & time automatically save hogi
+            )
+
+            return JsonResponse(
+                {
+                    "status": "success",
+                    "message": "Data kamyabi se save ho gaya hai!",
+                }
+            )
+
+        except Exception as e:
+            return JsonResponse(
+                {"status": "error", "message": f"Error: {str(e)}"}, status=400
+            )
+
+    return render(request, "opening/cash.html")
 
 
 

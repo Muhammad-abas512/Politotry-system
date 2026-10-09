@@ -43,6 +43,8 @@ urlpatterns = [
     path('sells-report/print/', reports.sells_report_print, name='sells_report_print'),
     path('profit_loss_report/', reports.profit_loss_report, name='profit_loss_report'),
     path('profit-loss-report/print/', reports.profit_loss_report_print, name='profit_loss_report_print'),
+    path('cash_ledger/', reports.cash_ledger, name='cash_ledger'),
+    path('cash-ledger/print/', reports.cash_ledger_print, name='cash_ledger_print'),
 
 
 

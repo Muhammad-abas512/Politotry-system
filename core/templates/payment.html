@@ -217,10 +217,20 @@
                     Record Party Payment
                 </h5>
 
-                <span class="badge bg-success py-2 px-3">
-                    <i class="fa-solid fa-circle-check me-1"></i>
-                    Active Session
-                </span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-light text-dark border px-2 py-2 shadow-sm">
+                        <i class="fa-solid fa-money-bill-wave text-success me-1"></i>
+                        Cash in Hand: <strong class="text-success" id="badgeCashInHand">Rs. {{ cash_in_hand|default:0 }}</strong>
+                    </span>
+                    <span class="badge bg-light text-dark border px-2 py-2 shadow-sm">
+                        <i class="fa-solid fa-building-columns text-primary me-1"></i>
+                        Cash in Bank: <strong class="text-primary" id="badgeCashInBank">Rs. {{ cash_in_bank|default:0 }}</strong>
+                    </span>
+                    <span class="badge bg-success py-2 px-3">
+                        <i class="fa-solid fa-circle-check me-1"></i>
+                        Active Session
+                    </span>
+                </div>
             </div>
 
             <!-- ========================= -->
@@ -350,11 +360,12 @@
                             name="payment_mode"
                             required
                         >
-                            <option value="Cash">Cash</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="Cheque">Cheque</option>
-                            <option value="Online">Online Wallet</option>
+                            <option value="Cash">Cash In Hand</option>
+                            <option value="Bank Transfer">Cash In Bank</option>
                         </select>
+                        <small class="text-muted d-block mt-1">
+                            Available: <strong class="text-success" id="modeBalanceVal">Rs. {{ cash_in_hand|default:0 }}</strong>
+                        </small>
                     </div>
 
                     <!-- REMARKS -->
@@ -618,6 +629,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const clearAdvanceBox  = document.getElementById('clearAdvanceBox');
     const clearAdvanceChk  = document.getElementById('clear_advance');
     const selectedBox      = document.getElementById('selectedPurchaseBox');
+    const paymentModeSelect = document.getElementById('payment_mode');
+    const modeBalanceVal   = document.getElementById('modeBalanceVal');
+
+    const cashInHandVal = parseFloat('{{ cash_in_hand|default:0 }}') || 0;
+    const cashInBankVal = parseFloat('{{ cash_in_bank|default:0 }}') || 0;
+
+    function updateModeBalanceHint() {
+        if (!paymentModeSelect || !modeBalanceVal) return;
+        if (paymentModeSelect.value === 'Bank Transfer') {
+            modeBalanceVal.textContent = 'Rs. ' + cashInBankVal.toLocaleString();
+            modeBalanceVal.className = 'text-primary';
+        } else {
+            modeBalanceVal.textContent = 'Rs. ' + cashInHandVal.toLocaleString();
+            modeBalanceVal.className = 'text-success';
+        }
+    }
+
+    if (paymentModeSelect) {
+        paymentModeSelect.addEventListener('change', function () {
+            updateModeBalanceHint();
+            validatePaymentAmount();
+        });
+        updateModeBalanceHint();
+    }
 
     // =====================================================
     // TODAY'S DATE
@@ -811,7 +846,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // AMOUNT VALIDATION
     // =====================================================
     function validatePaymentAmount() {
+        const currentMode = paymentModeSelect ? paymentModeSelect.value : 'Cash';
+        const isBank = (currentMode === 'Bank Transfer');
+        const available = isBank ? cashInBankVal : cashInHandVal;
+        const modeLabel = isBank ? 'cash in bank' : 'cash in hand';
+
         if (clearAdvanceChk.checked) {
+            const selectedOpt = partySelect.options[partySelect.selectedIndex];
+            const adv = parseFloat(selectedOpt?.dataset.advance || 0);
+            if (adv > 0 && adv > available) {
+                amountInput.classList.add('is-invalid');
+                amountError.textContent = modeLabel + ' mai itni amount nhi hy jitni ap pay kr rai ho (Available: ' + available.toLocaleString() + ')';
+                amountError.classList.remove('d-none');
+                return false;
+            }
             amountInput.classList.remove('is-invalid');
             amountError.classList.add('d-none');
             return true;
@@ -821,6 +869,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (amount <= 0) {
             amountInput.classList.add('is-invalid');
             amountError.textContent = 'Payment amount must be greater than 0.';
+            amountError.classList.remove('d-none');
+            return false;
+        }
+
+        if (amount > available) {
+            amountInput.classList.add('is-invalid');
+            amountError.textContent = modeLabel + ' mai itni amount nhi hy jitni ap pay kr rai ho (Available: ' + available.toLocaleString() + ')';
             amountError.classList.remove('d-none');
             return false;
         }

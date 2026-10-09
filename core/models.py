@@ -266,3 +266,13 @@ class ReceiptHistory(models.Model):
         db_table = 'receipt_history'
 
 
+class CashRecord(models.Model):
+    # id = models.IntegerField(primary_key=True)
+    cash_in_hand = models.IntegerField(blank=True, null=True)
+    cash_in_bank = models.IntegerField(blank=True, null=True)
+    date = models.DateTimeField(blank=True, null=True)
+    discription = models.CharField(max_length=450, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'cash_record'

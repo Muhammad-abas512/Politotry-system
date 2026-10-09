@@ -2,7 +2,7 @@ import io
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, FileResponse
 from datetime import datetime, time
-from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments
+from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -1107,6 +1107,485 @@ def profit_loss_report_print(request):
     response['Content-Disposition'] = 'inline; filename="MJ_Poultries_Profit_Loss.pdf"'
     buffer.close()
     return response
+
+
+# =========================================================
+# CASH LEDGER REPORT
+# =========================================================
+def cash_ledger(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    today = timezone.localdate().strftime('%Y-%m-%d')
+    from_date = request.GET.get('from_date') or today
+    to_date = request.GET.get('to_date') or today
+
+    try:
+        from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+    except ValueError:
+        from_date_obj = timezone.localdate()
+        from_date = from_date_obj.strftime('%Y-%m-%d')
+
+    try:
+        to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date()
+    except ValueError:
+        to_date_obj = timezone.localdate()
+        to_date = to_date_obj.strftime('%Y-%m-%d')
+
+    # 1. Opening Balance (Calculated strictly from the 3 tables before from_date)
+    # Sellspayment = DR (+) | PurchasePayments + Expensedetail = CR (-)
+    old_sells = Sellspayment.objects.filter(entry_date__date__lt=from_date_obj)
+    old_purchases = PurchasePayments.objects.filter(date__date__lt=from_date_obj)
+    old_expenses = Expensedetail.objects.filter(date__date__lt=from_date_obj)
+
+    op_dr = sum(
+        safe_decimal(s.received_amount)
+        if (s.received_amount is not None and str(s.received_amount).strip() != "")
+        else safe_decimal(s.amount)
+        for s in old_sells
+    )
+    op_cr_purchases = sum(safe_decimal(p.amount) for p in old_purchases)
+    op_cr_expenses = sum(safe_decimal(e.amount) for e in old_expenses)
+    op_cr = op_cr_purchases + op_cr_expenses
+    opening_balance = op_dr - op_cr
+
+    # 2. Period Transactions
+    transactions = []
+
+    # A) Purchase Payments -> Cash Out (Cr)
+    purchases = PurchasePayments.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    for p in purchases:
+        p_name = (p.part_name or "").strip()
+        p_code = (p.party_code or "").strip()
+        if p_name and p_code:
+            account_name = f"{p_name} ({p_code})"
+        elif p_name:
+            account_name = p_name
+        elif p_code:
+            account_name = f"Party ({p_code})"
+        else:
+            account_name = "Purchase Payment"
+
+        transactions.append({
+            'date': p.date or datetime.combine(from_date_obj, time.min),
+            'account': account_name,
+            'description': (p.remarks or "").strip() or "-",
+            'dr': 0.0,
+            'cr': safe_decimal(p.amount),
+            'type': 'purchase',
+        })
+
+    # B) Sales Payments -> Cash In (Dr)
+    sells = Sellspayment.objects.filter(entry_date__date__gte=from_date_obj, entry_date__date__lte=to_date_obj)
+    for s in sells:
+        c_name = (s.customer_name or "").strip()
+        c_code = (s.customer_code or "").strip()
+        if c_name and c_code:
+            account_name = f"{c_name} ({c_code})"
+        elif c_name:
+            account_name = c_name
+        elif c_code:
+            account_name = f"Customer ({c_code})"
+        else:
+            account_name = "Sales Receipt"
+
+        amt = safe_decimal(s.received_amount)
+        if amt == 0.0:
+            amt = safe_decimal(s.amount)
+
+        transactions.append({
+            'date': s.entry_date or datetime.combine(from_date_obj, time.min),
+            'account': account_name,
+            'description': (s.description or "").strip() or "-",
+            'dr': amt,
+            'cr': 0.0,
+            'type': 'sales',
+        })
+
+    # C) Expenses -> Consolidated 1 Record (Cash Out / Cr)
+    expenses = Expensedetail.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    total_expenses = sum(safe_decimal(e.amount) for e in expenses)
+    if total_expenses > 0:
+        transactions.append({
+            'date': datetime.combine(to_date_obj, time.max),
+            'account': "All Expenses",
+            'description': "",
+            'dr': 0.0,
+            'cr': total_expenses,
+            'type': 'expense',
+        })
+
+    def _normalize_dt(dt_val):
+        if not dt_val:
+            return datetime.min
+        if hasattr(dt_val, 'tzinfo') and dt_val.tzinfo is not None:
+            try:
+                return timezone.localtime(dt_val).replace(tzinfo=None)
+            except Exception:
+                return dt_val.replace(tzinfo=None)
+        return dt_val
+
+    # Sort transactions chronologically
+    transactions.sort(key=lambda x: _normalize_dt(x.get('date')))
+
+    # 3. Build Ledger Rows starting with Opening Balance
+    ledger_rows = []
+    op_dr_col = opening_balance if opening_balance > 0 else 0.0
+    op_cr_col = abs(opening_balance) if opening_balance < 0 else 0.0
+
+    ledger_rows.append({
+        'date_str': from_date_obj.strftime('%d-%m-%Y'),
+        'account': 'Opening Balance',
+        'description': 'Cash in hand (opening balance)',
+        'dr': op_dr_col,
+        'cr': op_cr_col,
+        'balance': opening_balance,
+        'is_opening': True,
+    })
+
+    running_bal = opening_balance
+    period_in = 0.0
+    period_out = 0.0
+    for tx in transactions:
+        running_bal = running_bal + tx['dr'] - tx['cr']
+        period_in += tx['dr']
+        period_out += tx['cr']
+        d = tx['date']
+        date_str = d.strftime('%d-%m-%Y') if hasattr(d, 'strftime') else str(d)[:10]
+        ledger_rows.append({
+            'date_str': date_str,
+            'account': tx['account'],
+            'description': tx['description'],
+            'dr': tx['dr'],
+            'cr': tx['cr'],
+            'balance': running_bal,
+            'is_opening': False,
+        })
+
+    total_dr = sum(r['dr'] for r in ledger_rows)
+    total_cr = sum(r['cr'] for r in ledger_rows)
+    closing_balance = running_bal
+
+    context = {
+        'from_date': from_date,
+        'to_date': to_date,
+        'from_date_display': from_date_obj.strftime('%d-%m-%Y'),
+        'to_date_display': to_date_obj.strftime('%d-%m-%Y'),
+        'op_dr': op_dr,
+        'op_cr': op_cr,
+        'op_cr_purchases': op_cr_purchases,
+        'op_cr_expenses': op_cr_expenses,
+        'opening_balance': opening_balance,
+        'period_in': period_in,
+        'period_out': period_out,
+        'total_dr': total_dr,
+        'total_cr': total_cr,
+        'closing_balance': closing_balance,
+        'ledger_rows': ledger_rows,
+    }
+    return render(request, 'Reports/cash_ledger.html', context)
+
+
+# =========================================================
+# CASH LEDGER REPORTLAB PDF PRINT
+# =========================================================
+def cash_ledger_print(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    today = timezone.localdate().strftime('%Y-%m-%d')
+    from_date = request.GET.get('from_date') or today
+    to_date = request.GET.get('to_date') or today
+
+    try:
+        from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+    except ValueError:
+        from_date_obj = timezone.localdate()
+        from_date = from_date_obj.strftime('%Y-%m-%d')
+
+    try:
+        to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date()
+    except ValueError:
+        to_date_obj = timezone.localdate()
+        to_date = to_date_obj.strftime('%Y-%m-%d')
+
+    # 1. Opening Balance (Calculated strictly from the 3 tables before from_date)
+    # Sellspayment = DR (+) | PurchasePayments + Expensedetail = CR (-)
+    old_sells = Sellspayment.objects.filter(entry_date__date__lt=from_date_obj)
+    old_purchases = PurchasePayments.objects.filter(date__date__lt=from_date_obj)
+    old_expenses = Expensedetail.objects.filter(date__date__lt=from_date_obj)
+
+    op_dr = sum(
+        safe_decimal(s.received_amount)
+        if (s.received_amount is not None and str(s.received_amount).strip() != "")
+        else safe_decimal(s.amount)
+        for s in old_sells
+    )
+    op_cr_purchases = sum(safe_decimal(p.amount) for p in old_purchases)
+    op_cr_expenses = sum(safe_decimal(e.amount) for e in old_expenses)
+    op_cr = op_cr_purchases + op_cr_expenses
+    opening_balance = op_dr - op_cr
+
+    # 2. Period Transactions
+    transactions = []
+
+    purchases = PurchasePayments.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    for p in purchases:
+        p_name = (p.part_name or "").strip()
+        p_code = (p.party_code or "").strip()
+        if p_name and p_code:
+            account_name = f"{p_name} ({p_code})"
+        elif p_name:
+            account_name = p_name
+        elif p_code:
+            account_name = f"Party ({p_code})"
+        else:
+            account_name = "Purchase Payment"
+
+        transactions.append({
+            'date': p.date or datetime.combine(from_date_obj, time.min),
+            'account': account_name,
+            'description': (p.remarks or "").strip() or "-",
+            'dr': 0.0,
+            'cr': safe_decimal(p.amount),
+        })
+
+    sells = Sellspayment.objects.filter(entry_date__date__gte=from_date_obj, entry_date__date__lte=to_date_obj)
+    for s in sells:
+        c_name = (s.customer_name or "").strip()
+        c_code = (s.customer_code or "").strip()
+        if c_name and c_code:
+            account_name = f"{c_name} ({c_code})"
+        elif c_name:
+            account_name = c_name
+        elif c_code:
+            account_name = f"Customer ({c_code})"
+        else:
+            account_name = "Sales Receipt"
+
+        amt = safe_decimal(s.received_amount) or safe_decimal(s.amount)
+        transactions.append({
+            'date': s.entry_date or datetime.combine(from_date_obj, time.min),
+            'account': account_name,
+            'description': (s.description or "").strip() or "-",
+            'dr': amt,
+            'cr': 0.0,
+        })
+
+    expenses = Expensedetail.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    total_expenses = sum(safe_decimal(e.amount) for e in expenses)
+    if total_expenses > 0:
+        transactions.append({
+            'date': datetime.combine(to_date_obj, time.max),
+            'account': "All Expenses",
+            'description': "",
+            'dr': 0.0,
+            'cr': total_expenses,
+        })
+
+    def _normalize_dt(dt_val):
+        if not dt_val:
+            return datetime.min
+        if hasattr(dt_val, 'tzinfo') and dt_val.tzinfo is not None:
+            try:
+                return timezone.localtime(dt_val).replace(tzinfo=None)
+            except Exception:
+                return dt_val.replace(tzinfo=None)
+        return dt_val
+
+    transactions.sort(key=lambda x: _normalize_dt(x.get('date')))
+
+    ledger_rows = []
+    op_dr_col = opening_balance if opening_balance > 0 else 0.0
+    op_cr_col = abs(opening_balance) if opening_balance < 0 else 0.0
+    ledger_rows.append({
+        'date_str': from_date_obj.strftime('%d-%m-%Y'),
+        'account': 'Opening Balance',
+        'description': 'Cash in hand (opening balance)',
+        'dr': op_dr_col,
+        'cr': op_cr_col,
+        'balance': opening_balance,
+    })
+
+    running_bal = opening_balance
+    for tx in transactions:
+        running_bal = running_bal + tx['dr'] - tx['cr']
+        d = tx['date']
+        date_str = d.strftime('%d-%m-%Y') if hasattr(d, 'strftime') else str(d)[:10]
+        ledger_rows.append({
+            'date_str': date_str,
+            'account': tx['account'],
+            'description': tx['description'],
+            'dr': tx['dr'],
+            'cr': tx['cr'],
+            'balance': running_bal,
+        })
+
+    total_dr = sum(r['dr'] for r in ledger_rows)
+    total_cr = sum(r['cr'] for r in ledger_rows)
+    closing_balance = running_bal
+
+    # ReportLab Generation
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm,
+        title=f"Cash_Ledger_{from_date}_to_{to_date}"
+    )
+
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    normal_style.fontSize = 8
+    normal_style.leading = 10
+
+    elements = []
+
+    # Title Banner (Navy Blue matching UI)
+    banner_cell = Paragraph(
+        "<font color='white'><b>CASH LEDGER</b></font>",
+        ParagraphStyle('CLBanner', fontName='Helvetica-Bold', fontSize=15, alignment=1, textColor=colors.white)
+    )
+    title_banner = Table([[banner_cell]], colWidths=[281 * mm])
+    title_banner.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0B2545')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 7),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+    ]))
+    elements.append(title_banner)
+    elements.append(Spacer(1, 3 * mm))
+
+    # Info & Summary Row
+    info_p = Paragraph(f"<b>MJ POULTRIES AND GROUP</b><br/><font color='#64748b' size=7.5>Period: {from_date_obj.strftime('%d-%m-%Y')} to {to_date_obj.strftime('%d-%m-%Y')}</font>", normal_style)
+    
+    summary_data = [
+        [
+            info_p,
+            Paragraph(f"<font size=7 color='#64748b'>OPENING BALANCE</font><br/><b>PKR {opening_balance:,.2f}</b><br/><font size=6.5 color='#64748b'>Dr: {op_dr:,.2f} | Cr: {op_cr:,.2f}</font>", normal_style),
+            Paragraph(f"<font size=7 color='#15803d'>TOTAL CASH IN (DR)</font><br/><font color='#15803d'><b>PKR {total_dr:,.2f}</b></font>", normal_style),
+            Paragraph(f"<font size=7 color='#b91c1c'>TOTAL CASH OUT (CR)</font><br/><font color='#b91c1c'><b>PKR {total_cr:,.2f}</b></font>", normal_style),
+            Paragraph(f"<font size=7 color='#0b2545'>CLOSING BALANCE</font><br/><font color='#0b2545'><b>PKR {closing_balance:,.2f}</b></font>", normal_style),
+        ]
+    ]
+    summary_table = Table(summary_data, colWidths=[81*mm, 50*mm, 50*mm, 50*mm, 50*mm])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 4 * mm))
+
+    # Main Ledger Table
+    table_data = [
+        ["Date", "Account", "Description", "Cash In (Dr / Receipt)", "Cash Out (Cr / Payment)", "Balance (PKR)"]
+    ]
+
+    for r in ledger_rows:
+        dr_str = f"PKR {r['dr']:,.2f}" if r['dr'] > 0 else "-"
+        cr_str = f"PKR {r['cr']:,.2f}" if r['cr'] > 0 else "-"
+        bal_str = f"PKR {r['balance']:,.2f}"
+        
+        acc_p = Paragraph(f"<font size=8>{r['account']}</font>", normal_style)
+        desc_p = Paragraph(f"<font size=8>{r['description']}</font>", normal_style)
+
+        table_data.append([
+            r['date_str'],
+            acc_p,
+            desc_p,
+            dr_str,
+            cr_str,
+            bal_str,
+        ])
+
+    # Footer total row (matching design in image)
+    table_data.append([
+        "Total",
+        "",
+        "",
+        f"PKR {total_dr:,.2f}",
+        f"PKR {total_cr:,.2f}",
+        f"PKR {closing_balance:,.2f}",
+    ])
+
+    col_widths = [26*mm, 70*mm, 75*mm, 36*mm, 36*mm, 38*mm]
+    ledger_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    
+    t_style = [
+        # Headers matching image
+        ('BACKGROUND', (0,0), (2,0), colors.HexColor('#0B2545')),
+        ('BACKGROUND', (3,0), (3,0), colors.HexColor('#15803D')),  # Green header for Cash In
+        ('BACKGROUND', (4,0), (4,0), colors.HexColor('#B91C1C')),  # Red header for Cash Out
+        ('BACKGROUND', (5,0), (5,0), colors.HexColor('#0B2545')),  # Navy header for Balance
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 8.5),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,0), 6),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+
+        # Body alignment
+        ('ALIGN', (0,1), (0,-2), 'CENTER'),
+        ('ALIGN', (1,1), (2,-2), 'LEFT'),
+        ('ALIGN', (3,1), (5,-2), 'RIGHT'),
+        ('FONTSIZE', (0,1), (-1,-2), 8),
+        ('TOPPADDING', (0,1), (-1,-2), 3.5),
+        ('BOTTOMPADDING', (0,1), (-1,-2), 3.5),
+        ('GRID', (0,0), (-1,-2), 0.4, colors.HexColor('#CBD5E1')),
+
+        # Body text colors
+        ('TEXTCOLOR', (3,1), (3,-2), colors.HexColor('#15803D')),  # Dr green
+        ('TEXTCOLOR', (4,1), (4,-2), colors.HexColor('#B91C1C')),  # Cr red
+        ('TEXTCOLOR', (5,1), (5,-2), colors.HexColor('#0B2545')),  # Balance dark
+        ('FONTNAME', (3,1), (5,-2), 'Helvetica-Bold'),
+
+        # Total row (at the bottom)
+        ('SPAN', (0,-1), (2,-1)),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#0B2545')),
+        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,-1), (-1,-1), 8.5),
+        ('ALIGN', (0,-1), (0,-1), 'CENTER'),
+        ('TEXTCOLOR', (0,-1), (0,-1), colors.white),
+        ('ALIGN', (3,-1), (5,-1), 'RIGHT'),
+        ('TEXTCOLOR', (3,-1), (3,-1), colors.HexColor('#4ADE80')),  # Bright Green Total Dr
+        ('TEXTCOLOR', (4,-1), (4,-1), colors.HexColor('#F87171')),  # Bright Red Total Cr
+        ('TEXTCOLOR', (5,-1), (5,-1), colors.white),                # White Total Balance
+        ('TOPPADDING', (0,-1), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,-1), (-1,-1), 6),
+    ]
+
+    for row_idx in range(1, len(table_data) - 1):
+        bg = colors.HexColor('#F8FAFC') if row_idx % 2 == 0 else colors.white
+        t_style.append(('BACKGROUND', (0, row_idx), (-1, row_idx), bg))
+
+    ledger_table.setStyle(TableStyle(t_style))
+    elements.append(ledger_table)
+
+    def print_footer(canvas, d):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(colors.HexColor('#64748B'))
+        canvas.drawString(8 * mm, 4 * mm, f"Printed: {timezone.now().strftime('%d-%m-%Y %H:%M')} | MJ Poultries System")
+        canvas.drawRightString(289 * mm, 4 * mm, f"Page {d.page}")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=print_footer, onLaterPages=print_footer)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Cash_Ledger_{from_date}_to_{to_date}.pdf"'
+    buffer.close()
+    return response
+
 
 
 
