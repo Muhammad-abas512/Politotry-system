@@ -1,0 +1,561 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Broiler Report - Politory{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --cl-navy: #0b2545;
+        --cl-navy-light: #134074;
+        --cl-green: #15803d;
+        --cl-green-dark: #166534;
+        --cl-red: #b91c1c;
+        --cl-amber: #d97706;
+        --cl-bg: #f8fafc;
+        --cl-card-border: #e2e8f0;
+    }
+
+    .report-wrapper {
+        background-color: var(--cl-bg);
+        min-height: calc(100vh - 70px);
+    }
+
+    .card-custom {
+        border-radius: 14px;
+        border: 1px solid var(--cl-card-border);
+        box-shadow: 0 4px 18px rgba(11, 37, 69, 0.05);
+        background: #ffffff;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-card {
+        border-radius: 12px;
+        padding: 16px 18px;
+        background: #ffffff;
+        border: 1px solid var(--cl-card-border);
+        box-shadow: 0 3px 12px rgba(11, 37, 69, 0.04);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(11, 37, 69, 0.08);
+    }
+    .kpi-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; bottom: 0;
+        width: 5px;
+    }
+    .kpi-sales::before { background: var(--cl-green); }
+    .kpi-purchases::before { background: var(--cl-navy); }
+    .kpi-profit::before { background: var(--cl-green); }
+    .kpi-loss::before { background: var(--cl-red); }
+    .kpi-mortality::before { background: var(--cl-amber); }
+
+    .kpi-title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.5px;
+    }
+    .kpi-subtext {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 5px;
+        font-weight: 500;
+    }
+
+    /* Banners for Left & Right Tables */
+    .banner-sales {
+        background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+        color: white;
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .banner-purchases {
+        background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
+        color: white;
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Table Styles */
+    .table-broiler {
+        margin-bottom: 0;
+        font-size: 0.84rem;
+    }
+    .table-broiler thead th {
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 9px 12px;
+        border-bottom: 2px solid var(--cl-card-border);
+    }
+    .th-sales {
+        background-color: #f0fdf4 !important;
+        color: #166534 !important;
+    }
+    .th-purchases {
+        background-color: #f0f7ff !important;
+        color: #1e3a8a !important;
+    }
+    .table-broiler tbody td {
+        padding: 9px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .table-broiler tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    /* Footer Totals */
+    .tfoot-sales td {
+        background-color: #dcfce7 !important;
+        color: #14532d !important;
+        font-weight: 800;
+        font-size: 0.88rem;
+        padding: 10px 12px;
+        border-top: 2px solid #86efac;
+    }
+    .tfoot-purchases td {
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
+        font-weight: 800;
+        font-size: 0.88rem;
+        padding: 10px 12px;
+        border-top: 2px solid #93c5fd;
+    }
+
+    /* Buttons */
+    .btn-filter {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-filter:hover {
+        background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+        color: white;
+    }
+    .btn-print {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-print:hover {
+        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+        color: white;
+    }
+    .btn-quick {
+        font-size: 0.74rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+</style>
+
+<div class="report-wrapper py-3">
+    <div class="container-fluid px-3 px-md-4">
+
+       
+
+        <!-- Filter Card -->
+        <div class="card card-custom p-3 p-md-4 mb-3">
+             <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-0 d-flex align-items-center">
+                    <i class="fa-solid fa-drumstick-bite text-primary me-2"></i>
+                    Broiler Daily Report
+                    <span class="badge bg-light text-secondary border ms-2 fs-6 fw-semibold">
+                        روزانہ برائلر رپورٹ
+                    </span>
+                </h4>
+               
+            </div>
+            <div>
+                <span class="badge bg-primary px-3 py-2 fs-7 shadow-sm">
+                    <i class="fa-solid fa-calendar-day me-1"></i> Date: {{ selected_date_display }}
+                </span>
+            </div>
+        </div>
+            <form method="GET" action="{% url 'broiler_report' %}" class="row g-3 align-items-end" id="broilerFilterForm">
+                <div class="col-12 col-sm-6 col-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="filterDate" class="form-label fw-bold text-secondary small mb-0">
+                            <i class="fa-regular fa-calendar me-1"></i> Select Date
+                        </label>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary btn-quick" onclick="setQuickDate('today')">Today</button>
+                            <button type="button" class="btn btn-outline-secondary btn-quick" onclick="setQuickDate('yesterday')">Yesterday</button>
+                        </div>
+                    </div>
+                    <input
+                        type="date"
+                        class="form-control form-control-sm"
+                        id="filterDate"
+                        name="date"
+                        value="{{ selected_date }}"
+                        required
+                    >
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-filter btn-sm px-3 shadow-sm flex-fill">
+                        <i class="fa-solid fa-filter me-1"></i> Apply Filter
+                    </button>
+                    <a
+                        href="{% url 'broiler_report' %}?date={{ selected_date }}&action=print"
+                        target="_blank"
+                        class="btn btn-print btn-sm px-3 shadow-sm flex-fill"
+                        id="btnPrintPdf"
+                    >
+                        <i class="fa-solid fa-file-pdf me-1"></i> Print PDF
+                    </a>
+                </div>
+
+                
+            </form>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Sales -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-sales">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-arrow-down-left text-success me-1"></i> Total Sale (فروخت)</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">{{ sales_list|length }}</span>
+                    </div>
+                    <div class="kpi-value text-success">
+                        PKR {{ total_sales_amount|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <i class="fa-solid fa-weight-scale me-1 text-secondary"></i> Qty: <strong class="text-dark">{{ total_sales_qty|floatformat:2 }} KG</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Purchases -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-purchases">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-arrow-up-right text-primary me-1"></i> Total Purchase (خریداری)</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ purchases_list|length }}</span>
+                    </div>
+                    <div class="kpi-value text-primary">
+                        PKR {{ total_purchase_amount|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <i class="fa-solid fa-weight-scale me-1 text-secondary"></i> Qty: <strong class="text-dark">{{ total_purchase_qty|floatformat:2 }} KG</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit / Loss -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card {% if is_profit %}kpi-profit{% else %}kpi-loss{% endif %}">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-scale-balanced me-1 {% if is_profit %}text-success{% else %}text-danger{% endif %}"></i> Profit / Loss (نفع / نقصان)</span>
+                        <span class="badge {% if is_profit %}bg-success{% else %}bg-danger{% endif %} text-white">{{ profit_loss_type|upper }}</span>
+                    </div>
+                    <div class="kpi-value {% if is_profit %}text-success{% else %}text-danger{% endif %}">
+                        PKR {{ abs_profit_loss|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <span>Formula: Total Sale &minus; Total Purchase</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mortality / Wadya Maal -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-mortality">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i> {{ mortality_card_title|upper }}</span>
+                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle">{{ mortality_badge }}</span>
+                    </div>
+                    <div class="kpi-value text-dark" style="color: var(--cl-amber) !important;">
+                        {{ mortality_weight|floatformat:2 }} KG
+                    </div>
+                    <div class="kpi-subtext">
+                        <span class="badge bg-light text-secondary border" title="Source of data">
+                            {{ mortality_source }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Tables: Left (Sales) & Right (Purchases) -->
+        <div class="row g-3 mb-4">
+
+            <!-- LEFT TABLE: SALES (SELLS INVOICE) -->
+            <div class="col-12 col-xl-6">
+                <div class="card card-custom p-0 overflow-hidden shadow-sm h-100">
+                    <div class="banner-sales">
+                        <div class="d-flex align-items-center">
+                            <i class="fa-solid fa-cart-arrow-down me-2"></i>
+                            <span>SALES INVOICE (فروخت)</span>
+                        </div>
+                        <span class="badge bg-white text-success px-2 py-1 fs-7">
+                            {{ sales_list|length }} Records
+                        </span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-broiler align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="th-sales text-center" style="width: 45px;">#</th>
+                                    <th class="th-sales">Party / Customer Name</th>
+                                    <th class="th-sales text-end" style="width: 105px;">Qty (KG)</th>
+                                    <th class="th-sales text-end" style="width: 100px;">Rate (PKR)</th>
+                                    <th class="th-sales text-end" style="width: 125px;">Amount (PKR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if sales_list %}
+                                    {% for row in sales_list %}
+                                    <tr>
+                                        <td class="text-center text-muted fw-bold">{{ row.sr }}</td>
+                                        <td>
+                                            <span class="fw-bold text-dark d-block">{{ row.party_name }}</span>
+                                            {% if row.vehicle_no != "-" or row.sells_no != "-" %}
+                                                <small class="text-muted" style="font-size: 0.72rem;">
+                                                    {% if row.sells_no != "-" %}Inv: {{ row.sells_no }}{% endif %}
+                                                    {% if row.vehicle_no != "-" %} &bull; Veh: {{ row.vehicle_no }}{% endif %}
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end fw-semibold text-secondary">
+                                            {{ row.qty|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end text-muted">
+                                            {{ row.rate|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end fw-bold text-success">
+                                            {{ row.amount|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <i class="fa-solid fa-folder-open fs-3 d-block mb-2 text-secondary"></i>
+                                            No sales invoices found for {{ selected_date_display }}.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="tfoot-sales">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-calculator me-1"></i> Total Sales
+                                    </td>
+                                    <td class="text-end">{{ total_sales_qty|floatformat:2 }} KG</td>
+                                    <td class="text-end text-muted fw-normal">-</td>
+                                    <td class="text-end">PKR {{ total_sales_amount|floatformat:2 }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT TABLE: PURCHASES (PURCHASE RECEIVING) -->
+            <div class="col-12 col-xl-6">
+                <div class="card card-custom p-0 overflow-hidden shadow-sm h-100">
+                    <div class="banner-purchases">
+                        <div class="d-flex align-items-center">
+                            <i class="fa-solid fa-truck-ramp-box me-2"></i>
+                            <span>PURCHASE RECEIVING (خریداری)</span>
+                        </div>
+                        <span class="badge bg-white text-primary px-2 py-1 fs-7">
+                            {{ purchases_list|length }} Records
+                        </span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-broiler align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="th-purchases text-center" style="width: 45px;">#</th>
+                                    <th class="th-purchases">Party / Vendor Name</th>
+                                    <th class="th-purchases text-end" style="width: 105px;">Qty (KG)</th>
+                                    <th class="th-purchases text-end" style="width: 100px;">Rate (PKR)</th>
+                                    <th class="th-purchases text-end" style="width: 125px;">Amount (PKR)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if purchases_list %}
+                                    {% for row in purchases_list %}
+                                    <tr>
+                                        <td class="text-center text-muted fw-bold">{{ row.sr }}</td>
+                                        <td>
+                                            <span class="fw-bold text-dark d-block">{{ row.party_name }}</span>
+                                            {% if row.vehicle_number != "-" or row.purchase_number != "-" %}
+                                                <small class="text-muted" style="font-size: 0.72rem;">
+                                                    {% if row.purchase_number != "-" %}P#: {{ row.purchase_number }}{% endif %}
+                                                    {% if row.vehicle_number != "-" %} &bull; Veh: {{ row.vehicle_number }}{% endif %}
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end fw-semibold text-secondary">
+                                            {{ row.qty|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end text-muted">
+                                            {{ row.rate|floatformat:2 }}
+                                        </td>
+                                        <td class="text-end fw-bold text-primary">
+                                            {{ row.amount|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">
+                                            <i class="fa-solid fa-folder-open fs-3 d-block mb-2 text-secondary"></i>
+                                            No purchase records found for {{ selected_date_display }}.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="tfoot-purchases">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-calculator me-1"></i> Total Purchases
+                                    </td>
+                                    <td class="text-end">{{ total_purchase_qty|floatformat:2 }} KG</td>
+                                    <td class="text-end text-muted fw-normal">-</td>
+                                    <td class="text-end">PKR {{ total_purchase_amount|floatformat:2 }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Profit / Loss & Mortality Summary Banner Card -->
+        <div class="card card-custom p-3 p-md-4 mb-4 shadow-sm border-2 {% if is_profit %}border-success-subtle{% else %}border-danger-subtle{% endif %}">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-md-4">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 me-3 {% if is_profit %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} fs-3">
+                            <i class="fa-solid {% if is_profit %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
+                        </div>
+                        <div>
+                            <div class="small text-muted text-uppercase fw-bold">Daily Profit / Loss</div>
+                            <h3 class="mb-0 fw-bold {% if is_profit %}text-success{% else %}text-danger{% endif %}">
+                                PKR {{ abs_profit_loss|floatformat:2 }}
+                                <span class="badge fs-7 ms-1 {% if is_profit %}bg-success{% else %}bg-danger{% endif %} text-white">
+                                    {{ profit_loss_type }}
+                                </span>
+                            </h3>
+                           
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4 border-start border-end">
+                    <div class="d-flex align-items-center px-md-3">
+                        <div class="rounded-circle p-3 me-3 bg-warning-subtle text-dark fs-3">
+                            <i class="fa-solid fa-weight-hanging text-warning"></i>
+                        </div>
+                        <div>
+                            <div class="small text-muted text-uppercase fw-bold">{{ mortality_card_title }}</div>
+                            <h3 class="mb-0 fw-bold text-dark">
+                                {{ mortality_weight|floatformat:2 }} <span class="fs-6 fw-semibold text-muted">KG</span>
+                            </h3>
+                            <small class="text-muted">
+                                {% if mortality_from_table %}
+                                    <i class="fa-solid fa-check-circle text-success me-1"></i> From Mortality Table
+                                {% else %}
+                                    
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4 text-md-end">
+                    <a
+                        href="{% url 'broiler_report' %}?date={{ selected_date }}&action=print"
+                        target="_blank"
+                        class="btn btn-print px-4 py-2 shadow-sm"
+                    >
+                        <i class="fa-solid fa-file-pdf me-2"></i> Print Complete Report (PDF)
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterInput = document.getElementById('filterDate');
+    const btnPrint = document.getElementById('btnPrintPdf');
+
+    function updatePrintUrl() {
+        if (btnPrint && filterInput) {
+            const dateVal = filterInput.value;
+            btnPrint.href = `{% url 'broiler_report' %}?date=${dateVal}&action=print`;
+        }
+    }
+
+    if (filterInput) {
+        filterInput.addEventListener('change', updatePrintUrl);
+    }
+});
+
+function setQuickDate(type) {
+    const filterInput = document.getElementById('filterDate');
+    const today = new Date();
+    let target = new Date();
+
+    if (type === 'today') {
+        target = today;
+    } else if (type === 'yesterday') {
+        target.setDate(today.getDate() - 1);
+    }
+
+    const yyyy = target.getFullYear();
+    const mm = String(target.getMonth() + 1).padStart(2, '0');
+    const dd = String(target.getDate()).padStart(2, '0');
+    filterInput.value = `${yyyy}-${mm}-${dd}`;
+
+    document.getElementById('broilerFilterForm').submit();
+}
+</script>
+{% endblock %}

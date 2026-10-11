@@ -1,0 +1,720 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cash Report - Politory{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --cr-navy: #0b2545;
+        --cr-navy-light: #134074;
+        --cr-navy-subtle: #f0f4f9;
+        --cr-green: #15803d;
+        --cr-green-dark: #166534;
+        --cr-green-subtle: #f0fdf4;
+        --cr-red: #b91c1c;
+        --cr-red-subtle: #fef2f2;
+        --cr-blue: #0284c7;
+        --cr-blue-subtle: #f0f9ff;
+        --cr-bg: #f8fafc;
+        --cr-border: #e2e8f0;
+    }
+
+    .cash-report-wrapper {
+        background-color: var(--cr-bg);
+        min-height: calc(100vh - 70px);
+    }
+
+    .card-custom {
+        border-radius: 14px;
+        border: 1px solid var(--cr-border);
+        box-shadow: 0 4px 18px rgba(11, 37, 69, 0.05);
+        background: #ffffff;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-card {
+        border-radius: 12px;
+        padding: 16px 18px;
+        background: #ffffff;
+        border: 1px solid var(--cr-border);
+        box-shadow: 0 3px 12px rgba(11, 37, 69, 0.04);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(11, 37, 69, 0.08);
+    }
+    .kpi-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; bottom: 0;
+        width: 5px;
+    }
+    .kpi-sells::before { background: var(--cr-green); }
+    .kpi-prev::before { background: var(--cr-blue); }
+    .kpi-purchases::before { background: var(--cr-navy); }
+    .kpi-balance-pos::before { background: var(--cr-green); }
+    .kpi-balance-neg::before { background: var(--cr-red); }
+
+    .kpi-title {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.5px;
+    }
+    .kpi-subtext {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 5px;
+        font-weight: 500;
+    }
+
+    /* Table Headers & Banners */
+    .banner-sells {
+        background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+        color: white;
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .banner-purchases {
+        background: linear-gradient(135deg, #0b2545 0%, #134074 100%);
+        color: white;
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-cash {
+        margin-bottom: 0;
+        font-size: 0.84rem;
+    }
+    .table-cash thead th {
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 9px 12px;
+        border-bottom: 2px solid var(--cr-border);
+    }
+    .th-sells {
+        background-color: #f0fdf4 !important;
+        color: #166534 !important;
+    }
+    .th-purchases {
+        background-color: #f0f7ff !important;
+        color: #1e3a8a !important;
+    }
+    .table-cash tbody td {
+        padding: 9px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .table-cash tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    /* Subtotal & Special Rows */
+    .row-subtotal-sells td {
+        background-color: #f0fdf4 !important;
+        color: #166534 !important;
+        font-weight: 700;
+        border-top: 2px solid #bbf7d0;
+    }
+    .row-prev-closing td {
+        background-color: #f0f9ff !important;
+        color: #0369a1 !important;
+        font-weight: 700;
+        border-top: 1px dashed #bae6fd;
+    }
+    .row-total-left td {
+        background-color: #dcfce7 !important;
+        color: #14532d !important;
+        font-weight: 800;
+        font-size: 0.92rem;
+        border-top: 2px solid #86efac !important;
+    }
+
+    .row-subtotal-purchases td {
+        background-color: #eff6ff !important;
+        color: #1e40af !important;
+        font-weight: 700;
+        border-top: 2px solid #bfdbfe;
+    }
+    .row-expense td {
+        background-color: #fef2f2 !important;
+        color: #b91c1c !important;
+        font-weight: 700;
+        border-top: 1px dashed #fecaca;
+    }
+    .row-total-right td {
+        background-color: #fee2e2 !important;
+        color: #991b1b !important;
+        font-weight: 800;
+        font-size: 0.92rem;
+        border-top: 2px solid #fca5a5 !important;
+    }
+
+    /* Equation Summary Card */
+    .equation-card {
+        background: #ffffff;
+        border: 2px solid var(--cr-border);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 4px 18px rgba(11, 37, 69, 0.05);
+    }
+    .equation-box {
+        padding: 14px 16px;
+        border-radius: 10px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .equation-box-left {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+    .equation-box-right {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+    .equation-box-net {
+        background-color: #f8fafc;
+        border: 2px solid #cbd5e1;
+    }
+    .equation-operator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: #64748b;
+    }
+
+    /* Buttons */
+    .btn-filter {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-filter:hover {
+        background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+        color: white;
+    }
+    .btn-print {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-print:hover {
+        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+        color: white;
+    }
+    .btn-quick {
+        font-size: 0.74rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+</style>
+
+<div class="cash-report-wrapper py-3">
+    <div class="container-fluid px-3 px-md-4">
+
+        <!-- Filter Card -->
+        <div class="card card-custom p-3 p-md-4 mb-3">
+            <!-- Header Title -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h4 class="fw-bold text-dark mb-0 d-flex align-items-center">
+                        <i class="fa-solid fa-money-bill-transfer text-primary me-2"></i>
+                        Daily Cash Report
+                        <span class="badge bg-light text-secondary border ms-2 fs-6 fw-semibold">
+                            روزانہ کیش رپورٹ
+                        </span>
+                    </h4>
+                    <p class="text-muted small mb-0 mt-1">
+                        Receipts & Previous Day Closing vs Purchase Payments & Expenses
+                    </p>
+                </div>
+                <div>
+                    <span class="badge bg-primary px-3 py-2 fs-7 shadow-sm">
+                        <i class="fa-solid fa-calendar-day me-1"></i> Date: {{ selected_date_display }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Filter Form -->
+            <form method="GET" action="{% url 'cash_report' %}" class="row g-3 align-items-end" id="cashReportFilterForm">
+                <div class="col-12 col-sm-6 col-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="filterDate" class="form-label fw-bold text-secondary small mb-0">
+                            <i class="fa-regular fa-calendar me-1"></i> Select Date
+                        </label>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary btn-quick" onclick="setQuickDate('today')">Today</button>
+                            <button type="button" class="btn btn-outline-secondary btn-quick" onclick="setQuickDate('yesterday')">Yesterday</button>
+                        </div>
+                    </div>
+                    <input
+                        type="date"
+                        class="form-control form-control-sm"
+                        id="filterDate"
+                        name="date"
+                        value="{{ selected_date }}"
+                        required
+                    >
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-filter btn-sm px-3 shadow-sm flex-fill">
+                        <i class="fa-solid fa-filter me-1"></i> Apply Filter
+                    </button>
+                    <a
+                        href="{% url 'cash_report_print' %}?date={{ selected_date }}"
+                        target="_blank"
+                        class="btn btn-print btn-sm px-3 shadow-sm flex-fill"
+                        id="btnPrintPdf"
+                    >
+                        <i class="fa-solid fa-file-pdf me-1"></i> Print PDF
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- 4 Top KPI Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Sells -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-sells">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-arrow-down-left text-success me-1"></i> Total Sells (وصولیاں)</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">{{ sells_list|length }}</span>
+                    </div>
+                    <div class="kpi-value text-success">
+                        PKR {{ total_sells_amount|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <i class="fa-solid fa-receipt me-1 text-secondary"></i> Receipts on {{ selected_date_display }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Previous Day Closing Balance -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-prev">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-clock-rotate-left text-info me-1"></i> Prev Day Closing (سابقہ کیش)</span>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">Cash Ledger</span>
+                    </div>
+                    <div class="kpi-value text-info" style="color: #0284c7 !important;">
+                        PKR {{ prev_closing_balance|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <span>Hand: {{ prev_hand|floatformat:2 }} | Bank: {{ prev_bank|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Purchases & Expense -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-purchases">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-arrow-up-right text-danger me-1"></i> Purchases & Expense (ادائیگیاں)</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Total Outflow</span>
+                    </div>
+                    <div class="kpi-value text-danger" style="color: #b91c1c !important;">
+                        PKR {{ total_right|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <span>Pur: {{ total_purchase_amount|floatformat:2 }} | Exp: {{ total_expense_amount|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Net Cash Closing Balance -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card {% if is_positive_balance %}kpi-balance-pos{% else %}kpi-balance-neg{% endif %}">
+                    <div class="kpi-title">
+                        <span><i class="fa-solid fa-scale-balanced me-1 {% if is_positive_balance %}text-success{% else %}text-danger{% endif %}"></i> Net Closing (اختتامی بیلنس)</span>
+                        <span class="badge {% if is_positive_balance %}bg-success{% else %}bg-danger{% endif %} text-white">
+                            {% if is_positive_balance %}SURPLUS{% else %}DEFICIT{% endif %}
+                        </span>
+                    </div>
+                    <div class="kpi-value {% if is_positive_balance %}text-success{% else %}text-danger{% endif %}">
+                        PKR {{ abs_net_balance|floatformat:2 }}
+                    </div>
+                    <div class="kpi-subtext">
+                        <span>(Sells + Prev) &minus; (Purchase + Exp)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Side-by-Side Tables: Left (Sells / Receipts) & Right (Purchases / Expenses) -->
+        <div class="row g-3 mb-4">
+
+            <!-- LEFT TABLE: SELLS PAYMENTS (RECEIPTS) + PREVIOUS DAY CLOSING -->
+            <div class="col-12 col-xl-6">
+                <div class="card card-custom p-0 overflow-hidden shadow-sm h-100">
+                    <div class="banner-sells">
+                        <div class="d-flex align-items-center">
+                            <i class="fa-solid fa-hand-holding-dollar me-2"></i>
+                            <span>RECEIPTS / SALES (وصولیاں)</span>
+                        </div>
+                        <span class="badge bg-white text-success px-2 py-1 fs-7">
+                            {{ sells_list|length }} Records
+                        </span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-cash align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="th-sells text-center" style="width: 45px;">#</th>
+                                    <th class="th-sells">Customer Name</th>
+                                    <th class="th-sells text-center" style="width: 130px;">Payment Method</th>
+                                    <th class="th-sells text-end" style="width: 150px;">Received Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if sells_list %}
+                                    {% for row in sells_list %}
+                                    <tr>
+                                        <td class="text-center text-muted fw-bold">{{ row.sr }}</td>
+                                        <td>
+                                            <span class="fw-bold text-dark d-block">{{ row.customer_name }}</span>
+                                            {% if row.sell_no != "-" or row.vehicle_no != "-" %}
+                                                <small class="text-muted" style="font-size: 0.72rem;">
+                                                    {% if row.sell_no != "-" %}Sell #: {{ row.sell_no }}{% endif %}
+                                                    {% if row.vehicle_no != "-" %} &bull; Veh: {{ row.vehicle_no }}{% endif %}
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-light text-secondary border px-2 py-1">
+                                                {{ row.payment_method }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-bold text-success">
+                                            PKR {{ row.amount|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            <i class="fa-solid fa-folder-open fs-3 d-block mb-2 text-secondary"></i>
+                                            No sales receipts recorded for {{ selected_date_display }}.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+
+                                <!-- 1. Sells Subtotal Row -->
+                                <tr class="row-subtotal-sells">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-calculator me-1"></i> Total Sales Receipts (کل سیلز وصولیاں)
+                                    </td>
+                                    <td class="text-center text-muted small">
+                                        {{ sells_list|length }} entries
+                                    </td>
+                                    <td class="text-end">
+                                        PKR {{ total_sells_amount|floatformat:2 }}
+                                    </td>
+                                </tr>
+
+                                <!-- 2. Previous Day Balance Row -->
+                                <tr class="row-prev-closing">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i> Previous Day Balance (سابقہ کیش بیلنس)
+                                        <div class="small text-muted fw-normal" style="font-size: 0.72rem;">
+                                            Cash in Hand: PKR {{ prev_hand|floatformat:2 }} | Cash in Bank: PKR {{ prev_bank|floatformat:2 }}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle small">Cash Ledger</span>
+                                    </td>
+                                    <td class="text-end">
+                                        PKR {{ prev_closing_balance|floatformat:2 }}
+                                    </td>
+                                </tr>
+
+                                <!-- 3. Left Grand Total Row: Sells + Previous Day -->
+                                <tr class="row-total-left">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-wallet me-1"></i> Total Available (Sells + Prev Day Closing)
+                                        <div class="small text-muted fw-normal" style="font-size: 0.72rem;">
+                                            کل دستیاب کیش (سیلز وصولیاں + سابقہ کیش)
+                                        </div>
+                                    </td>
+                                    <td class="text-center text-muted small fw-normal">Total Inflow</td>
+                                    <td class="text-end">
+                                        PKR {{ total_left|floatformat:2 }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT TABLE: PURCHASE PAYMENTS + EXPENSE -->
+            <div class="col-12 col-xl-6">
+                <div class="card card-custom p-0 overflow-hidden shadow-sm h-100">
+                    <div class="banner-purchases">
+                        <div class="d-flex align-items-center">
+                            <i class="fa-solid fa-file-invoice-dollar me-2"></i>
+                            <span>PAYMENTS / PURCHASES (ادائیگیاں)</span>
+                        </div>
+                        <span class="badge bg-white text-primary px-2 py-1 fs-7">
+                            {{ purchases_list|length }} Records
+                        </span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-cash align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="th-purchases text-center" style="width: 45px;">#</th>
+                                    <th class="th-purchases">Party / Vendor Name</th>
+                                    <th class="th-purchases text-center" style="width: 130px;">Payment Mode</th>
+                                    <th class="th-purchases text-end" style="width: 150px;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if purchases_list %}
+                                    {% for row in purchases_list %}
+                                    <tr>
+                                        <td class="text-center text-muted fw-bold">{{ row.sr }}</td>
+                                        <td>
+                                            <span class="fw-bold text-dark d-block">{{ row.party_name }}</span>
+                                            {% if row.purchase_number != "-" or row.remarks != "-" %}
+                                                <small class="text-muted" style="font-size: 0.72rem;">
+                                                    {% if row.purchase_number != "-" %}P#: {{ row.purchase_number }}{% endif %}
+                                                    {% if row.remarks != "-" %} &bull; {{ row.remarks }}{% endif %}
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-light text-secondary border px-2 py-1">
+                                                {{ row.payment_mood }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-bold text-primary">
+                                            PKR {{ row.amount|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            <i class="fa-solid fa-folder-open fs-3 d-block mb-2 text-secondary"></i>
+                                            No purchase payments recorded for {{ selected_date_display }}.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+
+                                <!-- 1. Purchase Subtotal Row -->
+                                <tr class="row-subtotal-purchases">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-calculator me-1"></i> Total Purchase Payments (کل خریداری ادائیگیاں)
+                                    </td>
+                                    <td class="text-center text-muted small">
+                                        {{ purchases_list|length }} entries
+                                    </td>
+                                    <td class="text-end">
+                                        PKR {{ total_purchase_amount|floatformat:2 }}
+                                    </td>
+                                </tr>
+
+                                <!-- 2. Expense Row -->
+                                <tr class="row-expense">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-receipt me-1"></i> Expense (کل اخراجات)
+                                        <div class="small text-muted fw-normal" style="font-size: 0.72rem;">
+                                            Daily Operating Expenses from Expense Detail
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle small">Expense Detail</span>
+                                    </td>
+                                    <td class="text-end">
+                                        PKR {{ total_expense_amount|floatformat:2 }}
+                                    </td>
+                                </tr>
+
+                                <!-- 3. Right Grand Total Row: Purchase + Expense -->
+                                <tr class="row-total-right">
+                                    <td colspan="2" class="text-start">
+                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Total Paid (Purchase + Expense)
+                                        <div class="small text-muted fw-normal" style="font-size: 0.72rem;">
+                                            کل اخراجات اور ادائیگیاں (خریداری + اخراجات)
+                                        </div>
+                                    </td>
+                                    <td class="text-center text-muted small fw-normal">Total Outflow</td>
+                                    <td class="text-end">
+                                        PKR {{ total_right|floatformat:2 }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Equation Summary Card: (Sells + Prev Day Closing) - (Purchase + Expense) -->
+        <div class="card equation-card mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
+                <div>
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center">
+                        <i class="fa-solid fa-equals text-primary me-2"></i>
+                        Net Cash Equation (حساب کتاب اختتامی کیش)
+                    </h5>
+                    <small class="text-muted">Formula: (Sells Receipts + Previous Day Closing) &minus; (Purchase Payments + Daily Expense)</small>
+                </div>
+                <div>
+                    <a
+                        href="{% url 'cash_report_print' %}?date={{ selected_date }}"
+                        target="_blank"
+                        class="btn btn-print btn-sm px-3 shadow-sm"
+                    >
+                        <i class="fa-solid fa-file-pdf me-1"></i> Print Complete Cash Report
+                    </a>
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-center">
+                <!-- Part 1: Left Total (Sells + Prev Day) -->
+                <div class="col-12 col-md-3">
+                    <div class="equation-box equation-box-left">
+                        <div class="small text-muted fw-bold text-uppercase mb-1">
+                            Total Available (A)
+                        </div>
+                        <div class="fs-4 fw-bold text-success mb-1">
+                            PKR {{ total_left|floatformat:2 }}
+                        </div>
+                        <div class="small text-muted">
+                            Sells: {{ total_sells_amount|floatformat:2 }}<br>
+                            + Prev Closing: {{ prev_closing_balance|floatformat:2 }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operator: Minus -->
+                <div class="col-12 col-md-1 equation-operator text-center">
+                    <span class="badge bg-light text-secondary border p-2 fs-5">&minus;</span>
+                </div>
+
+                <!-- Part 2: Right Total (Purchase + Expense) -->
+                <div class="col-12 col-md-3">
+                    <div class="equation-box equation-box-right">
+                        <div class="small text-muted fw-bold text-uppercase mb-1">
+                            Total Outflow (B)
+                        </div>
+                        <div class="fs-4 fw-bold text-danger mb-1">
+                            PKR {{ total_right|floatformat:2 }}
+                        </div>
+                        <div class="small text-muted">
+                            Purchases: {{ total_purchase_amount|floatformat:2 }}<br>
+                            + Expense: {{ total_expense_amount|floatformat:2 }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operator: Equals -->
+                <div class="col-12 col-md-1 equation-operator text-center">
+                    <span class="badge bg-light text-secondary border p-2 fs-5">=</span>
+                </div>
+
+                <!-- Part 3: Net Cash Balance (A - B) -->
+                <div class="col-12 col-md-4">
+                    <div class="equation-box equation-box-net {% if is_positive_balance %}border-success-subtle bg-success-subtle{% else %}border-danger-subtle bg-danger-subtle{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted fw-bold text-uppercase">Net Cash Balance (A &minus; B)</span>
+                            <span class="badge {% if is_positive_balance %}bg-success{% else %}bg-danger{% endif %} text-white">
+                                {% if is_positive_balance %}Surplus (مثبت){% else %}Deficit (منفی){% endif %}
+                            </span>
+                        </div>
+                        <div class="fs-3 fw-bold {% if is_positive_balance %}text-success{% else %}text-danger{% endif %} mb-1">
+                            PKR {{ abs_net_balance|floatformat:2 }}
+                        </div>
+                        <div class="small text-muted">
+                            {% if is_positive_balance %}
+                                <i class="fa-solid fa-check-circle text-success me-1"></i> Available cash exceeds total payments & expenses.
+                            {% else %}
+                                <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Total payments & expenses exceed available cash.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterInput = document.getElementById('filterDate');
+    const btnPrint = document.getElementById('btnPrintPdf');
+
+    function updatePrintUrl() {
+        if (btnPrint && filterInput) {
+            const dateVal = filterInput.value;
+            btnPrint.href = `{% url 'cash_report_print' %}?date=${dateVal}`;
+        }
+    }
+
+    if (filterInput) {
+        filterInput.addEventListener('change', updatePrintUrl);
+    }
+});
+
+function setQuickDate(type) {
+    const filterInput = document.getElementById('filterDate');
+    const today = new Date();
+    let target = new Date();
+
+    if (type === 'today') {
+        target = today;
+    } else if (type === 'yesterday') {
+        target.setDate(today.getDate() - 1);
+    }
+
+    const yyyy = target.getFullYear();
+    const mm = String(target.getMonth() + 1).padStart(2, '0');
+    const dd = String(target.getDate()).padStart(2, '0');
+    filterInput.value = `${yyyy}-${mm}-${dd}`;
+
+    document.getElementById('cashReportFilterForm').submit();
+}
+</script>
+{% endblock %}

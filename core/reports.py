@@ -2,7 +2,7 @@ import io
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, FileResponse
 from datetime import datetime, time
-from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail, CashRecord
+from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail, CashRecord, Mortality
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -1601,6 +1601,905 @@ def cash_ledger_print(request):
     response['Content-Disposition'] = f'inline; filename="Cash_Ledger_{from_date}_to_{to_date}.pdf"'
     buffer.close()
     return response
+
+
+# =========================================================
+# BROILER REPORT (DAILY SALES VS PURCHASES + MORTALITY)
+# =========================================================
+def broiler_report(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    today = timezone.localdate().strftime('%Y-%m-%d')
+    selected_date_str = request.GET.get('date') or today
+
+    try:
+        selected_date_obj = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        selected_date_obj = timezone.localdate()
+        selected_date_str = selected_date_obj.strftime('%Y-%m-%d')
+
+    selected_date_display = selected_date_obj.strftime('%d-%m-%Y')
+
+    # 1. Left Table: SellsInvoice (Sales)
+    # Party Name, Qty (Weight), Rate, Amount
+    sales_qs = SellsInvoice.objects.filter(entry_date__date=selected_date_obj).order_by('id')
+    sales_list = []
+    total_sales_qty = 0.0
+    total_sales_amount = 0.0
+
+    for idx, s in enumerate(sales_qs, 1):
+        c_name = (s.customer_name or "").strip()
+        c_code = (s.customer_code or "").strip()
+        if c_name and c_code:
+            party_name = f"{c_name} ({c_code})"
+        elif c_name:
+            party_name = c_name
+        elif c_code:
+            party_name = f"Customer ({c_code})"
+        else:
+            party_name = "Customer"
+
+        w = safe_decimal(s.weight)
+        r = safe_decimal(s.rate)
+        a = safe_decimal(s.amount)
+        if a == 0.0 and w > 0 and r > 0:
+            a = round(w * r, 2)
+
+        total_sales_qty += w
+        total_sales_amount += a
+
+        sales_list.append({
+            'sr': idx,
+            'party_name': party_name,
+            'qty': w,
+            'rate': r,
+            'amount': a,
+            'vehicle_no': s.vehicle_no or "-",
+            'sells_no': s.sells_no or "-",
+        })
+
+    # 2. Right Table: PurchaseReceiving (Purchases)
+    # Party Name, Qty (Weight), Rate, Amount
+    purchases_qs = PurchaseReceiving.objects.filter(date__date=selected_date_obj).order_by('id')
+    purchases_list = []
+    total_purchase_qty = 0.0
+    total_purchase_amount = 0.0
+
+    for idx, p in enumerate(purchases_qs, 1):
+        v_name = (p.vendor_name or "").strip()
+        v_code = (p.vendor_code or "").strip()
+        if v_name and v_code:
+            party_name = f"{v_name} ({v_code})"
+        elif v_name:
+            party_name = v_name
+        elif v_code:
+            party_name = f"Party ({v_code})"
+        else:
+            party_name = "Vendor"
+
+        w = safe_decimal(p.weight)
+        r = safe_decimal(p.vendor_rate)
+        a = safe_decimal(p.amount)
+        if a == 0.0 and w > 0 and r > 0:
+            a = round(w * r, 2)
+
+        total_purchase_qty += w
+        total_purchase_amount += a
+
+        purchases_list.append({
+            'sr': idx,
+            'party_name': party_name,
+            'qty': w,
+            'rate': r,
+            'amount': a,
+            'vehicle_number': p.vehicle_number or "-",
+            'purchase_number': p.purchase_number or "-",
+            'remaining_weight': p.remaining_weight,
+        })
+
+    # 3. Totals and Profit / Loss
+    # Profit / Loss = Total Sale - Total Purchase
+    profit_loss = total_sales_amount - total_purchase_amount
+    is_profit = profit_loss >= 0
+    profit_loss_type = "Profit" if is_profit else "Loss"
+    abs_profit_loss = abs(profit_loss)
+    purchase_minus_sale = total_purchase_amount - total_sales_amount
+
+    # 4. Mortality / Wadya Maal (مورٹالٹی / وادیا مال)
+    # Check Mortality table for that date
+    mortality_qs = Mortality.objects.filter(entry_date=selected_date_obj)
+    if mortality_qs.exists():
+        mortality_weight = sum(safe_decimal(m.weight) for m in mortality_qs)
+        mortality_source = "Mortality Table"
+        mortality_from_table = True
+    else:
+        # If no record in Mortality table for this date -> look at PurchaseReceiving remaining_weight
+        # If negative, remove minus sign (abs)
+        raw_rem = sum(safe_decimal(p.remaining_weight) for p in purchases_qs)
+        mortality_weight = abs(raw_rem)
+        mortality_source = "Purchase Receiving (Remaining Weight)"
+        mortality_from_table = False
+
+    if mortality_from_table:
+        mortality_card_title = "Mortality"
+        mortality_badge = "مورٹالٹی"
+    else:
+        mortality_card_title = "Wadya Maal"
+        mortality_badge = "وادیا مال"
+
+    # Check for Print / PDF request
+    is_print = (
+        request.GET.get('action') == 'print'
+        or request.GET.get('print') == '1'
+        or request.GET.get('format') == 'pdf'
+        or 'print' in request.path
+    )
+
+    if is_print:
+        # =========================================================
+        # REPORTLAB PDF GENERATION FOR BROILER REPORT
+        # =========================================================
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=8 * mm,
+            rightMargin=8 * mm,
+            topMargin=8 * mm,
+            bottomMargin=8 * mm,
+            title=f"Broiler_Report_{selected_date_str}"
+        )
+
+        styles = getSampleStyleSheet()
+        normal_style = styles['Normal']
+        normal_style.fontSize = 7.5
+        normal_style.leading = 9.5
+
+        elements = []
+
+        # Title Banner with MJ POULTRIES prominently displayed
+        banner_cell = Paragraph(
+            f"<font color='white' size=16><b>MJ POULTRIES</b></font><br/>"
+            f"<font color='#93c5fd' size=10><b>DAILY BROILER REPORT</b></font><br/>"
+            f"<font color='#e2e8f0' size=8>Date: {selected_date_display}</font>",
+            ParagraphStyle('BRBanner', fontName='Helvetica-Bold', fontSize=14, leading=17, alignment=1, textColor=colors.white)
+        )
+        title_banner = Table([[banner_cell]], colWidths=[281 * mm])
+        title_banner.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0B2545')),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+        elements.append(title_banner)
+        elements.append(Spacer(1, 3 * mm))
+
+        # KPI Summary Cards Table
+        pl_color = '#15803d' if is_profit else '#b91c1c'
+        mort_pdf_header = "MORTALITY" if mortality_from_table else "WADYA MAAL"
+        summary_data = [
+            [
+                Paragraph(
+                    f"<font size=7 color='#64748b'>TOTAL SALE </font><br/>"
+                    f"<font color='#15803d' size=9.5><b>PKR {total_sales_amount:,.2f}</b></font><br/>"
+                    f"<font size=6.5 color='#64748b'>Total Qty: {total_sales_qty:,.2f} KG</font>",
+                    normal_style
+                ),
+                Paragraph(
+                    f"<font size=7 color='#64748b'>TOTAL PURCHASE </font><br/>"
+                    f"<font color='#0b2545' size=9.5><b>PKR {total_purchase_amount:,.2f}</b></font><br/>"
+                    f"<font size=6.5 color='#64748b'>Total Qty: {total_purchase_qty:,.2f} KG</font>",
+                    normal_style
+                ),
+                Paragraph(
+                    f"<font size=7 color='#64748b'>PROFIT / LOSS </font><br/>"
+                    f"<font color='{pl_color}' size=9.5><b>PKR {abs_profit_loss:,.2f}</b></font><br/>"
+                    f"<font size=6.5 color='{pl_color}'><b>{profit_loss_type.upper()}</b> (Sale &minus; Purchase)</font>",
+                    normal_style
+                ),
+                Paragraph(
+                    f"<font size=7 color='#64748b'>{mort_pdf_header}</font><br/>"
+                    f"<font color='#d97706' size=9.5><b>{mortality_weight:,.2f} KG</b></font><br/>"
+                    f"<font size=6 color='#64748b'>Source: {mortality_source}</font>",
+                    normal_style
+                ),
+            ]
+        ]
+        summary_table = Table(summary_data, colWidths=[70.25 * mm, 70.25 * mm, 70.25 * mm, 70.25 * mm])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ]))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 3 * mm))
+
+        # Build Side-by-Side Tables: Sales (Left) & Purchases (Right)
+        # 1. Left Table: Sales
+        s_headers = ["#", "Customer Name", "Qty (KG)", "Rate", "Amount (PKR)"]
+        sales_table_data = [
+            [
+                Paragraph("<font color='white'><b>SALES </b></font>", normal_style),
+                "", "", "", ""
+            ],
+            s_headers
+        ]
+
+        if sales_list:
+            for s in sales_list:
+                sales_table_data.append([
+                    str(s['sr']),
+                    Paragraph(f"<font size=7.5>{s['party_name']}</font>", normal_style),
+                    f"{s['qty']:,.2f}",
+                    f"{s['rate']:,.2f}",
+                    f"{s['amount']:,.2f}",
+                ])
+        else:
+            sales_table_data.append([
+                "-",
+                Paragraph("<font color='#94a3b8'>No sales records found</font>", normal_style),
+                "-", "-", "-"
+            ])
+
+        sales_table_data.append([
+            "Total",
+            "",
+            f"{total_sales_qty:,.2f}",
+            "",
+            f"{total_sales_amount:,.2f}",
+        ])
+
+        s_col_widths = [8 * mm, 52 * mm, 24 * mm, 24 * mm, 30 * mm]
+        sales_table = Table(sales_table_data, colWidths=s_col_widths)
+        s_style = [
+            # Title Row
+            ('SPAN', (0, 0), (4, 0)),
+            ('BACKGROUND', (0, 0), (4, 0), colors.HexColor('#15803D')),
+            ('ALIGN', (0, 0), (4, 0), 'CENTER'),
+            ('TOPPADDING', (0, 0), (4, 0), 4),
+            ('BOTTOMPADDING', (0, 0), (4, 0), 4),
+            # Column Header Row
+            ('BACKGROUND', (0, 1), (4, 1), colors.HexColor('#166534')),
+            ('TEXTCOLOR', (0, 1), (4, 1), colors.white),
+            ('FONTNAME', (0, 1), (4, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 1), (4, 1), 7.5),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 1), (4, -1), 'RIGHT'),
+            ('TOPPADDING', (0, 1), (4, -1), 3),
+            ('BOTTOMPADDING', (0, 1), (4, -1), 3),
+            ('GRID', (0, 1), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+            # Footer Row
+            ('SPAN', (0, -1), (1, -1)),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#DCFCE7')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#14532D')),
+        ]
+        for r_i in range(2, len(sales_table_data) - 1):
+            bg = colors.HexColor('#F8FAFC') if r_i % 2 == 0 else colors.white
+            s_style.append(('BACKGROUND', (0, r_i), (-1, r_i), bg))
+        sales_table.setStyle(TableStyle(s_style))
+
+        # 2. Right Table: Purchases
+        p_headers = ["#", "Vendor Name", "Qty (KG)", "Rate", "Amount (PKR)"]
+        purchases_table_data = [
+            [
+                Paragraph("<font color='white'><b>PURCHASES</b></font>", normal_style),
+                "", "", "", ""
+            ],
+            p_headers
+        ]
+
+        if purchases_list:
+            for p in purchases_list:
+                purchases_table_data.append([
+                    str(p['sr']),
+                    Paragraph(f"<font size=7.5>{p['party_name']}</font>", normal_style),
+                    f"{p['qty']:,.2f}",
+                    f"{p['rate']:,.2f}",
+                    f"{p['amount']:,.2f}",
+                ])
+        else:
+            purchases_table_data.append([
+                "-",
+                Paragraph("<font color='#94a3b8'>No purchase records found</font>", normal_style),
+                "-", "-", "-"
+            ])
+
+        purchases_table_data.append([
+            "Total",
+            "",
+            f"{total_purchase_qty:,.2f}",
+            "",
+            f"{total_purchase_amount:,.2f}",
+        ])
+
+        p_col_widths = [8 * mm, 52 * mm, 24 * mm, 24 * mm, 30 * mm]
+        purchases_table = Table(purchases_table_data, colWidths=p_col_widths)
+        p_style = [
+            # Title Row
+            ('SPAN', (0, 0), (4, 0)),
+            ('BACKGROUND', (0, 0), (4, 0), colors.HexColor('#0B2545')),
+            ('ALIGN', (0, 0), (4, 0), 'CENTER'),
+            ('TOPPADDING', (0, 0), (4, 0), 4),
+            ('BOTTOMPADDING', (0, 0), (4, 0), 4),
+            # Column Header Row
+            ('BACKGROUND', (0, 1), (4, 1), colors.HexColor('#1E3A8A')),
+            ('TEXTCOLOR', (0, 1), (4, 1), colors.white),
+            ('FONTNAME', (0, 1), (4, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 1), (4, 1), 7.5),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 1), (4, -1), 'RIGHT'),
+            ('TOPPADDING', (0, 1), (4, -1), 3),
+            ('BOTTOMPADDING', (0, 1), (4, -1), 3),
+            ('GRID', (0, 1), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+            # Footer Row
+            ('SPAN', (0, -1), (1, -1)),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#DBEAFE')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#1E3A8A')),
+        ]
+        for r_i in range(2, len(purchases_table_data) - 1):
+            bg = colors.HexColor('#F8FAFC') if r_i % 2 == 0 else colors.white
+            p_style.append(('BACKGROUND', (0, r_i), (-1, r_i), bg))
+        purchases_table.setStyle(TableStyle(p_style))
+
+        # Put side-by-side in outer table
+        side_by_side = Table(
+            [[sales_table, purchases_table]],
+            colWidths=[139 * mm, 139 * mm]
+        )
+        side_by_side.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING', (0,0), (-1,-1), 1),
+            ('RIGHTPADDING', (0,0), (-1,-1), 1),
+            ('TOPPADDING', (0,0), (-1,-1), 0),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ]))
+        elements.append(side_by_side)
+
+        # Bottom Summary Table in PDF (Matching web page bottom card)
+        mort_pdf_bottom_title = "MORTALITY (مورٹالٹی)" if mortality_from_table else "WADYA MAAL"
+        bottom_summary_data = [
+            [
+                Paragraph(
+                    f"<font size=8 color='#475569'><b>DAILY PROFIT / LOSS </b></font><br/>"
+                    f"<font size=12.5 color='{pl_color}'><b>PKR {abs_profit_loss:,.2f}</b></font> "
+                    f"<font size=8.5 color='{pl_color}'><b>[{profit_loss_type.upper()}]</b></font><br/>"
+                    f"<font size=6.5 color='#64748b'>Total Sale (PKR {total_sales_amount:,.2f}) &minus; Total Purchase (PKR {total_purchase_amount:,.2f})</font>",
+                    normal_style
+                ),
+                Paragraph(
+                    f"<font size=8 color='#475569'><b>{mort_pdf_bottom_title}</b></font><br/>"
+                    f"<font size=12.5 color='#b45309'><b>{mortality_weight:,.2f} KG</b></font><br/>"
+                    f"<font size=6.5 color='#64748b'>Source: {mortality_source}</font>",
+                    normal_style
+                ),
+            ]
+        ]
+        bottom_summary_table = Table(bottom_summary_data, colWidths=[139 * mm, 139 * mm])
+        bottom_summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ]))
+        elements.append(Spacer(1, 3.5 * mm))
+        elements.append(bottom_summary_table)
+
+        def print_broiler_footer(canvas, d):
+            canvas.saveState()
+            canvas.setFont('Helvetica', 7.5)
+            canvas.setFillColor(colors.HexColor('#64748B'))
+            canvas.drawString(8 * mm, 4 * mm, f"Printed: {timezone.now().strftime('%d-%m-%Y %H:%M')} | MJ Poultries System")
+            canvas.drawRightString(289 * mm, 4 * mm, f"Page {d.page}")
+            canvas.restoreState()
+
+        doc.build(elements, onFirstPage=print_broiler_footer, onLaterPages=print_broiler_footer)
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="Broiler_Report_{selected_date_str}.pdf"'
+        buffer.close()
+        return response
+
+    # HTML Context
+    context = {
+        'selected_date': selected_date_str,
+        'selected_date_display': selected_date_display,
+        'sales_list': sales_list,
+        'total_sales_qty': total_sales_qty,
+        'total_sales_amount': total_sales_amount,
+        'purchases_list': purchases_list,
+        'total_purchase_qty': total_purchase_qty,
+        'total_purchase_amount': total_purchase_amount,
+        'profit_loss': profit_loss,
+        'is_profit': is_profit,
+        'profit_loss_type': profit_loss_type,
+        'abs_profit_loss': abs_profit_loss,
+        'purchase_minus_sale': purchase_minus_sale,
+        'mortality_weight': mortality_weight,
+        'mortality_source': mortality_source,
+        'mortality_from_table': mortality_from_table,
+        'mortality_card_title': mortality_card_title,
+        'mortality_badge': mortality_badge,
+    }
+    return render(request, 'Reports/broiler_report.html', context)
+
+
+# =========================================================
+# CASH REPORT (DAILY RECEIPTS & PREV BALANCE VS PAYMENTS & EXPENSE)
+# =========================================================
+def _get_cash_report_data(request):
+    today = timezone.localdate().strftime('%Y-%m-%d')
+    selected_date_str = request.GET.get('date') or today
+
+    try:
+        selected_date_obj = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        selected_date_obj = timezone.localdate()
+        selected_date_str = selected_date_obj.strftime('%Y-%m-%d')
+
+    selected_date_display = selected_date_obj.strftime('%d-%m-%Y')
+
+    # 1. Left Side: Sellspayment (Customer Name & Received Amount)
+    sells_qs = Sellspayment.objects.filter(entry_date__date=selected_date_obj).order_by('id')
+    sells_list = []
+    total_sells_amount = 0.0
+
+    for idx, s in enumerate(sells_qs, 1):
+        c_name = (s.customer_name or "").strip()
+        c_code = (s.customer_code or "").strip()
+        if c_name and c_code:
+            party_name = f"{c_name} ({c_code})"
+        elif c_name:
+            party_name = c_name
+        elif c_code:
+            party_name = f"Customer ({c_code})"
+        else:
+            party_name = "Customer"
+
+        amt = safe_decimal(s.received_amount)
+        if amt == 0.0:
+            amt = safe_decimal(s.amount)
+
+        total_sells_amount += amt
+        sells_list.append({
+            'sr': idx,
+            'customer_name': party_name,
+            'amount': amt,
+            'payment_method': s.payment_method or "-",
+            'sell_no': s.sell_no or "-",
+            'vehicle_no': s.vehicle_no or "-",
+        })
+
+    # 2. Previous Day Closing Balance from Cash Ledger (CashRecord)
+    prior_cash = CashRecord.objects.filter(
+        date__date__lt=selected_date_obj
+    ).order_by('-date', '-id').first()
+
+    if not prior_cash:
+        prior_cash = CashRecord.objects.filter(
+            date__date=selected_date_obj,
+            discription__icontains='opening'
+        ).order_by('date', 'id').first()
+
+    if not prior_cash:
+        first_rec = CashRecord.objects.order_by('date', 'id').first()
+        if first_rec and first_rec.date and first_rec.date.date() == selected_date_obj:
+            prior_cash = first_rec
+
+    if prior_cash:
+        prev_hand = safe_decimal(prior_cash.cash_in_hand or 0)
+        prev_bank = safe_decimal(prior_cash.cash_in_bank or 0)
+    else:
+        prev_hand = 0.0
+        prev_bank = 0.0
+
+    prev_closing_balance = prev_hand + prev_bank
+    total_left = total_sells_amount + prev_closing_balance
+
+    # 3. Right Side: PurchasePayments (Party Name & Amount)
+    purchases_qs = PurchasePayments.objects.filter(date__date=selected_date_obj).order_by('id')
+    purchases_list = []
+    total_purchase_amount = 0.0
+
+    for idx, p in enumerate(purchases_qs, 1):
+        p_name = (p.part_name or "").strip()
+        p_code = (p.party_code or "").strip()
+        if p_name and p_code:
+            party_name = f"{p_name} ({p_code})"
+        elif p_name:
+            party_name = p_name
+        elif p_code:
+            party_name = f"Party ({p_code})"
+        else:
+            party_name = "Vendor"
+
+        amt = safe_decimal(p.amount)
+        total_purchase_amount += amt
+        purchases_list.append({
+            'sr': idx,
+            'party_name': party_name,
+            'amount': amt,
+            'payment_mood': p.payment_mood or "-",
+            'purchase_number': p.purchase_number or "-",
+            'remarks': p.remarks or "-",
+        })
+
+    # 4. Expenses for that date from Expensedetail
+    expenses_qs = Expensedetail.objects.filter(date__date=selected_date_obj)
+    total_expense_amount = sum(safe_decimal(e.amount) for e in expenses_qs)
+
+    total_right = total_purchase_amount + total_expense_amount
+
+    # 5. Net Calculation: (Sells + Prev Day Closing) - (Purchase + Expense)
+    net_balance = total_left - total_right
+    is_positive_balance = net_balance >= 0
+
+    return {
+        'selected_date': selected_date_str,
+        'selected_date_display': selected_date_display,
+        'sells_list': sells_list,
+        'total_sells_amount': total_sells_amount,
+        'prev_closing_balance': prev_closing_balance,
+        'prev_hand': prev_hand,
+        'prev_bank': prev_bank,
+        'total_left': total_left,
+        'purchases_list': purchases_list,
+        'total_purchase_amount': total_purchase_amount,
+        'total_expense_amount': total_expense_amount,
+        'total_right': total_right,
+        'net_balance': net_balance,
+        'is_positive_balance': is_positive_balance,
+        'abs_net_balance': abs(net_balance),
+    }
+
+
+def cash_report(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    if request.GET.get('action') == 'print':
+        return cash_report_print(request)
+
+    data = _get_cash_report_data(request)
+    return render(request, 'Reports/cashreport.html', data)
+
+
+def cash_report_print(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    data = _get_cash_report_data(request)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm,
+        title=f"Cash_Report_{data['selected_date']}"
+    )
+
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    normal_style.fontSize = 7.5
+    normal_style.leading = 9.5
+
+    elements = []
+
+    # 1. Header Banner with MJ POULTRIES prominently displayed
+    banner_cell = Paragraph(
+        f"<font color='white' size=16><b>MJ POULTRIES</b></font><br/>"
+        f"<font color='#93c5fd' size=10><b>DAILY CASH REPORT (روزانہ کیش رپورٹ)</b></font><br/>"
+        f"<font color='#e2e8f0' size=8>Date: {data['selected_date_display']}</font>",
+        ParagraphStyle('CRBanner', fontName='Helvetica-Bold', fontSize=14, leading=17, alignment=1, textColor=colors.white)
+    )
+    title_banner = Table([[banner_cell]], colWidths=[281 * mm])
+    title_banner.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0B2545')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elements.append(title_banner)
+    elements.append(Spacer(1, 3 * mm))
+
+    # 2. Top KPI Overview Table (4 cards)
+    bal_color = '#15803d' if data['is_positive_balance'] else '#b91c1c'
+    kpi_data = [
+        [
+            Paragraph(
+                f"<font size=7 color='#64748b'>TOTAL SELLS (وصولیاں)</font><br/>"
+                f"<font color='#15803d' size=9.5><b>PKR {data['total_sells_amount']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>{len(data['sells_list'])} Receipts</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748b'>PREV DAY CLOSING (سابقہ کیش)</font><br/>"
+                f"<font color='#0284c7' size=9.5><b>PKR {data['prev_closing_balance']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>Hand: {data['prev_hand']:,.2f} | Bank: {data['prev_bank']:,.2f}</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748b'>PURCHASES & EXPENSES (ادائیگیاں)</font><br/>"
+                f"<font color='#b91c1c' size=9.5><b>PKR {data['total_right']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>Pur: {data['total_purchase_amount']:,.2f} | Exp: {data['total_expense_amount']:,.2f}</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748b'>NET CLOSING CASH (اختتامی کیش)</font><br/>"
+                f"<font color='{bal_color}' size=9.5><b>PKR {data['abs_net_balance']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='{bal_color}'><b>{'POSITIVE' if data['is_positive_balance'] else 'NEGATIVE'}</b></font>",
+                normal_style
+            ),
+        ]
+    ]
+    kpi_table = Table(kpi_data, colWidths=[70.25 * mm, 70.25 * mm, 70.25 * mm, 70.25 * mm])
+    kpi_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    elements.append(kpi_table)
+    elements.append(Spacer(1, 3 * mm))
+
+    # 3. Side-by-Side Tables: Left (Sales / Receipts) & Right (Purchases / Expenses)
+    # --- Left Table (Receipts & Previous Day Balance) ---
+    s_table_data = [
+        [
+            Paragraph("<font color='white'><b>RECEIPTS / SALES (وصولیاں)</b></font>", normal_style),
+            "", ""
+        ],
+        ["#", "Customer / Party Name", "Amount (PKR)"]
+    ]
+
+    if data['sells_list']:
+        for s in data['sells_list']:
+            s_table_data.append([
+                str(s['sr']),
+                Paragraph(f"<font size=7.5>{s['customer_name']}</font>", normal_style),
+                f"PKR {s['amount']:,.2f}",
+            ])
+    else:
+        s_table_data.append([
+            "-",
+            Paragraph("<font color='#94a3b8'>No sales receipt recorded for this date</font>", normal_style),
+            "-"
+        ])
+
+    # Sells Subtotal Row
+    s_table_data.append([
+        "Total Sales Receipts",
+        "",
+        f"PKR {data['total_sells_amount']:,.2f}"
+    ])
+
+    # Previous Day Closing Row
+    s_table_data.append([
+        "Previous Day Closing Balance (سابقہ بیلنس)",
+        "",
+        f"PKR {data['prev_closing_balance']:,.2f}"
+    ])
+
+    # Left Grand Total Row: Sells + Previous Day
+    s_table_data.append([
+        "Total Available (Sells + Prev Day)",
+        "",
+        f"PKR {data['total_left']:,.2f}"
+    ])
+
+    s_col_widths = [10 * mm, 88 * mm, 41 * mm]
+    left_table = Table(s_table_data, colWidths=s_col_widths)
+    l_style = [
+        # Title Row
+        ('SPAN', (0, 0), (2, 0)),
+        ('BACKGROUND', (0, 0), (2, 0), colors.HexColor('#15803D')),
+        ('ALIGN', (0, 0), (2, 0), 'CENTER'),
+        ('TOPPADDING', (0, 0), (2, 0), 4),
+        ('BOTTOMPADDING', (0, 0), (2, 0), 4),
+        # Column Header Row
+        ('BACKGROUND', (0, 1), (2, 1), colors.HexColor('#166534')),
+        ('TEXTCOLOR', (0, 1), (2, 1), colors.white),
+        ('FONTNAME', (0, 1), (2, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (2, 1), 7.5),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 1), (2, -1), 3),
+        ('BOTTOMPADDING', (0, 1), (2, -1), 3),
+        ('GRID', (0, 1), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        # Sells Subtotal Row
+        ('SPAN', (0, -3), (1, -3)),
+        ('BACKGROUND', (0, -3), (-1, -3), colors.HexColor('#F0FDF4')),
+        ('FONTNAME', (0, -3), (-1, -3), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -3), (-1, -3), colors.HexColor('#166534')),
+        # Prev Day Row
+        ('SPAN', (0, -2), (1, -2)),
+        ('BACKGROUND', (0, -2), (-1, -2), colors.HexColor('#F0F9FF')),
+        ('FONTNAME', (0, -2), (-1, -2), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -2), (-1, -2), colors.HexColor('#0369A1')),
+        # Grand Total Left Row
+        ('SPAN', (0, -1), (1, -1)),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#DCFCE7')),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#14532D')),
+    ]
+    for r_i in range(2, len(s_table_data) - 3):
+        bg = colors.HexColor('#F8FAFC') if r_i % 2 == 0 else colors.white
+        l_style.append(('BACKGROUND', (0, r_i), (-1, r_i), bg))
+    left_table.setStyle(TableStyle(l_style))
+
+    # --- Right Table (Payments, Purchases & Expense) ---
+    p_table_data = [
+        [
+            Paragraph("<font color='white'><b>PAYMENTS / PURCHASES (ادائیگیاں)</b></font>", normal_style),
+            "", ""
+        ],
+        ["#", "Party / Vendor Name", "Amount (PKR)"]
+    ]
+
+    if data['purchases_list']:
+        for p in data['purchases_list']:
+            p_table_data.append([
+                str(p['sr']),
+                Paragraph(f"<font size=7.5>{p['party_name']}</font>", normal_style),
+                f"PKR {p['amount']:,.2f}",
+            ])
+    else:
+        p_table_data.append([
+            "-",
+            Paragraph("<font color='#94a3b8'>No purchase payment recorded for this date</font>", normal_style),
+            "-"
+        ])
+
+    # Purchase Subtotal Row
+    p_table_data.append([
+        "Total Purchase Payments",
+        "",
+        f"PKR {data['total_purchase_amount']:,.2f}"
+    ])
+
+    # Expenses Row
+    p_table_data.append([
+        "Expense (کل اخراجات)",
+        "",
+        f"PKR {data['total_expense_amount']:,.2f}"
+    ])
+
+    # Right Grand Total Row: Purchases + Expenses
+    p_table_data.append([
+        "Total Paid (Purchase + Expense)",
+        "",
+        f"PKR {data['total_right']:,.2f}"
+    ])
+
+    p_col_widths = [10 * mm, 88 * mm, 41 * mm]
+    right_table = Table(p_table_data, colWidths=p_col_widths)
+    r_style = [
+        # Title Row
+        ('SPAN', (0, 0), (2, 0)),
+        ('BACKGROUND', (0, 0), (2, 0), colors.HexColor('#0B2545')),
+        ('ALIGN', (0, 0), (2, 0), 'CENTER'),
+        ('TOPPADDING', (0, 0), (2, 0), 4),
+        ('BOTTOMPADDING', (0, 0), (2, 0), 4),
+        # Column Header Row
+        ('BACKGROUND', (0, 1), (2, 1), colors.HexColor('#1E3A8A')),
+        ('TEXTCOLOR', (0, 1), (2, 1), colors.white),
+        ('FONTNAME', (0, 1), (2, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (2, 1), 7.5),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 1), (2, -1), 3),
+        ('BOTTOMPADDING', (0, 1), (2, -1), 3),
+        ('GRID', (0, 1), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        # Purchase Subtotal Row
+        ('SPAN', (0, -3), (1, -3)),
+        ('BACKGROUND', (0, -3), (-1, -3), colors.HexColor('#EFF6FF')),
+        ('FONTNAME', (0, -3), (-1, -3), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -3), (-1, -3), colors.HexColor('#1E40AF')),
+        # Expense Row
+        ('SPAN', (0, -2), (1, -2)),
+        ('BACKGROUND', (0, -2), (-1, -2), colors.HexColor('#FEF2F2')),
+        ('FONTNAME', (0, -2), (-1, -2), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -2), (-1, -2), colors.HexColor('#B91C1C')),
+        # Grand Total Right Row
+        ('SPAN', (0, -1), (1, -1)),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#FEE2E2')),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#991B1B')),
+    ]
+    for r_i in range(2, len(p_table_data) - 3):
+        bg = colors.HexColor('#F8FAFC') if r_i % 2 == 0 else colors.white
+        r_style.append(('BACKGROUND', (0, r_i), (-1, r_i), bg))
+    right_table.setStyle(TableStyle(r_style))
+
+    # Put side-by-side in outer table
+    side_by_side = Table(
+        [[left_table, right_table]],
+        colWidths=[139 * mm, 139 * mm]
+    )
+    side_by_side.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('LEFTPADDING', (0,0), (-1,-1), 1),
+        ('RIGHTPADDING', (0,0), (-1,-1), 1),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+    elements.append(side_by_side)
+
+    # 4. Bottom Net Summary Table: (Sells + Prev Day) - (Purchase + Expense)
+    net_badge_color = '#15803d' if data['is_positive_balance'] else '#b91c1c'
+    bottom_summary_data = [
+        [
+            Paragraph(
+                f"<font size=8 color='#475569'><b>TOTAL AVAILABLE (آمدنی + سابقہ کیش)</b></font><br/>"
+                f"<font size=12 color='#15803d'><b>PKR {data['total_left']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>Sells: PKR {data['total_sells_amount']:,.2f} + Prev Closing: PKR {data['prev_closing_balance']:,.2f}</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=8 color='#475569'><b>TOTAL OUTFLOW (خریداری ادائیگیاں + اخراجات)</b></font><br/>"
+                f"<font size=12 color='#b91c1c'><b>PKR {data['total_right']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>Purchases: PKR {data['total_purchase_amount']:,.2f} + Expense: PKR {data['total_expense_amount']:,.2f}</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=8 color='#475569'><b>NET CASH BALANCE (اختتامی بیلنس)</b></font><br/>"
+                f"<font size=13 color='{net_badge_color}'><b>PKR {data['abs_net_balance']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>(Sells + Prev Day) &minus; (Purchase + Expense)</font>",
+                normal_style
+            ),
+        ]
+    ]
+    bottom_summary_table = Table(bottom_summary_data, colWidths=[92 * mm, 92 * mm, 94 * mm])
+    bottom_summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+    ]))
+    elements.append(Spacer(1, 3.5 * mm))
+    elements.append(bottom_summary_table)
+
+    def print_cash_footer(canvas, d):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(colors.HexColor('#64748B'))
+        canvas.drawString(8 * mm, 4 * mm, f"Printed: {timezone.now().strftime('%d-%m-%Y %H:%M')} | MJ Poultries System")
+        canvas.drawRightString(289 * mm, 4 * mm, f"Page {d.page}")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=print_cash_footer, onLaterPages=print_cash_footer)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Cash_Report_{data["selected_date"]}.pdf"'
+    buffer.close()
+    return response
+
 
 
 
