@@ -261,8 +261,8 @@
                         PKR {{ opening_balance|floatformat:2 }}
                     </div>
                     <div class="small text-muted mt-1" style="font-size: 0.72rem;">
-                        <span class="text-success fw-bold" title="Prior Sellspayment (Dr)">Dr: {{ op_dr|floatformat:2 }}</span> &bull; 
-                        <span class="text-danger fw-bold" title="Prior PurchasePayments + Expensedetail (Cr)">Cr: {{ op_cr|floatformat:2 }}</span>
+                        <span class="text-success fw-bold" title="Cash in Hand"><i class="fa-solid fa-money-bill-wave me-1"></i>Hand: {{ op_cash_in_hand|floatformat:2 }}</span> &bull; 
+                        <span class="text-info fw-bold" title="Cash in Bank"><i class="fa-solid fa-building-columns me-1"></i>Bank: {{ op_cash_in_bank|floatformat:2 }}</span>
                     </div>
                 </div>
             </div>
@@ -328,9 +328,9 @@
                                 </td>
                                 <td class="text-muted">
                                     {{ row.description|default:"-" }}
-                                    {% if row.is_opening and op_dr > 0 or row.is_opening and op_cr > 0 %}
+                                    {% if row.is_opening and opening_balance > 0 %}
                                         <small class="d-block text-secondary mt-1" style="font-size: 0.72rem;">
-                                            (Prior Dr: PKR {{ op_dr|floatformat:2 }} &minus; Prior Cr: PKR {{ op_cr|floatformat:2 }})
+                                            (Hand: PKR {{ op_cash_in_hand|floatformat:2 }} &bull; Bank: PKR {{ op_cash_in_bank|floatformat:2 }})
                                         </small>
                                     {% endif %}
                                 </td>

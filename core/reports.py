@@ -2,7 +2,7 @@ import io
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, FileResponse
 from datetime import datetime, time
-from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail
+from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail, CashRecord
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -1132,22 +1132,33 @@ def cash_ledger(request):
         to_date_obj = timezone.localdate()
         to_date = to_date_obj.strftime('%Y-%m-%d')
 
-    # 1. Opening Balance (Calculated strictly from the 3 tables before from_date)
-    # Sellspayment = DR (+) | PurchasePayments + Expensedetail = CR (-)
-    old_sells = Sellspayment.objects.filter(entry_date__date__lt=from_date_obj)
-    old_purchases = PurchasePayments.objects.filter(date__date__lt=from_date_obj)
-    old_expenses = Expensedetail.objects.filter(date__date__lt=from_date_obj)
+    # 1. Opening Balance (from CashRecord table: cash_in_hand + cash_in_bank)
+    # Strictly fetch the latest CashRecord entry before from_date
+    prior_cash = CashRecord.objects.filter(
+        date__date__lt=from_date_obj
+    ).order_by('-date', '-id').first()
 
-    op_dr = sum(
-        safe_decimal(s.received_amount)
-        if (s.received_amount is not None and str(s.received_amount).strip() != "")
-        else safe_decimal(s.amount)
-        for s in old_sells
-    )
-    op_cr_purchases = sum(safe_decimal(p.amount) for p in old_purchases)
-    op_cr_expenses = sum(safe_decimal(e.amount) for e in old_expenses)
-    op_cr = op_cr_purchases + op_cr_expenses
-    opening_balance = op_dr - op_cr
+    # Fallback: if no record exists before from_date, check if an opening balance was created on from_date itself
+    if not prior_cash:
+        prior_cash = CashRecord.objects.filter(
+            date__date=from_date_obj,
+            discription__icontains='opening'
+        ).order_by('date', 'id').first()
+
+    # Fallback: if still not found, check the very first record ever if it is on from_date
+    if not prior_cash:
+        first_rec = CashRecord.objects.order_by('date', 'id').first()
+        if first_rec and first_rec.date and first_rec.date.date() == from_date_obj:
+            prior_cash = first_rec
+
+    if prior_cash:
+        op_cash_in_hand = safe_decimal(prior_cash.cash_in_hand or 0)
+        op_cash_in_bank = safe_decimal(prior_cash.cash_in_bank or 0)
+    else:
+        op_cash_in_hand = 0.0
+        op_cash_in_bank = 0.0
+
+    opening_balance = op_cash_in_hand + op_cash_in_bank
 
     # 2. Period Transactions
     transactions = []
@@ -1230,15 +1241,12 @@ def cash_ledger(request):
 
     # 3. Build Ledger Rows starting with Opening Balance
     ledger_rows = []
-    op_dr_col = opening_balance if opening_balance > 0 else 0.0
-    op_cr_col = abs(opening_balance) if opening_balance < 0 else 0.0
-
     ledger_rows.append({
         'date_str': from_date_obj.strftime('%d-%m-%Y'),
         'account': 'Opening Balance',
-        'description': 'Cash in hand (opening balance)',
-        'dr': op_dr_col,
-        'cr': op_cr_col,
+        'description': 'Cash in hand & bank (opening balance)',
+        'dr': 0.0,
+        'cr': 0.0,
         'balance': opening_balance,
         'is_opening': True,
     })
@@ -1262,8 +1270,8 @@ def cash_ledger(request):
             'is_opening': False,
         })
 
-    total_dr = sum(r['dr'] for r in ledger_rows)
-    total_cr = sum(r['cr'] for r in ledger_rows)
+    total_dr = period_in
+    total_cr = period_out
     closing_balance = running_bal
 
     context = {
@@ -1271,10 +1279,10 @@ def cash_ledger(request):
         'to_date': to_date,
         'from_date_display': from_date_obj.strftime('%d-%m-%Y'),
         'to_date_display': to_date_obj.strftime('%d-%m-%Y'),
-        'op_dr': op_dr,
-        'op_cr': op_cr,
-        'op_cr_purchases': op_cr_purchases,
-        'op_cr_expenses': op_cr_expenses,
+        'op_cash_in_hand': op_cash_in_hand,
+        'op_cash_in_bank': op_cash_in_bank,
+        'op_dr': op_cash_in_hand,
+        'op_cr': op_cash_in_bank,
         'opening_balance': opening_balance,
         'period_in': period_in,
         'period_out': period_out,
@@ -1309,22 +1317,32 @@ def cash_ledger_print(request):
         to_date_obj = timezone.localdate()
         to_date = to_date_obj.strftime('%Y-%m-%d')
 
-    # 1. Opening Balance (Calculated strictly from the 3 tables before from_date)
-    # Sellspayment = DR (+) | PurchasePayments + Expensedetail = CR (-)
-    old_sells = Sellspayment.objects.filter(entry_date__date__lt=from_date_obj)
-    old_purchases = PurchasePayments.objects.filter(date__date__lt=from_date_obj)
-    old_expenses = Expensedetail.objects.filter(date__date__lt=from_date_obj)
+    # 1. Opening Balance (from CashRecord table: cash_in_hand + cash_in_bank)
+    prior_cash = CashRecord.objects.filter(
+        date__date__lt=from_date_obj
+    ).order_by('-date', '-id').first()
 
-    op_dr = sum(
-        safe_decimal(s.received_amount)
-        if (s.received_amount is not None and str(s.received_amount).strip() != "")
-        else safe_decimal(s.amount)
-        for s in old_sells
-    )
-    op_cr_purchases = sum(safe_decimal(p.amount) for p in old_purchases)
-    op_cr_expenses = sum(safe_decimal(e.amount) for e in old_expenses)
-    op_cr = op_cr_purchases + op_cr_expenses
-    opening_balance = op_dr - op_cr
+    # Fallback: if no record exists before from_date, check if an opening balance was created on from_date itself
+    if not prior_cash:
+        prior_cash = CashRecord.objects.filter(
+            date__date=from_date_obj,
+            discription__icontains='opening'
+        ).order_by('date', 'id').first()
+
+    # Fallback: if still not found, check the very first record ever if it is on from_date
+    if not prior_cash:
+        first_rec = CashRecord.objects.order_by('date', 'id').first()
+        if first_rec and first_rec.date and first_rec.date.date() == from_date_obj:
+            prior_cash = first_rec
+
+    if prior_cash:
+        op_cash_in_hand = safe_decimal(prior_cash.cash_in_hand or 0)
+        op_cash_in_bank = safe_decimal(prior_cash.cash_in_bank or 0)
+    else:
+        op_cash_in_hand = 0.0
+        op_cash_in_bank = 0.0
+
+    opening_balance = op_cash_in_hand + op_cash_in_bank
 
     # 2. Period Transactions
     transactions = []
@@ -1396,14 +1414,12 @@ def cash_ledger_print(request):
     transactions.sort(key=lambda x: _normalize_dt(x.get('date')))
 
     ledger_rows = []
-    op_dr_col = opening_balance if opening_balance > 0 else 0.0
-    op_cr_col = abs(opening_balance) if opening_balance < 0 else 0.0
     ledger_rows.append({
         'date_str': from_date_obj.strftime('%d-%m-%Y'),
         'account': 'Opening Balance',
-        'description': 'Cash in hand (opening balance)',
-        'dr': op_dr_col,
-        'cr': op_cr_col,
+        'description': f"Cash in hand & bank (Hand: {op_cash_in_hand:,.2f}, Bank: {op_cash_in_bank:,.2f})",
+        'dr': 0.0,
+        'cr': 0.0,
         'balance': opening_balance,
     })
 
@@ -1421,8 +1437,8 @@ def cash_ledger_print(request):
             'balance': running_bal,
         })
 
-    total_dr = sum(r['dr'] for r in ledger_rows)
-    total_cr = sum(r['cr'] for r in ledger_rows)
+    total_dr = sum(tx['dr'] for tx in transactions)
+    total_cr = sum(tx['cr'] for tx in transactions)
     closing_balance = running_bal
 
     # ReportLab Generation
@@ -1466,7 +1482,7 @@ def cash_ledger_print(request):
     summary_data = [
         [
             info_p,
-            Paragraph(f"<font size=7 color='#64748b'>OPENING BALANCE</font><br/><b>PKR {opening_balance:,.2f}</b><br/><font size=6.5 color='#64748b'>Dr: {op_dr:,.2f} | Cr: {op_cr:,.2f}</font>", normal_style),
+            Paragraph(f"<font size=7 color='#64748b'>OPENING BALANCE</font><br/><b>PKR {opening_balance:,.2f}</b><br/><font size=6.5 color='#64748b'>Hand: {op_cash_in_hand:,.2f} | Bank: {op_cash_in_bank:,.2f}</font>", normal_style),
             Paragraph(f"<font size=7 color='#15803d'>TOTAL CASH IN (DR)</font><br/><font color='#15803d'><b>PKR {total_dr:,.2f}</b></font>", normal_style),
             Paragraph(f"<font size=7 color='#b91c1c'>TOTAL CASH OUT (CR)</font><br/><font color='#b91c1c'><b>PKR {total_cr:,.2f}</b></font>", normal_style),
             Paragraph(f"<font size=7 color='#0b2545'>CLOSING BALANCE</font><br/><font color='#0b2545'><b>PKR {closing_balance:,.2f}</b></font>", normal_style),
