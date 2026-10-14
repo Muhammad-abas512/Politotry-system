@@ -37,13 +37,13 @@ def parties(request):
             company_name = (data.get('company_name') or '').strip()
             owner_name = (data.get('owner_name') or '').strip()
             number = (data.get('number') or '').strip()
-            party_type = (data.get('party_type') or '').strip()
+            party_type = (data.get('party_type') or 'Party').strip()
             address = (data.get('address') or '').strip()
 
             if not company_name:
                 return JsonResponse({'success': False, 'message': 'Company name is required'})
             if not party_type:
-                return JsonResponse({'success': False, 'message': 'Party type is required'})
+                party_type = 'Party'
 
             if party_id:
                 # UPDATE (code remains same)

@@ -507,17 +507,28 @@
             <div class="col-lg-5 d-flex justify-content-lg-end">
                 <div class="net-position-box">
 
-                    <div class="net-label">
-                        <i class="bi bi-graph-up me-1"></i>
-                        Net Position
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="net-label">
+                            <i class="bi bi-graph-up-arrow me-1 text-primary"></i>
+                            Net Position
+                        </div>
+                        <a href="{% url 'net_position' %}" class="badge bg-primary text-white text-decoration-none px-2 py-1" style="font-size: 0.68rem; font-weight: 600;">
+                            Net Report <i class="bi bi-arrow-right"></i>
+                        </a>
                     </div>
 
-                    <div class="net-value">
-                        Rs. {{ net_position|floatformat:0 }}
+                    <div class="net-value {% if net_position >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        Rs. {{ net_position|floatformat:2 }}
                     </div>
 
-                    <div class="net-formula">
-                        Total Sales − Purchases − Expenses
+                    <div class="net-formula text-muted">
+                        Total Debit (Dr) + Cash − Total Credit (Cr)
+                    </div>
+
+                    <div class="d-flex justify-content-between gap-2 mt-2 pt-2 border-top" style="font-size: 0.69rem;">
+                        <span title="Total Debit (Receivables)"><strong class="text-primary">Dr:</strong> Rs. {{ total_debit|floatformat:0 }}</span>
+                        <span title="Total Cash (Hand + Bank)"><strong class="text-success">Cash:</strong> Rs. {{ total_cash|floatformat:0 }}</span>
+                        <span title="Total Credit (Payables)"><strong class="text-danger">Cr:</strong> Rs. {{ total_credit|floatformat:0 }}</span>
                     </div>
 
                 </div>
@@ -740,7 +751,7 @@
         <div class="stat-card">
 
             <div class="stat-header">
-                <h3 class="stat-title">Business Parties</h3>
+                <h3 class="stat-title">Total Parties ({{ total_parties }})</h3>
 
                 <div class="stat-icon">
                     <i class="bi bi-people"></i>

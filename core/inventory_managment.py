@@ -287,9 +287,7 @@ def purchase_receiving(request):
             latest_active.status = 'Done'
             latest_active.save()
 
-    vendor_list = Parties.objects.filter(
-        Q(party_type__iexact='vendor') | Q(party_type__iexact='trader')
-    ).order_by('company_name')
+    vendor_list = Parties.objects.all().order_by('company_name')
 
     history = PurchaseReceiving.objects.all().order_by('-id')
     next_purchase_number = generate_purchase_number()
@@ -478,13 +476,15 @@ def sells(request):
     # 4. NEW SELL POST
     # ========================================================
     if request.method == 'POST':
-        customer_name = (request.POST.get('customer_name') or '').strip()
-        vehicle_no    = (request.POST.get('vehicle_no') or '').strip()
-        sell_weight   = sell_decimal(request.POST.get('weight'))
-        sell_rate     = sell_decimal(request.POST.get('rate'))
+        customer_name    = (request.POST.get('customer_name') or '').strip()
+        vehicle_no       = (request.POST.get('vehicle_no') or '').strip()
+        sell_weight      = sell_decimal(request.POST.get('weight'))
+        sell_rate        = sell_decimal(request.POST.get('rate'))
+        date_input       = (request.POST.get('date') or '').strip()
+        purchase_id_post = request.POST.get('purchase_id')
 
         if not customer_name:
-            messages.error(request, 'Please select Customer / Trader.')
+            messages.error(request, 'Please select Customer / Party.')
             return redirect('sells')
 
         if sell_weight <= 0:
@@ -495,7 +495,8 @@ def sells(request):
             messages.error(request, 'Rate must be greater than 0.')
             return redirect('sells')
 
-        if not active_purchase:
+        target_purchase_id = purchase_id_post or (active_purchase.id if active_purchase else None)
+        if not target_purchase_id:
             messages.error(request, 'Please create a Purchase Receiving record first.')
             return redirect('sells')
 
@@ -504,23 +505,33 @@ def sells(request):
                 purchase_obj = (
                     PurchaseReceiving.objects
                     .select_for_update()
-                    .filter(id=active_purchase.id)
+                    .filter(id=target_purchase_id)
                     .first()
                 )
 
                 if not purchase_obj:
                     raise ValueError('Purchase record not found.')
 
-                latest_purchase = (
-                    PurchaseReceiving.objects
-                    .order_by('-id')
-                    .first()
-                )
+                # =====================================================
+                # 🛑 CRITICAL CONSTRAINT: Purchase date == Sale date
+                # "jo purchase jis date ko purchase ho wo usi date mai sell b ho usky elwa ksi date mai sell na ho"
+                # =====================================================
+                purchase_date = purchase_obj.date.date() if purchase_obj.date else None
+                pk_now = get_pk_now()
 
-                if latest_purchase and latest_purchase.id != purchase_obj.id:
+                if date_input:
+                    try:
+                        sell_date = datetime.strptime(date_input, '%Y-%m-%d').date()
+                    except ValueError:
+                        sell_date = purchase_date or pk_now.date()
+                else:
+                    sell_date = purchase_date or pk_now.date()
+
+                if purchase_date and sell_date != purchase_date:
                     raise ValueError(
-                        'A new purchase has been received. '
-                        'Page refresh karke sell dobara enter karein.'
+                        f"Ghalat Date! Jo purchase jis date ko purchase ho wo usi date me hi sell ho sakti hai! "
+                        f"Purchase #{purchase_obj.purchase_number} ki purchase date {purchase_date.strftime('%d-%m-%Y')} hai, "
+                        f"magar sell date {sell_date.strftime('%d-%m-%Y')} select ki gayi hai."
                     )
 
                 purchase_number = (purchase_obj.purchase_number or '').strip()
@@ -543,7 +554,7 @@ def sells(request):
 
                 sells_no = str(next_number).zfill(4)
 
-                pk_now = get_pk_now()
+                final_sell_datetime = datetime.combine(purchase_date or sell_date, pk_now.time())
 
                 # =================================================
                 # INSERT SELL RECORD
@@ -558,7 +569,7 @@ def sells(request):
                     received_amount  = '0',
                     remaining_amount = sell_number(calculated_amount),
                     vehicle_no       = (vehicle_no or purchase_obj.vehicle_number or ''),
-                    entry_date       = pk_now
+                    entry_date       = final_sell_datetime
                 )
 
                 # =================================================
@@ -605,7 +616,7 @@ def sells(request):
                     amount          = int(calculated_amount),   # 👈 sell amount
                     received_amount = '0',                       # not received yet
                     payment_method  = None,                      # not applicable
-                    date            = pk_now,                    # current date/time
+                    date            = final_sell_datetime,       # exact purchase/sell date
                     due             = new_due,
                     advance         = new_adv,
                 )
@@ -614,6 +625,7 @@ def sells(request):
                 request,
                 f'Sell #{sells_no} saved | '
                 f'Purchase #{purchase_number} | '
+                f'Date: {purchase_date.strftime("%d-%m-%Y") if purchase_date else ""} | '
                 f'Old Stock: {sell_number(old_remaining)} kg | '
                 f'Sold: {sell_number(sell_weight)} kg | '
                 f'New Stock: {sell_number(new_remaining)} kg'
@@ -627,14 +639,8 @@ def sells(request):
     # ========================================================
     # 5. GET DATA FOR DISPLAY
     # ========================================================
-    customer_list = (
-        Parties.objects
-        .filter(
-            Q(party_type__iexact='customer')
-            | Q(party_type__iexact='trader')
-        )
-        .order_by('company_name')
-    )
+    # All parties can be sold to (Customer, Vendor, Trader)
+    customer_list = Parties.objects.all().order_by('company_name')
 
     history = SellsInvoice.objects.all().order_by('-id')
 
@@ -644,30 +650,46 @@ def sells(request):
             amount = sell_decimal(item.weight) * sell_decimal(item.rate)
         item.total_display = sell_number(amount)
 
+    # Allow switching active purchase if query param provided
+    selected_pur_id = request.GET.get('purchase_id')
+    if selected_pur_id:
+        target_pur = PurchaseReceiving.objects.filter(id=selected_pur_id).first()
+        if target_pur:
+            active_purchase = target_pur
+
+    active_purchases_list = PurchaseReceiving.objects.filter(status='Active').order_by('-date', '-id')[:15]
+
     if active_purchase:
         current_remaining = sell_decimal(active_purchase.remaining_weight)
         available_stock   = sell_number(current_remaining)
         auto_vehicle      = active_purchase.vehicle_number or ''
         stock_negative    = (current_remaining < 0)
         stock_zero        = (current_remaining == 0)
+        purchase_date_str = active_purchase.date.strftime('%Y-%m-%d') if active_purchase.date else ''
+        purchase_date_display = active_purchase.date.strftime('%d-%m-%Y') if active_purchase.date else ''
     else:
         available_stock = '0'
         auto_vehicle    = ''
         stock_negative  = False
         stock_zero      = True
+        purchase_date_str = ''
+        purchase_date_display = ''
 
     pk_now = get_pk_now()
 
     context = {
-        'active_purchase':      active_purchase,
-        'customer_list':        customer_list,
-        'history':              history,
-        'available_stock':      available_stock,
-        'auto_vehicle':         auto_vehicle,
-        'stock_negative':       stock_negative,
-        'stock_zero':           stock_zero,
-        'current_date':         pk_now.strftime('%Y-%m-%d'),
-        'current_date_display': pk_now.strftime('%d-%m-%Y'),
+        'active_purchase':       active_purchase,
+        'active_purchases_list': active_purchases_list,
+        'customer_list':         customer_list,
+        'history':               history,
+        'available_stock':       available_stock,
+        'auto_vehicle':          auto_vehicle,
+        'stock_negative':        stock_negative,
+        'stock_zero':            stock_zero,
+        'current_date':          pk_now.strftime('%Y-%m-%d'),
+        'current_date_display':  pk_now.strftime('%d-%m-%Y'),
+        'purchase_date_str':     purchase_date_str,
+        'purchase_date_display': purchase_date_display,
     }
 
     return render(

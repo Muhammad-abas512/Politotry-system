@@ -276,3 +276,81 @@ class CashRecord(models.Model):
     class Meta:
         managed = False
         db_table = 'cash_record'
+
+
+class ChartOfAccount(models.Model):
+    LEVEL_CHOICES = (
+        (1, 'Level 1 - Main Class'),
+        (2, 'Level 2 - Control Head'),
+        (3, 'Level 3 - Sub Control'),
+        (4, 'Level 4 - Transactional Account'),
+    )
+    ACCOUNT_TYPE_CHOICES = (
+        ('Asset', 'Asset'),
+        ('Liability', 'Liability'),
+        ('Equity', 'Equity'),
+        ('Revenue', 'Revenue'),
+        ('Expense', 'Expense'),
+    )
+
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=150)
+    level = models.IntegerField(choices=LEVEL_CHOICES, default=1)
+    parent = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='children'
+    )
+    account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES)
+    opening_balance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    current_balance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'chart_of_accounts'
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.code} - {self.name} (L{self.level})"
+
+
+class Voucher(models.Model):
+    VOUCHER_TYPES = (
+        ('Payment Voucher', 'Payment Voucher (Cash/Bank Out)'),
+        ('Receipt Voucher', 'Receipt Voucher (Cash/Bank In)'),
+        ('Transfer Voucher', 'Transfer / Journal Voucher (Head to Head)'),
+    )
+
+    voucher_no = models.CharField(max_length=50, unique=True)
+    voucher_type = models.CharField(max_length=50, choices=VOUCHER_TYPES)
+    date = models.DateField()
+    reference_no = models.CharField(max_length=100, blank=True, null=True)
+    total_amount = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    remarks = models.TextField(blank=True, null=True)
+    created_by = models.CharField(max_length=50, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'vouchers'
+        ordering = ['-id']
+
+    def __str__(self):
+        return f"{self.voucher_no} ({self.voucher_type}) - Rs. {self.total_amount}"
+
+
+class VoucherDetail(models.Model):
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name='details')
+    account = models.ForeignKey(ChartOfAccount, on_delete=models.CASCADE, related_name='voucher_lines')
+    debit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    credit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    narration = models.CharField(max_length=255, blank=True, null=True)
+    party = models.ForeignKey(Parties, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        managed = True
+        db_table = 'voucher_details'
+
+    def __str__(self):
+        return f"{self.voucher.voucher_no} - {self.account.name} (Dr:{self.debit}, Cr:{self.credit})"

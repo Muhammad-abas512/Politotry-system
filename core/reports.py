@@ -1,6 +1,6 @@
 import io
 from django.shortcuts import render, redirect
-from django.http import JsonResponse, FileResponse
+from django.http import JsonResponse, FileResponse, HttpResponse
 from datetime import datetime, time
 from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail, CashRecord, Mortality
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
@@ -2495,10 +2495,431 @@ def cash_report_print(request):
 
     doc.build(elements, onFirstPage=print_cash_footer, onLaterPages=print_cash_footer)
 
+
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="Cash_Report_{data["selected_date"]}.pdf"'
     buffer.close()
     return response
+
+
+# =========================================================
+# BUSINESS NET POSITION CALCULATION & REPORT
+# =========================================================
+
+def get_net_position_data(to_date=None):
+    """
+    Calculates balance for every party using the exact same logic as party ledger:
+    - Debit (Dr): Sales Invoices (amount) + Vendor Payments (amount)
+    - Credit (Cr): Customer Receipts (received_amount or amount) + Purchase Invoices (amount)
+    - Balance = Total Dr - Total Cr
+      If Balance > 0: Party goes to Debit (Dr) list (Left Table - Receivables)
+      If Balance < 0: Party goes to Credit (Cr) list (Right Table - Payables)
+
+    Cash Record:
+    - Latest entry from CashRecord table (order_by('-id'))
+    - Cash in Hand + Cash in Bank = Total Cash
+
+    Net Position Formula:
+    - Net Position = Total Debit + Total Cash - Total Credit
+    """
+    from collections import defaultdict
+
+    sales_qs = SellsInvoice.objects.all()
+    rec_qs = Sellspayment.objects.all()
+    pur_qs = PurchaseReceiving.objects.all()
+    vp_qs = PurchasePayments.objects.all()
+    cash_qs = CashRecord.objects.all()
+
+    if to_date:
+        to_dt = datetime.combine(to_date, time.max)
+        sales_qs = sales_qs.filter(entry_date__lte=to_dt)
+        rec_qs = rec_qs.filter(entry_date__lte=to_dt)
+        pur_qs = pur_qs.filter(date__lte=to_dt)
+        vp_qs = vp_qs.filter(date__lte=to_dt)
+        cash_qs = cash_qs.filter(date__lte=to_dt)
+
+    sales_map = defaultdict(float)
+    vp_map = defaultdict(float)
+    rec_map = defaultdict(float)
+    pur_map = defaultdict(float)
+
+    for s in sales_qs.values('customer_name', 'amount'):
+        name = (s['customer_name'] or '').strip().lower()
+        if name:
+            sales_map[name] += safe_decimal(s['amount'])
+
+    for vp in vp_qs.values('part_name', 'amount'):
+        name = (vp['part_name'] or '').strip().lower()
+        if name:
+            vp_map[name] += safe_decimal(vp['amount'])
+
+    for r in rec_qs.values('customer_name', 'received_amount', 'amount'):
+        name = (r['customer_name'] or '').strip().lower()
+        if name:
+            rec_map[name] += (safe_decimal(r['received_amount']) or safe_decimal(r['amount']))
+
+    for p in pur_qs.values('vendor_name', 'amount'):
+        name = (p['vendor_name'] or '').strip().lower()
+        if name:
+            pur_map[name] += safe_decimal(p['amount'])
+
+    debit_parties = []
+    credit_parties = []
+    total_debit = 0.0
+    total_credit = 0.0
+
+    matched_keys = set()
+    for party in Parties.objects.all().order_by('company_name', 'owner_name'):
+        target_name = (party.company_name if party.company_name else party.owner_name or '').strip()
+        if not target_name:
+            continue
+
+        keys = set()
+        keys.add(target_name.lower())
+        if party.company_name and party.company_name.strip():
+            keys.add(party.company_name.strip().lower())
+        if party.owner_name and party.owner_name.strip():
+            keys.add(party.owner_name.strip().lower())
+        matched_keys.update(keys)
+
+        dr = sum(sales_map.get(k, 0.0) + vp_map.get(k, 0.0) for k in keys)
+        cr = sum(rec_map.get(k, 0.0) + pur_map.get(k, 0.0) for k in keys)
+        bal = round(dr - cr, 2)
+
+        party_type = (party.party_type or '').strip()
+        if not party_type:
+            party_type = 'Customer' if dr >= cr else 'Vendor'
+
+        if bal > 0.009:
+            debit_parties.append({
+                'id': party.id,
+                'party_code': party.code or '',
+                'party_name': target_name,
+                'party_type': party_type,
+                'dr': dr,
+                'cr': cr,
+                'amount': bal,
+                'formatted_amount': f"{bal:,.2f}"
+            })
+            total_debit += bal
+        elif bal < -0.009:
+            abs_bal = abs(bal)
+            credit_parties.append({
+                'id': party.id,
+                'party_code': party.code or '',
+                'party_name': target_name,
+                'party_type': party_type,
+                'dr': dr,
+                'cr': cr,
+                'amount': abs_bal,
+                'formatted_amount': f"{abs_bal:,.2f}"
+            })
+            total_credit += abs_bal
+
+    # Unmapped keys from transactions if any
+    all_trans_keys = set(sales_map.keys()) | set(vp_map.keys()) | set(rec_map.keys()) | set(pur_map.keys())
+    unmapped_keys = all_trans_keys - matched_keys
+    for k in sorted(unmapped_keys):
+        dr = sales_map.get(k, 0.0) + vp_map.get(k, 0.0)
+        cr = rec_map.get(k, 0.0) + pur_map.get(k, 0.0)
+        bal = round(dr - cr, 2)
+        party_type = 'Customer' if dr >= cr else 'Vendor'
+        if bal > 0.009:
+            debit_parties.append({
+                'id': None,
+                'party_code': '-',
+                'party_name': k.title(),
+                'party_type': party_type,
+                'dr': dr,
+                'cr': cr,
+                'amount': bal,
+                'formatted_amount': f"{bal:,.2f}"
+            })
+            total_debit += bal
+        elif bal < -0.009:
+            abs_bal = abs(bal)
+            credit_parties.append({
+                'id': None,
+                'party_code': '-',
+                'party_name': k.title(),
+                'party_type': party_type,
+                'dr': dr,
+                'cr': cr,
+                'amount': abs_bal,
+                'formatted_amount': f"{abs_bal:,.2f}"
+            })
+            total_credit += abs_bal
+
+    debit_parties.sort(key=lambda x: x['amount'], reverse=True)
+    credit_parties.sort(key=lambda x: x['amount'], reverse=True)
+
+    # Cash Record: latest entry
+    if to_date:
+        last_cash = cash_qs.order_by('-date', '-id').first()
+    else:
+        last_cash = cash_qs.order_by('-id').first()
+
+    cash_in_hand = safe_decimal(last_cash.cash_in_hand) if (last_cash and last_cash.cash_in_hand is not None) else 0.0
+    cash_in_bank = safe_decimal(last_cash.cash_in_bank) if (last_cash and last_cash.cash_in_bank is not None) else 0.0
+    total_cash = cash_in_hand + cash_in_bank
+    cash_date = last_cash.date if last_cash else None
+    cash_desc = (last_cash.discription if last_cash else '') or ''
+
+    total_debit = round(total_debit, 2)
+    total_credit = round(total_credit, 2)
+    total_cash = round(total_cash, 2)
+
+    net_position = round(total_debit + total_cash - total_credit, 2)
+
+    return {
+        'debit_parties': debit_parties,
+        'credit_parties': credit_parties,
+        'debit_count': len(debit_parties),
+        'credit_count': len(credit_parties),
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'cash_in_hand': cash_in_hand,
+        'cash_in_bank': cash_in_bank,
+        'total_cash': total_cash,
+        'cash_date': cash_date,
+        'cash_desc': cash_desc,
+        'net_position': net_position,
+        'is_positive': net_position >= 0,
+    }
+
+
+def net_position_report(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    # Agar user format=pdf ya print mang raha ho to print report call karein
+    if request.GET.get('format') == 'pdf' or request.GET.get('print') in ['1', 'true', 'yes']:
+        return net_position_print(request)
+
+    # Shuru se le kar current date tak sara cumulative data
+    data = get_net_position_data(to_date=None)
+    current_date = timezone.localdate().strftime('%d-%b-%Y')
+
+    context = {
+        **data,
+        'current_date': current_date,
+    }
+    return render(request, 'Reports/net_position.html', context)
+
+
+def net_position_print(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    # Shuru se le kar current date tak sara cumulative data
+    data = get_net_position_data(to_date=None)
+    today = timezone.localdate()
+    today_display = today.strftime('%d-%b-%Y')
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm,
+        title=f"Net_Position_Report_{today.strftime('%Y_%m_%d')}"
+    )
+
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    normal_style.fontSize = 7.5
+    normal_style.leading = 9.5
+
+    elements = []
+
+    # 1. Header Banner with MJ POULTRIES prominently displayed
+    banner_cell = Paragraph(
+        f"<font color='white' size=16><b>MJ POULTRIES</b></font><br/>"
+        f"<font color='#93c5fd' size=10><b>BUSINESS NET POSITION REPORT (کاروباری خالص پوزیشن رپورٹ)</b></font><br/>"
+        f"<font color='#e2e8f0' size=8>Calculated from Inception to Current Date: {today_display} &bull; Formula: Total Debit + Total Cash &minus; Total Credit</font>",
+        ParagraphStyle('CRBanner', fontName='Helvetica-Bold', fontSize=14, leading=17, alignment=1, textColor=colors.white)
+    )
+    title_banner = Table([[banner_cell]], colWidths=[281 * mm])
+    title_banner.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0B2545')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elements.append(title_banner)
+    elements.append(Spacer(1, 2.5 * mm))
+
+    # 2. Top KPI Overview Table (4 cards)
+    bal_color = '#15803d' if data['is_positive'] else '#b91c1c'
+    kpi_data = [
+        [
+            Paragraph(
+                f"<font size=7 color='#64748b'>TOTAL DEBIT (DR - واجـب الادا)</font><br/>"
+                f"<font color='#1e40af' size=9.5><b>PKR {data['total_debit']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>{data['debit_count']} Parties (Receivables)</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748b'>TOTAL CASH (ہاتھ اور بینک کیش)</font><br/>"
+                f"<font color='#047857' size=9.5><b>PKR {data['total_cash']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>Hand: {data['cash_in_hand']:,.2f} | Bank: {data['cash_in_bank']:,.2f}</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748b'>TOTAL CREDIT (CR - قابـل ادا)</font><br/>"
+                f"<font color='#b91c1c' size=9.5><b>PKR {data['total_credit']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='#64748b'>{data['credit_count']} Parties (Payables)</font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748b'>NET POSITION (خالص کاروباری پوزیشن)</font><br/>"
+                f"<font color='{bal_color}' size=9.5><b>PKR {data['net_position']:,.2f}</b></font><br/>"
+                f"<font size=6.5 color='{bal_color}'><b>{'SURPLUS (مستحکم)' if data['is_positive'] else 'DEFICIT (خسارہ)'}</b></font>",
+                normal_style
+            ),
+        ]
+    ]
+    kpi_table = Table(kpi_data, colWidths=[70.25 * mm, 70.25 * mm, 70.25 * mm, 70.25 * mm])
+    kpi_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(kpi_table)
+    elements.append(Spacer(1, 2.5 * mm))
+
+    # 3. Side-by-Side Dual Table: Left (Debit Parties) & Right (Credit Parties)
+    table_data = [
+        [
+            Paragraph("<font color='white'><b>DEBIT PARTIES (DR - واجـب الادا / رقم لینی ہے)</b></font>", normal_style),
+            "", "", "",
+            Paragraph("<font color='white'><b>CREDIT PARTIES (CR - قابـل ادا / رقم دینی ہے)</b></font>", normal_style),
+            "", "", ""
+        ],
+        ["#", "Party Name", "Type", "Amount (PKR)", "#", "Party Name", "Type", "Amount (PKR)"]
+    ]
+
+    debits = data['debit_parties']
+    credits = data['credit_parties']
+    max_rows = max(len(debits), len(credits), 1)
+
+    for i in range(max_rows):
+        row = []
+        if i < len(debits):
+            d = debits[i]
+            row.extend([str(i+1), Paragraph(f"<font size=7.5>{d['party_name']}</font>", normal_style), d['party_type'], f"{d['amount']:,.2f}"])
+        else:
+            row.extend(["-", "-" if i == 0 else "", "", ""])
+
+        if i < len(credits):
+            c = credits[i]
+            row.extend([str(i+1), Paragraph(f"<font size=7.5>{c['party_name']}</font>", normal_style), c['party_type'], f"{c['amount']:,.2f}"])
+        else:
+            row.extend(["-", "-" if i == 0 else "", "", ""])
+        table_data.append(row)
+
+    # Total row
+    table_data.append([
+        "TOTAL DEBIT (DR)", "", "", f"PKR {data['total_debit']:,.2f}",
+        "TOTAL CREDIT (CR)", "", "", f"PKR {data['total_credit']:,.2f}"
+    ])
+
+    col_widths = [10*mm, 68.5*mm, 26*mm, 35*mm, 10*mm, 68.5*mm, 26*mm, 35*mm]
+    main_table = Table(table_data, colWidths=col_widths, repeatRows=2)
+
+    t_style = [
+        # Header titles
+        ('SPAN', (0,0), (3,0)),
+        ('BACKGROUND', (0,0), (3,0), colors.HexColor('#1E3A8A')),
+        ('ALIGN', (0,0), (3,0), 'CENTER'),
+        ('SPAN', (4,0), (7,0)),
+        ('BACKGROUND', (4,0), (7,0), colors.HexColor('#991B1B')),
+        ('ALIGN', (4,0), (7,0), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,0), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,0), 3.5),
+
+        # Column subheaders
+        ('BACKGROUND', (0,1), (3,1), colors.HexColor('#2563EB')),
+        ('BACKGROUND', (4,1), (7,1), colors.HexColor('#DC2626')),
+        ('TEXTCOLOR', (0,1), (-1,1), colors.white),
+        ('FONTNAME', (0,1), (-1,1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,1), (-1,1), 7.5),
+        ('ALIGN', (0,1), (0,-1), 'CENTER'),
+        ('ALIGN', (1,1), (1,-1), 'LEFT'),
+        ('ALIGN', (2,1), (2,-1), 'CENTER'),
+        ('ALIGN', (3,1), (3,-1), 'RIGHT'),
+        ('ALIGN', (4,1), (4,-1), 'CENTER'),
+        ('ALIGN', (5,1), (5,-1), 'LEFT'),
+        ('ALIGN', (6,1), (6,-1), 'CENTER'),
+        ('ALIGN', (7,1), (7,-1), 'RIGHT'),
+        ('GRID', (0,1), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('TOPPADDING', (0,1), (-1,-1), 2.5),
+        ('BOTTOMPADDING', (0,1), (-1,-1), 2.5),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+
+        # Total row
+        ('SPAN', (0,-1), (2,-1)),
+        ('BACKGROUND', (0,-1), (3,-1), colors.HexColor('#DBEAFE')),
+        ('FONTNAME', (0,-1), (3,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0,-1), (3,-1), colors.HexColor('#1E40AF')),
+
+        ('SPAN', (4,-1), (6,-1)),
+        ('BACKGROUND', (4,-1), (7,-1), colors.HexColor('#FEE2E2')),
+        ('FONTNAME', (4,-1), (7,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (4,-1), (7,-1), colors.HexColor('#991B1B')),
+    ]
+
+    for r_i in range(2, len(table_data) - 1):
+        bg = colors.HexColor('#F8FAFC') if r_i % 2 == 0 else colors.white
+        t_style.append(('BACKGROUND', (0, r_i), (-1, r_i), bg))
+
+    main_table.setStyle(TableStyle(t_style))
+    elements.append(main_table)
+    elements.append(Spacer(1, 2.5 * mm))
+
+    # 4. Bottom Net Position Equation Summary
+    eq_data = [
+        [
+            Paragraph(
+                f"<b>NET POSITION FORMULA:</b> Total Debit (PKR {data['total_debit']:,.2f}) + Total Cash (PKR {data['total_cash']:,.2f}) &minus; Total Credit (PKR {data['total_credit']:,.2f}) = <b><font color='{bal_color}'>NET POSITION: PKR {data['net_position']:,.2f}</font></b>",
+                ParagraphStyle('EqStyle', fontName='Helvetica', fontSize=8, leading=10, alignment=1)
+            )
+        ]
+    ]
+    eq_table = Table(eq_data, colWidths=[281 * mm])
+    eq_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#CBD5E1')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+    ]))
+    elements.append(eq_table)
+
+    def print_np_footer(canvas, d):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(colors.HexColor('#64748B'))
+        canvas.drawString(8 * mm, 4 * mm, f"Printed: {timezone.now().strftime('%d-%m-%Y %H:%M')} | MJ Poultries Management System")
+        canvas.drawRightString(289 * mm, 4 * mm, f"Page {d.page}")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=print_np_footer, onLaterPages=print_np_footer)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Net_Position_Report_{today_display}.pdf"'
+    buffer.close()
+    return response
+
+
+
 
 
 

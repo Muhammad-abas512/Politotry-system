@@ -1,0 +1,727 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Net Position Report - Politory{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --np-navy-dark: #071a35;
+        --np-navy: #0b2a52;
+        --np-blue: #2563eb;
+        --np-blue-light: #eff6ff;
+        --np-red: #dc2626;
+        --np-red-light: #fef2f2;
+        --np-green: #10b981;
+        --np-green-light: #ecfdf5;
+        --np-border: #e2e8f0;
+        --np-bg: #f8fafc;
+    }
+
+    .np-container {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        color: #1e293b;
+    }
+
+    /* Hero Header */
+    .np-hero {
+        background: linear-gradient(135deg, #071a35 0%, #0f2744 55%, #16365c 100%);
+        color: white;
+        border-radius: 18px;
+        padding: 24px 28px;
+        box-shadow: 0 10px 30px rgba(7, 26, 53, 0.15);
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .np-hero::before {
+        content: "";
+        position: absolute;
+        width: 250px;
+        height: 250px;
+        border: 40px solid rgba(255, 255, 255, 0.03);
+        border-radius: 50%;
+        right: -60px;
+        top: -90px;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .np-hero-content {
+        position: relative;
+        z-index: 10;
+    }
+
+    .np-hero-title {
+        font-size: clamp(1.4rem, 2.5vw, 1.95rem);
+        font-weight: 800;
+        margin: 0 0 6px 0;
+        letter-spacing: -0.3px;
+    }
+
+    .np-hero-subtitle {
+        color: #94a3b8;
+        font-size: 0.88rem;
+        margin: 0;
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        background: white;
+        border: 1px solid var(--np-border);
+        border-radius: 14px;
+        padding: 18px 20px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .kpi-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+    }
+
+    .kpi-debit::before { background: linear-gradient(90deg, #2563eb, #3b82f6); }
+    .kpi-credit::before { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .kpi-cash::before { background: linear-gradient(90deg, #059669, #10b981); }
+    .kpi-net-pos::before { background: linear-gradient(90deg, #10b981, #047857); }
+    .kpi-net-neg::before { background: linear-gradient(90deg, #dc2626, #b91c1c); }
+
+    .kpi-title {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .kpi-value {
+        font-size: 1.65rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 4px;
+    }
+
+    .kpi-sub {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+
+    /* Equation Banner */
+    .equation-banner {
+        background: white;
+        border: 1px solid var(--np-border);
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+    }
+
+    .eq-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .eq-chip-dr { background: #dbeafe; color: #1e40af; }
+    .eq-chip-cash { background: #d1fae5; color: #065f46; }
+    .eq-chip-cr { background: #fee2e2; color: #991b1b; }
+    .eq-chip-net { background: #1e293b; color: #ffffff; }
+
+    .eq-op {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #94a3b8;
+        margin: 0 8px;
+    }
+
+    /* Tables */
+    .report-card {
+        background: white;
+        border: 1px solid var(--np-border);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .report-header-dr {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        color: white;
+        padding: 14px 18px;
+    }
+
+    .report-header-cr {
+        background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+        color: white;
+        padding: 14px 18px;
+    }
+
+    .report-table {
+        margin: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .report-table thead th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+        padding: 10px 12px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .report-table tbody td {
+        padding: 9px 12px;
+        font-size: 0.82rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+    }
+
+    .report-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .report-table tfoot td {
+        padding: 12px;
+        font-weight: 800;
+        font-size: 0.88rem;
+        border-top: 2px solid #cbd5e1;
+    }
+
+    .tfoot-dr {
+        background: #eff6ff;
+        color: #1e40af;
+    }
+
+    .tfoot-cr {
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    /* Party badges */
+    .badge-party-customer {
+        background: #e0e7ff;
+        color: #3730a3;
+        font-weight: 600;
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    .badge-party-vendor {
+        background: #fef3c7;
+        color: #92400e;
+        font-weight: 600;
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    .badge-party-trader {
+        background: #ccfbf1;
+        color: #115e59;
+        font-weight: 600;
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    .badge-party-other {
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    /* Search Box in Table Header */
+    .table-search-input {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 5px 12px;
+        font-size: 0.78rem;
+        color: #1e293b;
+    }
+
+    .table-search-input:focus {
+        background: #fff;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+    }
+
+    /* Cash Card */
+    .cash-box {
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        border: 1px solid #bbf7d0;
+        border-radius: 14px;
+        padding: 16px 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="np-container py-2">
+
+    <!-- HERO HEADER -->
+    <div class="np-hero">
+        <div class="np-hero-content d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <div class="text-uppercase small fw-bold tracking-wider" style="color: #60a5fa; letter-spacing: 1.5px; font-size: 0.72rem;">
+                    Financial Intelligence &bull; MJ Poultries Group
+                </div>
+                <h1 class="np-hero-title">
+                    <i class="bi bi-bank2 me-2"></i> Business Net Position
+                </h1>
+                <p class="np-hero-subtitle">
+                    خالص کاروباری پوزیشن (شروع سے لے کر موجودہ تاریخ تک: <strong>{{ current_date }}</strong>)
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2" style="position: relative; z-index: 20;">
+                <a href="{% url 'net_position_print' %}" target="_blank" rel="noopener" class="btn btn-light fw-bold px-3 py-2 shadow-sm" id="btnPrintPdf" onclick="openPrintPdf(event)">
+                    <i class="bi bi-printer-fill text-primary me-1"></i> Print PDF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXECUTIVE KPI CARDS -->
+    <div class="row g-3 mb-4">
+        <!-- 1. Total Debit (Dr) -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-card kpi-debit">
+                <div class="kpi-title">
+                    <span>Total Debit (Dr)</span>
+                    <i class="bi bi-arrow-down-left-circle text-primary fs-5"></i>
+                </div>
+                <div class="kpi-value text-primary">
+                    Rs. {{ total_debit|floatformat:2 }}
+                </div>
+                <div class="kpi-sub">
+                    <span class="badge bg-primary-subtle text-primary fw-bold">{{ debit_count }} Parties</span>
+                    <span class="ms-1 text-muted">Receivables (لین دین)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Total Cash -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-card kpi-cash">
+                <div class="kpi-title">
+                    <span>Cash (Hand + Bank)</span>
+                    <i class="bi bi-cash-stack text-success fs-5"></i>
+                </div>
+                <div class="kpi-value text-success">
+                    Rs. {{ total_cash|floatformat:2 }}
+                </div>
+                <div class="kpi-sub">
+                    <span>Hand: <strong>{{ cash_in_hand|floatformat:0 }}</strong></span>
+                    <span class="mx-1">&bull;</span>
+                    <span>Bank: <strong>{{ cash_in_bank|floatformat:0 }}</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Total Credit (Cr) -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-card kpi-credit">
+                <div class="kpi-title">
+                    <span>Total Credit (Cr)</span>
+                    <i class="bi bi-arrow-up-right-circle text-danger fs-5"></i>
+                </div>
+                <div class="kpi-value text-danger">
+                    Rs. {{ total_credit|floatformat:2 }}
+                </div>
+                <div class="kpi-sub">
+                    <span class="badge bg-danger-subtle text-danger fw-bold">{{ credit_count }} Parties</span>
+                    <span class="ms-1 text-muted">Payables (دین داریاں)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Business Net Position -->
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="kpi-card {% if is_positive %}kpi-net-pos{% else %}kpi-net-neg{% endif %}">
+                <div class="kpi-title">
+                    <span>Net Position</span>
+                    <i class="bi bi-shield-check {% if is_positive %}text-success{% else %}text-danger{% endif %} fs-5"></i>
+                </div>
+                <div class="kpi-value {% if is_positive %}text-success{% else %}text-danger{% endif %}">
+                    Rs. {{ net_position|floatformat:2 }}
+                </div>
+                <div class="kpi-sub">
+                    {% if is_positive %}
+                        <span class="badge bg-success text-white fw-bold"><i class="bi bi-check-circle me-1"></i> Positive Surplus</span>
+                    {% else %}
+                        <span class="badge bg-danger text-white fw-bold"><i class="bi bi-exclamation-triangle me-1"></i> Net Deficit</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORMULA EQUATION BANNER -->
+    <div class="equation-banner">
+        <div class="d-flex flex-wrap align-items-center justify-content-center text-center gap-2">
+            <span class="text-uppercase text-muted fw-bold small me-2">
+                <i class="bi bi-calculator me-1"></i> Calculation Formula:
+            </span>
+            <div class="eq-chip eq-chip-dr">
+                <i class="bi bi-arrow-down-left me-1"></i> Total Dr: Rs. {{ total_debit|floatformat:2 }}
+            </div>
+            <span class="eq-op">+</span>
+            <div class="eq-chip eq-chip-cash">
+                <i class="bi bi-cash me-1"></i> Cash: Rs. {{ total_cash|floatformat:2 }}
+            </div>
+            <span class="eq-op">&minus;</span>
+            <div class="eq-chip eq-chip-cr">
+                <i class="bi bi-arrow-up-right me-1"></i> Total Cr: Rs. {{ total_credit|floatformat:2 }}
+            </div>
+            <span class="eq-op">=</span>
+            <div class="eq-chip eq-chip-net">
+                <i class="bi bi-award me-1"></i> Net Position: Rs. {{ net_position|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDE-BY-SIDE DUAL TABLES -->
+    <div class="row g-4 mb-4">
+
+        <!-- ============================================== -->
+        <!-- LEFT TABLE: DEBIT PARTIES (DR)                 -->
+        <!-- ============================================== -->
+        <div class="col-12 col-lg-6">
+            <div class="report-card">
+                <!-- Header -->
+                <div class="report-header-dr d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-arrow-down-left-circle me-1"></i> Debit Parties (Dr)
+                        </h5>
+                        <small class="text-white-50">Receivables &bull; رقم لینی ہے</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-white text-primary fw-bold" id="debitBadgeCount">
+                            {{ debit_count }} Parties
+                        </span>
+                        <input type="text" id="debitSearchInput" class="table-search-input" placeholder="Search party..." onkeyup="filterDebitTable()">
+                    </div>
+                </div>
+
+                <!-- Table Content -->
+                <div class="table-responsive flex-grow-1" style="max-height: 540px; overflow-y: auto;">
+                    <table class="table report-table mb-0" id="debitTable">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th style="width: 8%;">Sr#</th>
+                                <th style="width: 48%;">Party Name</th>
+                                <th style="width: 20%; text-align: center;">Type</th>
+                                <th style="width: 24%; text-align: right;">Amount (Rs.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debitTableBody">
+                            {% for party in debit_parties %}
+                            <tr class="debit-row">
+                                <td class="text-muted fw-bold text-center">{{ forloop.counter }}</td>
+                                <td>
+                                    {% if party.id %}
+                                        <a href="{% url 'party_ledger' %}?party={{ party.id }}" class="text-decoration-none fw-bold text-dark hover-primary" title="Click to view full party ledger">
+                                            {{ party.party_name }}
+                                            <i class="bi bi-box-arrow-up-right text-muted ms-1" style="font-size: 0.65rem;"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="fw-bold text-dark">{{ party.party_name }}</span>
+                                    {% endif %}
+                                    {% if party.party_code and party.party_code != '-' %}
+                                        <span class="text-muted small ms-1">({{ party.party_code }})</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if party.party_type|lower == 'customer' %}
+                                        <span class="badge-party-customer">Customer</span>
+                                    {% elif party.party_type|lower == 'vendor' %}
+                                        <span class="badge-party-vendor">Vendor</span>
+                                    {% elif party.party_type|lower == 'trader' %}
+                                        <span class="badge-party-trader">Trader</span>
+                                    {% else %}
+                                        <span class="badge-party-other">{{ party.party_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold text-primary">
+                                    {{ party.formatted_amount }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">
+                                    <i class="bi bi-info-circle me-1"></i> No parties with Debit (Dr) balance.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="tfoot-dr">
+                                <td colspan="3" class="text-uppercase">
+                                    Total Debit (Dr) Total:
+                                </td>
+                                <td class="text-end">
+                                    Rs. {{ total_debit|floatformat:2 }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- RIGHT TABLE: CREDIT PARTIES (CR)               -->
+        <!-- ============================================== -->
+        <div class="col-12 col-lg-6">
+            <div class="report-card">
+                <!-- Header -->
+                <div class="report-header-cr d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-arrow-up-right-circle me-1"></i> Credit Parties (Cr)
+                        </h5>
+                        <small class="text-white-50">Payables &bull; رقم دینی ہے</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-white text-danger fw-bold" id="creditBadgeCount">
+                            {{ credit_count }} Parties
+                        </span>
+                        <input type="text" id="creditSearchInput" class="table-search-input" placeholder="Search party..." onkeyup="filterCreditTable()">
+                    </div>
+                </div>
+
+                <!-- Table Content -->
+                <div class="table-responsive flex-grow-1" style="max-height: 540px; overflow-y: auto;">
+                    <table class="table report-table mb-0" id="creditTable">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th style="width: 8%;">Sr#</th>
+                                <th style="width: 48%;">Party Name</th>
+                                <th style="width: 20%; text-align: center;">Type</th>
+                                <th style="width: 24%; text-align: right;">Amount (Rs.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="creditTableBody">
+                            {% for party in credit_parties %}
+                            <tr class="credit-row">
+                                <td class="text-muted fw-bold text-center">{{ forloop.counter }}</td>
+                                <td>
+                                    {% if party.id %}
+                                        <a href="{% url 'party_ledger' %}?party={{ party.id }}" class="text-decoration-none fw-bold text-dark hover-danger" title="Click to view full party ledger">
+                                            {{ party.party_name }}
+                                            <i class="bi bi-box-arrow-up-right text-muted ms-1" style="font-size: 0.65rem;"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="fw-bold text-dark">{{ party.party_name }}</span>
+                                    {% endif %}
+                                    {% if party.party_code and party.party_code != '-' %}
+                                        <span class="text-muted small ms-1">({{ party.party_code }})</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if party.party_type|lower == 'customer' %}
+                                        <span class="badge-party-customer">Customer</span>
+                                    {% elif party.party_type|lower == 'vendor' %}
+                                        <span class="badge-party-vendor">Vendor</span>
+                                    {% elif party.party_type|lower == 'trader' %}
+                                        <span class="badge-party-trader">Trader</span>
+                                    {% else %}
+                                        <span class="badge-party-other">{{ party.party_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-bold text-danger">
+                                    {{ party.formatted_amount }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">
+                                    <i class="bi bi-info-circle me-1"></i> No parties with Credit (Cr) balance.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="tfoot-cr">
+                                <td colspan="3" class="text-uppercase">
+                                    Total Credit (Cr) Total:
+                                </td>
+                                <td class="text-end">
+                                    Rs. {{ total_credit|floatformat:2 }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- CASH RECORD DETAILS & SUMMARY FOOTER -->
+    <div class="row g-3">
+        <!-- Cash Record Details Card -->
+        <div class="col-12 col-md-6">
+            <div class="cash-box">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-success">
+                        <i class="bi bi-safe2 me-1"></i> Latest Cash Record Table Entry
+                    </span>
+                    {% if cash_date %}
+                        <span class="badge bg-success-subtle text-success small">
+                            Recorded: {{ cash_date|date:"d-M-Y H:i" }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="bg-white p-2 rounded border">
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">CASH IN HAND</small>
+                            <span class="fw-bold fs-6 text-dark">Rs. {{ cash_in_hand|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white p-2 rounded border">
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">CASH IN BANK</small>
+                            <span class="fw-bold fs-6 text-dark">Rs. {{ cash_in_bank|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% if cash_desc %}
+                    <div class="mt-2 text-muted small" style="font-size: 0.75rem;">
+                        <strong>Note:</strong> {{ cash_desc }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Net Position Summary Card -->
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background: linear-gradient(135deg, #071a35 0%, #1e293b 100%); color: white;">
+                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-uppercase small fw-bold text-white-50">
+                            Summary Statement &bull; کاروباری خلاصہ
+                        </span>
+                        <span class="badge {% if is_positive %}bg-success{% else %}bg-danger{% endif %} px-2 py-1">
+                            {% if is_positive %}Surplus Position{% else %}Deficit Position{% endif %}
+                        </span>
+                    </div>
+                    <div class="my-2">
+                        <div class="text-white-50 small">Final Calculated Net Position:</div>
+                        <div class="fs-4 fw-bold {% if is_positive %}text-success{% else %}text-danger{% endif %}">
+                            Rs. {{ net_position|floatformat:2 }}
+                        </div>
+                        <small class="text-white-50" style="font-size: 0.72rem;">
+                            Formula: (Total Debit: {{ total_debit|floatformat:0 }} + Total Cash: {{ total_cash|floatformat:0 }}) &minus; Total Credit: {{ total_credit|floatformat:0 }}
+                        </small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary">
+                        <button type="button" class="btn btn-outline-light btn-sm fw-bold px-3 py-1" onclick="openPrintPdf(event)">
+                            <i class="bi bi-printer-fill me-1"></i> Print PDF Report
+                        </button>
+                        <small class="text-white-50" style="font-size: 0.68rem;">
+                            MJ Poultries &bull; Inception to {{ current_date }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Live Search Filter for Debit Table
+    function filterDebitTable() {
+        const query = document.getElementById('debitSearchInput').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#debitTableBody .debit-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (text.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const badge = document.getElementById('debitBadgeCount');
+        if (badge) {
+            badge.innerText = `${visibleCount} Parties`;
+        }
+    }
+
+    // Live Search Filter for Credit Table
+    function filterCreditTable() {
+        const query = document.getElementById('creditSearchInput').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#creditTableBody .credit-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (text.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const badge = document.getElementById('creditBadgeCount');
+        if (badge) {
+            badge.innerText = `${visibleCount} Parties`;
+        }
+    }
+
+    // Open Print PDF Report in new tab
+    function openPrintPdf(event) {
+        if (event) {
+            try { event.preventDefault(); } catch(e){}
+        }
+        const printUrl = "{% url 'net_position_print' %}";
+        const w = window.open(printUrl, '_blank');
+        if (!w || w.closed || typeof w.closed === 'undefined') {
+            // Popup blocked fallback
+            window.location.href = printUrl;
+        }
+    }
+</script>
+{% endblock %}

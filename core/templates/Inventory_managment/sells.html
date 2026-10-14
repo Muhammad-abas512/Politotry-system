@@ -298,6 +298,21 @@
     <!-- CURRENT / LATEST PURCHASE -->
     <!-- ================================================= -->
 
+    {% if active_purchases_list and active_purchases_list|length > 1 %}
+    <div class="card mb-3 border-0 shadow-sm p-2 bg-white rounded-3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <span class="small fw-bold text-muted"><i class="bi bi-arrow-left-right text-primary me-1"></i> Active Purchases (Click to switch):</span>
+            <div class="d-flex gap-2 flex-wrap">
+                {% for ap in active_purchases_list %}
+                <a href="?purchase_id={{ ap.id }}" class="btn btn-sm {% if ap.id == active_purchase.id %}btn-primary fw-bold text-white{% else %}btn-outline-secondary{% endif %}" style="font-size: 0.75rem;">
+                    #{{ ap.purchase_number }} - {{ ap.vendor_name }} ({{ ap.date|date:'d-M-Y' }}) [Rem: {{ ap.remaining_weight }}kg]
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if active_purchase %}
 
     <div class="stock-card mb-3">
@@ -305,18 +320,26 @@
         <div class="row align-items-center g-3">
 
 
-            <!-- VENDOR -->
+            <!-- VENDOR / PARTY -->
 
             <div class="col-12 col-sm-6 col-lg-3">
 
                 <div class="stock-label">
-                    Current Purchase
+                    Purchase Party & Date
                 </div>
 
                 <div class="stock-data">
 
                     {{ active_purchase.vendor_name|default:"-" }}
 
+                </div>
+                <div class="mt-1">
+                    <span class="badge bg-warning text-dark fw-bold">
+                        📅 {{ purchase_date_display }}
+                    </span>
+                    <span class="badge bg-light text-dark" style="font-size:0.65rem;">
+                        (Sell Allowed on this date only)
+                    </span>
                 </div>
 
             </div>
@@ -488,7 +511,8 @@
                 >
 
                     {% csrf_token %}
-
+                    <input type="hidden" name="purchase_id" value="{{ active_purchase.id }}">
+                    <input type="hidden" id="requiredPurchaseDate" value="{{ purchase_date_str }}">
 
                     <div class="row g-2 align-items-end">
 
@@ -518,7 +542,7 @@
 
                             <label class="form-label">
 
-                                Customer / Trader
+                                Select Party (All Parties)
 
                             </label>
 
@@ -530,7 +554,7 @@
                             >
 
                                 <option value="">
-                                    Search Customer...
+                                    Search Party / Customer / Vendor...
                                 </option>
 
 
@@ -562,17 +586,22 @@
 
                         <div class="col-12 col-md-3 col-xl-2">
 
-                        <label class="form-label">
-                            Date
-                        </label>
+                            <label class="form-label d-flex justify-content-between">
+                                <span>Sell Date</span>
+                                <span class="badge bg-danger" style="font-size:0.6rem;">Same Date Only</span>
+                            </label>
 
-                        <input
-                            type="date"
-                            class="form-control"
-                            value="{{ current_date }}"
-                        >
+                            <input
+                                type="date"
+                                name="date"
+                                id="sellDate"
+                                class="form-control"
+                                value="{{ purchase_date_str }}"
+                                required
+                            >
+                            <small class="text-muted" style="font-size:0.68rem;">Purchase Date: <b>{{ purchase_date_display }}</b></small>
 
-                    </div>
+                        </div>
 
 
 
@@ -1182,6 +1211,15 @@ $(document).ready(function () {
                     $('#rateField').val()
                 ) || 0;
 
+
+            const reqDate = $('#requiredPurchaseDate').val();
+            const sellDate = $('#sellDate').val();
+            if (reqDate && sellDate && reqDate !== sellDate) {
+                event.preventDefault();
+                alert('Ghalat Date! Jo purchase jis date ko purchase hui ho (' + reqDate + '), wo usi date me sell ho sakti hai! Dusri date select na karein.');
+                $('#sellDate').val(reqDate);
+                return false;
+            }
 
             if (weight <= 0) {
 

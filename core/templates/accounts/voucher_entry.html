@@ -1,0 +1,768 @@
+{% extends 'base.html' %}
+
+{% block title %}Voucher Entry - Politory{% endblock %}
+
+{% block extra_css %}
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+
+<style>
+    .voucher-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #fff;
+        border-radius: 14px;
+        padding: 20px 24px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+
+    .voucher-type-btn {
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.25s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-type-pv { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+    .btn-type-pv.active, .btn-type-pv:hover { background: #ef4444; color: #fff; border-color: #dc2626; box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
+
+    .btn-type-rv { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .btn-type-rv.active, .btn-type-rv:hover { background: #22c55e; color: #fff; border-color: #16a34a; box-shadow: 0 4px 12px rgba(34,197,94,0.3); }
+
+    .btn-type-jv { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+    .btn-type-jv.active, .btn-type-jv:hover { background: #8b5cf6; color: #fff; border-color: #7c3aed; box-shadow: 0 4px 12px rgba(139,92,246,0.3); }
+
+    .btn-type-grid { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+    .btn-type-grid.active, .btn-type-grid:hover { background: #0ea5e9; color: #fff; border-color: #0284c7; box-shadow: 0 4px 12px rgba(14,165,233,0.3); }
+
+    .entry-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        padding: 22px;
+        margin-bottom: 25px;
+    }
+
+    .form-label-bold {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 5px;
+    }
+
+    .badge-voucher {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+    .badge-pv { background: #fee2e2; color: #991b1b; }
+    .badge-rv { background: #dcfce7; color: #166534; }
+    .badge-jv { background: #ede9fe; color: #5b21b6; }
+
+    .grid-table th {
+        background: #f8fafc;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+
+    .history-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+    /* Print Preview Layout */
+    @media print {
+        body * { visibility: hidden; }
+        #printableVoucher, #printableVoucher * { visibility: visible; }
+        #printableVoucher { position: absolute; left: 0; top: 0; width: 100%; }
+        .modal-footer, .btn-close { display: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-2">
+
+    <!-- BANNER -->
+    <div class="voucher-banner d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h4 class="mb-1 fw-bold"><i class="bi bi-receipt-cutoff text-success me-2"></i> Voucher Entry & Payment Transfer</h4>
+            <small class="text-white-50">Pay Money (Payment Voucher), Receive Money (Receipt Voucher), or Transfer Balance from One Head to Another (Transfer / Journal Voucher)</small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'chart_of_accounts' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-diagram-3 me-1"></i> Chart of Accounts
+            </a>
+            <a href="{% url 'account_ledger' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-journal-text me-1"></i> Account Ledger
+            </a>
+        </div>
+    </div>
+
+    <!-- VOUCHER TYPE SELECTOR BUTTONS -->
+    <div class="d-flex gap-2 mb-4 flex-wrap">
+        <button type="button" class="voucher-type-btn btn-type-pv active" id="btnTypePV" onclick="switchVoucherType('Payment Voucher')">
+            <i class="bi bi-arrow-up-right-circle-fill"></i>
+            <span>Payment Voucher (Payment Dena)</span>
+        </button>
+        <button type="button" class="voucher-type-btn btn-type-rv" id="btnTypeRV" onclick="switchVoucherType('Receipt Voucher')">
+            <i class="bi bi-arrow-down-left-circle-fill"></i>
+            <span>Receipt Voucher (Payment Lena)</span>
+        </button>
+        <button type="button" class="voucher-type-btn btn-type-jv" id="btnTypeJV" onclick="switchVoucherType('Transfer Voucher')">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Transfer Voucher (Head to Head Transfer)</span>
+        </button>
+        <button type="button" class="voucher-type-btn btn-type-grid" id="btnTypeGrid" onclick="switchVoucherType('Grid Mode')">
+            <i class="bi bi-table"></i>
+            <span>Multi-Line Journal Entry</span>
+        </button>
+    </div>
+
+    <!-- ENTRY CARD -->
+    <div class="entry-card">
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <h5 class="fw-bold mb-0 text-dark" id="currentFormTitle">
+                <i class="bi bi-arrow-up-right-circle text-danger me-2"></i> Payment Voucher Entry (Cash / Bank Out)
+            </h5>
+            <span class="badge bg-dark font-monospace fs-6 px-3 py-2" id="displayVoucherNo">{{ next_pv }}</span>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 1. QUICK MODE FORM (PV / RV / JV) -->
+        <!-- ========================================== -->
+        <form id="quickVoucherForm">
+            <input type="hidden" id="selectedVoucherType" value="Payment Voucher">
+
+            <div class="row g-3">
+                <!-- DATE -->
+                <div class="col-md-3 col-12">
+                    <label class="form-label-bold">Voucher Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="vDate" value="{{ today_date }}" required>
+                </div>
+
+                <!-- REFERENCE / CHEQUE # -->
+                <div class="col-md-3 col-12">
+                    <label class="form-label-bold">Reference / Cheque #</label>
+                    <input type="text" class="form-control" id="vRef" placeholder="e.g. CHQ-98124 or INV-102">
+                </div>
+
+                <!-- AMOUNT -->
+                <div class="col-md-3 col-12">
+                    <label class="form-label-bold text-danger">Amount (Rs.) <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" class="form-control fw-bold fs-5 text-danger border-danger" id="vAmount" placeholder="0.00" required>
+                </div>
+
+                <!-- PARTY (OPTIONAL LINK) -->
+                <div class="col-md-3 col-12">
+                    <label class="form-label-bold">Linked Party <small class="text-muted">(Optional)</small></label>
+                    <select class="form-select select2-basic" id="vParty">
+                        <option value="">-- No Party --</option>
+                        {% for p in parties %}
+                        <option value="{{ p.id }}">{{ p.company_name }} ({{ p.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- SOURCE ACCOUNT (CREDIT) -->
+                <div class="col-md-6 col-12" id="sourceCol">
+                    <label class="form-label-bold" id="sourceLabel">
+                        <i class="bi bi-wallet2 me-1 text-danger"></i> Paid From (Credit Head: Cash / Bank) <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select select2-basic" id="vCreditAccount" required>
+                        <option value="">Select Account...</option>
+                        {% for a in level4_accounts %}
+                        <option value="{{ a.id }}" {% if a.code == '1110001' %}selected{% endif %}>
+                            [{{ a.code }}] {{ a.name }} (Bal: Rs. {{ a.current_balance|floatformat:2 }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted" id="sourceHint">Yeh account credit hoga (rakam kam hogi).</small>
+                </div>
+
+                <!-- DESTINATION ACCOUNT (DEBIT) -->
+                <div class="col-md-6 col-12" id="destCol">
+                    <label class="form-label-bold" id="destLabel">
+                        <i class="bi bi-box-arrow-in-right me-1 text-success"></i> Paid To (Debit Head: Expense / Party / Asset) <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select select2-basic" id="vDebitAccount" required>
+                        <option value="">Select Account...</option>
+                        {% for a in level4_accounts %}
+                        <option value="{{ a.id }}" {% if a.code == '5210001' %}selected{% endif %}>
+                            [{{ a.code }}] {{ a.name }} ({{ a.account_type }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted" id="destHint">Yeh account debit hoga (expense record hoga ya transfer milega).</small>
+                </div>
+
+                <!-- REMARKS / NARRATION -->
+                <div class="col-12">
+                    <label class="form-label-bold">Narration / Remarks</label>
+                    <input type="text" class="form-control" id="vRemarks" placeholder="Enter transaction details (e.g. Paid diesel expense for vehicle LX-450 / Cash deposited into Bank)">
+                </div>
+
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary fw-bold px-4 py-2" id="btnSaveQuick">
+                        <i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- ========================================== -->
+        <!-- 2. MULTI-LINE GRID MODE FORM -->
+        <!-- ========================================== -->
+        <form id="gridVoucherForm" style="display: none;">
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label-bold">Voucher Date</label>
+                    <input type="date" class="form-control" id="gridDate" value="{{ today_date }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label-bold">Reference #</label>
+                    <input type="text" class="form-control" id="gridRef" placeholder="Reference #">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label-bold">General Remarks</label>
+                    <input type="text" class="form-control" id="gridRemarks" placeholder="Narration for journal voucher">
+                </div>
+            </div>
+
+            <!-- GRID TABLE -->
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered grid-table align-middle" id="voucherLinesTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Account (Level 4)</th>
+                            <th style="width: 20%;">Linked Party</th>
+                            <th style="width: 15%;">Debit (Rs.)</th>
+                            <th style="width: 15%;">Credit (Rs.)</th>
+                            <th style="width: 10%;">Narration</th>
+                            <th style="width: 5%; text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gridTbody">
+                        <!-- Default 2 rows -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold bg-light">
+                            <td colspan="2" class="text-end">Total:</td>
+                            <td id="gridTotalDebit" class="text-danger fs-6">0.00</td>
+                            <td id="gridTotalCredit" class="text-success fs-6">0.00</td>
+                            <td colspan="2" id="gridBalanceStatus">
+                                <span class="badge bg-secondary">Balanced</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="addGridRow()">
+                    <i class="bi bi-plus-circle me-1"></i> Add Another Row
+                </button>
+                <button type="submit" class="btn btn-primary fw-bold px-4 py-2" id="btnSaveGrid">
+                    <i class="bi bi-check-circle-fill me-1"></i> Post Journal Voucher
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- RECENT VOUCHERS LIST -->
+    <div class="history-card">
+        <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-1 text-primary"></i> Recently Posted Vouchers</h6>
+            <span class="text-muted small">Showing latest transactions</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Voucher #</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Debit Head(s)</th>
+                        <th>Credit Head(s)</th>
+                        <th>Total Amount</th>
+                        <th>Remarks</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in recent_vouchers %}
+                    <tr>
+                        <td>
+                            <span class="font-monospace fw-bold text-primary">{{ v.voucher_no }}</span>
+                        </td>
+                        <td>
+                            {% if v.voucher_type == 'Payment Voucher' %}
+                            <span class="badge badge-voucher badge-pv">Payment</span>
+                            {% elif v.voucher_type == 'Receipt Voucher' %}
+                            <span class="badge badge-voucher badge-rv">Receipt</span>
+                            {% else %}
+                            <span class="badge badge-voucher badge-jv">Transfer</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ v.date|date:'d-M-Y' }}</td>
+                        <td>
+                            {% for line in v.details.all %}
+                                {% if line.debit > 0 %}
+                                <div class="text-danger fw-semibold">{{ line.account.name }} (Rs. {{ line.debit|floatformat:2 }})</div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for line in v.details.all %}
+                                {% if line.credit > 0 %}
+                                <div class="text-success fw-semibold">{{ line.account.name }} (Rs. {{ line.credit|floatformat:2 }})</div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="fw-bold fs-6">Rs. {{ v.total_amount|floatformat:2 }}</td>
+                        <td><small class="text-muted">{{ v.remarks|default:"-" }}</small></td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Voucher" onclick="viewVoucher({{ v.id }})">
+                                <i class="bi bi-printer"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Reverse & Delete Voucher" onclick="deleteVoucher({{ v.id }}, '{{ v.voucher_no }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-2 d-block mb-1"></i> No vouchers posted yet. Post your first voucher above!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- PRINT / VIEW VOUCHER MODAL -->
+<div class="modal fade" id="viewVoucherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-dark text-white rounded-top-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-receipt me-2"></i> Voucher Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="printableVoucher">
+                <!-- PRINTABLE CONTENT -->
+                <div class="border p-4 rounded-3 bg-white" style="border: 2px solid #0f172a !important;">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <div>
+                            <h4 class="fw-bold mb-0 text-dark">MJ POULTRIES & GROUP</h4>
+                            <small class="text-muted">Official Transaction Voucher</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-primary font-monospace" id="pvVoucherNo">-</h5>
+                            <span class="badge bg-secondary" id="pvVoucherType">-</span>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3 small">
+                        <div class="col-6"><strong>Date:</strong> <span id="pvDate">-</span></div>
+                        <div class="col-6 text-end"><strong>Reference #:</strong> <span id="pvRef">-</span></div>
+                        <div class="col-12"><strong>Remarks:</strong> <span id="pvRemarks">-</span></div>
+                        <div class="col-6"><strong>Created By:</strong> <span id="pvUser">-</span></div>
+                        <div class="col-6 text-end"><strong>Posted At:</strong> <span id="pvTime">-</span></div>
+                    </div>
+
+                    <table class="table table-bordered mb-3 align-middle" style="font-size: 0.85rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Account Code & Title</th>
+                                <th>Party</th>
+                                <th>Narration</th>
+                                <th class="text-end">Debit (Rs.)</th>
+                                <th class="text-end">Credit (Rs.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pvDetailsBody"></tbody>
+                        <tfoot class="fw-bold table-light">
+                            <tr>
+                                <td colspan="3" class="text-end">Total Amount:</td>
+                                <td class="text-end text-danger" id="pvTotalDebit">0.00</td>
+                                <td class="text-end text-success" id="pvTotalCredit">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="row mt-5 pt-4 text-center small text-muted">
+                        <div class="col-4 border-top pt-2">Prepared By</div>
+                        <div class="col-4 border-top pt-2">Checked By</div>
+                        <div class="col-4 border-top pt-2">Authorized Signature</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary fw-bold" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Print Voucher Slip
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- jQuery & Select2 -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    const nextNumbers = {
+        'Payment Voucher': '{{ next_pv }}',
+        'Receipt Voucher': '{{ next_rv }}',
+        'Transfer Voucher': '{{ next_jv }}',
+    };
+
+    let allAccounts = [];
+    let allParties = [];
+
+    $(document).ready(function() {
+        $('.select2-basic').select2({ theme: 'bootstrap-5' });
+
+        // Load account options
+        fetch("{% url 'voucher_entry' %}?action=get_level4_accounts")
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) allAccounts = data.accounts;
+                // Add initial 2 rows for grid mode
+                addGridRow();
+                addGridRow();
+            });
+    });
+
+    function switchVoucherType(type) {
+        $('.voucher-type-btn').removeClass('active');
+
+        if (type === 'Payment Voucher') {
+            $('#btnTypePV').addClass('active');
+            $('#quickVoucherForm').show();
+            $('#gridVoucherForm').hide();
+            $('#selectedVoucherType').val('Payment Voucher');
+            $('#currentFormTitle').html('<i class="bi bi-arrow-up-right-circle text-danger me-2"></i> Payment Voucher (Cash / Bank Out)');
+            $('#sourceLabel').html('<i class="bi bi-wallet2 me-1 text-danger"></i> Paid From (Credit Head: Cash / Bank) <span class="text-danger">*</span>');
+            $('#destLabel').html('<i class="bi bi-box-arrow-in-right me-1 text-success"></i> Paid To (Debit Head: Expense / Party / Head) <span class="text-danger">*</span>');
+            $('#sourceHint').text('Yeh account credit hoga (rakam kam hogi).');
+            $('#destHint').text('Yeh account debit hoga (expense record hoga ya payment milegi).');
+            $('#displayVoucherNo').text(nextNumbers['Payment Voucher']);
+        } else if (type === 'Receipt Voucher') {
+            $('#btnTypeRV').addClass('active');
+            $('#quickVoucherForm').show();
+            $('#gridVoucherForm').hide();
+            $('#selectedVoucherType').val('Receipt Voucher');
+            $('#currentFormTitle').html('<i class="bi bi-arrow-down-left-circle text-success me-2"></i> Receipt Voucher (Cash / Bank In)');
+            $('#sourceLabel').html('<i class="bi bi-person-check me-1 text-primary"></i> Received From (Credit Head: Party / Revenue) <span class="text-danger">*</span>');
+            $('#destLabel').html('<i class="bi bi-wallet2 me-1 text-success"></i> Received In (Debit Head: Cash / Bank) <span class="text-danger">*</span>');
+            $('#sourceHint').text('Yeh account credit hoga (party due kam hogi ya aamdani record hogi).');
+            $('#destHint').text('Yeh account debit hoga (Cash / Bank barhega).');
+            $('#displayVoucherNo').text(nextNumbers['Receipt Voucher']);
+        } else if (type === 'Transfer Voucher') {
+            $('#btnTypeJV').addClass('active');
+            $('#quickVoucherForm').show();
+            $('#gridVoucherForm').hide();
+            $('#selectedVoucherType').val('Transfer Voucher');
+            $('#currentFormTitle').html('<i class="bi bi-arrow-left-right text-purple me-2"></i> Head to Head Transfer Voucher');
+            $('#sourceLabel').html('<i class="bi bi-box-arrow-right me-1 text-danger"></i> Transfer From (Credit Head - Rakam Nikalegi) <span class="text-danger">*</span>');
+            $('#destLabel').html('<i class="bi bi-box-arrow-in-right me-1 text-success"></i> Transfer To (Debit Head - Rakam Jayegi) <span class="text-danger">*</span>');
+            $('#sourceHint').text('Yeh account credit hoga (balance kam hoga).');
+            $('#destHint').text('Yeh account debit hoga (balance barhega).');
+            $('#displayVoucherNo').text(nextNumbers['Transfer Voucher']);
+        } else if (type === 'Grid Mode') {
+            $('#btnTypeGrid').addClass('active');
+            $('#quickVoucherForm').hide();
+            $('#gridVoucherForm').show();
+            $('#currentFormTitle').html('<i class="bi bi-table text-primary me-2"></i> Multi-Line Journal Entry');
+            $('#displayVoucherNo').text(nextNumbers['Transfer Voucher']);
+        }
+    }
+
+    // QUICK VOUCHER SUBMIT
+    document.getElementById('quickVoucherForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const vType = document.getElementById('selectedVoucherType').value;
+        const amount = parseFloat(document.getElementById('vAmount').value) || 0;
+        const crAcc = document.getElementById('vCreditAccount').value;
+        const drAcc = document.getElementById('vDebitAccount').value;
+
+        if (amount <= 0) {
+            alert('Please enter a valid amount greater than 0');
+            return;
+        }
+        if (!crAcc || !drAcc) {
+            alert('Please select both Debit and Credit accounts.');
+            return;
+        }
+        if (crAcc === drAcc) {
+            alert('Credit account and Debit account cannot be the same!');
+            return;
+        }
+
+        const payload = {
+            mode: 'quick',
+            voucher_type: vType,
+            date: document.getElementById('vDate').value,
+            reference_no: document.getElementById('vRef').value.trim(),
+            amount: amount,
+            credit_account_id: crAcc,
+            debit_account_id: drAcc,
+            party_id: document.getElementById('vParty').value || null,
+            remarks: document.getElementById('vRemarks').value.trim(),
+        };
+
+        const btn = document.getElementById('btnSaveQuick');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Posting...';
+
+        fetch("{% url 'voucher_entry' %}?action=save_voucher", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher';
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher';
+            alert('Request failed: ' + err);
+        });
+    });
+
+    // GRID MODE ROW ADDITION
+    let rowCount = 0;
+    function addGridRow() {
+        rowCount++;
+        let accOptions = '<option value="">Select Account...</option>';
+        allAccounts.forEach(a => {
+            accOptions += `<option value="${a.id}">[${a.code}] ${a.name}</option>`;
+        });
+
+        let partyOptions = '<option value="">-- No Party --</option>';
+        {% for p in parties %}
+        partyOptions += `<option value="{{ p.id }}">{{ p.company_name }}</option>`;
+        {% endfor %}
+
+        const tr = document.createElement('tr');
+        tr.id = `row_${rowCount}`;
+        tr.innerHTML = `
+            <td><select class="form-select form-select-sm select2-row" id="grid_acc_${rowCount}" required>${accOptions}</select></td>
+            <td><select class="form-select form-select-sm" id="grid_party_${rowCount}">${partyOptions}</select></td>
+            <td><input type="number" step="0.01" class="form-control form-control-sm grid-debit" id="grid_dr_${rowCount}" placeholder="0.00" onkeyup="calcGridTotals()"></td>
+            <td><input type="number" step="0.01" class="form-control form-control-sm grid-credit" id="grid_cr_${rowCount}" placeholder="0.00" onkeyup="calcGridTotals()"></td>
+            <td><input type="text" class="form-control form-control-sm" id="grid_narr_${rowCount}" placeholder="Remarks"></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGridRow(${rowCount})"><i class="bi bi-x-lg"></i></button>
+            </td>
+        `;
+        document.getElementById('gridTbody').appendChild(tr);
+        $(`#grid_acc_${rowCount}`).select2({ theme: 'bootstrap-5' });
+    }
+
+    function removeGridRow(id) {
+        if ($('#gridTbody tr').length <= 2) {
+            alert('At least 2 rows are required.');
+            return;
+        }
+        $(`#row_${id}`).remove();
+        calcGridTotals();
+    }
+
+    function calcGridTotals() {
+        let totalDr = 0;
+        let totalCr = 0;
+        $('.grid-debit').each(function() { totalDr += parseFloat($(this).val()) || 0; });
+        $('.grid-credit').each(function() { totalCr += parseFloat($(this).val()) || 0; });
+
+        $('#gridTotalDebit').text(totalDr.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+        $('#gridTotalCredit').text(totalCr.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+
+        const statusEl = $('#gridBalanceStatus');
+        if (totalDr > 0 && totalDr === totalCr) {
+            statusEl.html('<span class="badge bg-success"><i class="bi bi-check-circle"></i> Balanced</span>');
+            $('#btnSaveGrid').prop('disabled', false);
+        } else {
+            const diff = Math.abs(totalDr - totalCr);
+            statusEl.html(`<span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Unbalanced (Diff: Rs. ${diff.toFixed(2)})</span>`);
+        }
+    }
+
+    // GRID VOUCHER SUBMIT
+    document.getElementById('gridVoucherForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const entries = [];
+        let totalDr = 0;
+        let totalCr = 0;
+
+        $('#gridTbody tr').each(function() {
+            const rowId = $(this).attr('id').replace('row_', '');
+            const accId = $(`#grid_acc_${rowId}`).val();
+            const partyId = $(`#grid_party_${rowId}`).val() || null;
+            const dr = parseFloat($(`#grid_dr_${rowId}`).val()) || 0;
+            const cr = parseFloat($(`#grid_cr_${rowId}`).val()) || 0;
+            const narr = $(`#grid_narr_${rowId}`).val().trim();
+
+            if (accId && (dr > 0 || cr > 0)) {
+                entries.push({
+                    account_id: accId,
+                    party_id: partyId,
+                    debit: dr,
+                    credit: cr,
+                    narration: narr,
+                });
+                totalDr += dr;
+                totalCr += cr;
+            }
+        });
+
+        if (entries.length < 2) {
+            alert('Please fill at least 2 lines with amounts');
+            return;
+        }
+        if (totalDr !== totalCr || totalDr <= 0) {
+            alert('Voucher is unbalanced! Total Debit must equal Total Credit and be greater than 0.');
+            return;
+        }
+
+        const payload = {
+            mode: 'multiline',
+            voucher_type: 'Transfer Voucher',
+            date: document.getElementById('gridDate').value,
+            reference_no: document.getElementById('gridRef').value.trim(),
+            remarks: document.getElementById('gridRemarks').value.trim(),
+            entries: entries,
+        };
+
+        const btn = document.getElementById('btnSaveGrid');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Posting...';
+
+        fetch("{% url 'voucher_entry' %}?action=save_voucher", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Post Journal Voucher';
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    });
+
+    // VIEW & PRINT VOUCHER
+    const viewVoucherModal = new bootstrap.Modal(document.getElementById('viewVoucherModal'));
+
+    function viewVoucher(id) {
+        fetch(`{% url 'voucher_entry' %}?action=get_voucher&id=${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Error loading voucher');
+                    return;
+                }
+                const v = data.voucher;
+                document.getElementById('pvVoucherNo').innerText = v.voucher_no;
+                document.getElementById('pvVoucherType').innerText = v.voucher_type;
+                document.getElementById('pvDate').innerText = v.date;
+                document.getElementById('pvRef').innerText = v.reference_no || '-';
+                document.getElementById('pvRemarks').innerText = v.remarks || '-';
+                document.getElementById('pvUser').innerText = v.created_by || 'Admin';
+                document.getElementById('pvTime').innerText = v.created_at;
+
+                const tbody = document.getElementById('pvDetailsBody');
+                tbody.innerHTML = '';
+                let totDr = 0;
+                let totCr = 0;
+
+                v.details.forEach(d => {
+                    const drVal = parseFloat(d.debit) || 0;
+                    const crVal = parseFloat(d.credit) || 0;
+                    totDr += drVal;
+                    totCr += crVal;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>[${d.account_code}]</strong> ${d.account_name}</td>
+                            <td>${d.party_name || '-'}</td>
+                            <td><small class="text-muted">${d.narration || '-'}</small></td>
+                            <td class="text-end font-monospace text-danger">${drVal > 0 ? drVal.toLocaleString('en-US', {minimumFractionDigits: 2}) : '-'}</td>
+                            <td class="text-end font-monospace text-success">${crVal > 0 ? crVal.toLocaleString('en-US', {minimumFractionDigits: 2}) : '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('pvTotalDebit').innerText = totDr.toLocaleString('en-US', {minimumFractionDigits: 2});
+                document.getElementById('pvTotalCredit').innerText = totCr.toLocaleString('en-US', {minimumFractionDigits: 2});
+
+                viewVoucherModal.show();
+            });
+    }
+
+    function deleteVoucher(id, vNo) {
+        if (!confirm(`Are you sure you want to reverse and delete Voucher ${vNo}? All account balances and cash entries will be reversed!`)) {
+            return;
+        }
+
+        fetch("{% url 'voucher_entry' %}?action=delete_voucher", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ id: id })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -297,12 +297,29 @@ def opening(request):
 
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.utils import timezone  # Current datetime ke liye
+from django.utils import timezone
 from .models import CashRecord
 
 
 def cash(request):
+    # Check if Cash Opening already exists
+    existing_opening = (
+        CashRecord.objects.filter(discription__icontains="opening").order_by("date", "id").first()
+        or CashRecord.objects.order_by("date", "id").first()
+    )
+    is_locked = existing_opening is not None
+
     if request.method == "POST":
+        if is_locked:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "کیش کی اوپننگ پہلے ہی درج ہو چکی ہے! یہ فارم لاک ہے اور دوبارہ اوپننگ درج نہیں کی جا سکتی۔",
+                    "is_locked": True,
+                },
+                status=400,
+            )
+
         cash_in_hand = request.POST.get("cashInHand")
         cash_in_bank = request.POST.get("cashInBank")
         discription = request.POST.get("discription")
@@ -312,18 +329,29 @@ def cash(request):
             hand_val = int(cash_in_hand) if cash_in_hand else 0
             bank_val = int(cash_in_bank) if cash_in_bank else 0
 
+            desc = (discription or "").strip()
+            if not desc:
+                desc = "opening balance"
+            elif "opening" not in desc.lower():
+                desc = f"opening balance - {desc}"
+
             # Aapke existing model me direct save
-            CashRecord.objects.create(
+            new_rec = CashRecord.objects.create(
                 cash_in_hand=hand_val,
                 cash_in_bank=bank_val,
-                discription=discription,
+                discription=desc,
                 date=timezone.now(),  # Current date & time automatically save hogi
             )
 
             return JsonResponse(
                 {
                     "status": "success",
-                    "message": "Data kamyabi se save ho gaya hai!",
+                    "message": "کیش کی ابتدائی رقم (Opening Balance) کامیابی سے محفوظ ہو گئی ہے۔ اب یہ فارم لاک ہو چکا ہے۔",
+                    "is_locked": True,
+                    "cash_in_hand": new_rec.cash_in_hand,
+                    "cash_in_bank": new_rec.cash_in_bank,
+                    "discription": new_rec.discription,
+                    "date": new_rec.date.strftime("%d-%m-%Y %H:%M") if new_rec.date else "",
                 }
             )
 
@@ -332,7 +360,20 @@ def cash(request):
                 {"status": "error", "message": f"Error: {str(e)}"}, status=400
             )
 
-    return render(request, "opening/cash.html")
+    total_opening = 0
+    if existing_opening:
+        total_opening = (existing_opening.cash_in_hand or 0) + (existing_opening.cash_in_bank or 0)
+
+    context = {
+        "is_locked": is_locked,
+        "opening_record": existing_opening,
+        "cash_in_hand": existing_opening.cash_in_hand if existing_opening else "",
+        "cash_in_bank": existing_opening.cash_in_bank if existing_opening else "",
+        "discription": existing_opening.discription if existing_opening else "",
+        "opening_date": existing_opening.date if existing_opening else None,
+        "total_opening": total_opening,
+    }
+    return render(request, "opening/cash.html", context)
 
 
 

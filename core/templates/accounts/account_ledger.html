@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Account General Ledger - Politory{% endblock %}
+
+{% block extra_css %}
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+
+<style>
+    .ledger-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #fff;
+        border-radius: 14px;
+        padding: 20px 24px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+
+    .filter-box {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+
+    .summary-card-lg {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 16px 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .summary-card-lg small {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .summary-card-lg h4 {
+        margin: 0;
+        font-weight: 800;
+        font-size: 1.35rem;
+    }
+
+    .ledger-table-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+    .ledger-table th {
+        background: #0f172a;
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        vertical-align: middle;
+    }
+    .ledger-table td {
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+
+    @media print {
+        body * { visibility: hidden; }
+        #printableLedgerArea, #printableLedgerArea * { visibility: visible; }
+        #printableLedgerArea { position: absolute; left: 0; top: 0; width: 100%; }
+        .filter-box, .btn, .ledger-banner { display: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-2">
+
+    <!-- BANNER -->
+    <div class="ledger-banner d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h4 class="mb-1 fw-bold"><i class="bi bi-journal-text me-2 text-info"></i> Account General Ledger</h4>
+            <small class="text-white-50">View complete account statement, debits, credits, and running balance for any Chart of Account head</small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'chart_of_accounts' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-diagram-3 me-1"></i> Chart of Accounts
+            </a>
+            <a href="{% url 'voucher_entry' %}" class="btn btn-primary btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-plus-circle me-1"></i> New Voucher
+            </a>
+        </div>
+    </div>
+
+    <!-- FILTER CARD -->
+    <div class="filter-box">
+        <form method="GET" action="{% url 'account_ledger' %}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5 col-12">
+                    <label class="form-label fw-bold small text-muted">Select Account (Level 4)</label>
+                    <select name="account" class="form-select select2-ledger" required>
+                        {% for a in level4_accounts %}
+                        <option value="{{ a.id }}" {% if selected_account and selected_account.id == a.id %}selected{% endif %}>
+                            [{{ a.code }}] {{ a.name }} ({{ a.account_type }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 col-6">
+                    <label class="form-label fw-bold small text-muted">From Date</label>
+                    <input type="date" name="from" class="form-control" value="{{ from_date }}" required>
+                </div>
+                <div class="col-md-3 col-6">
+                    <label class="form-label fw-bold small text-muted">To Date</label>
+                    <input type="date" name="to" class="form-control" value="{{ to_date }}" required>
+                </div>
+                <div class="col-md-1 col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary fw-bold w-100" title="Filter Ledger">
+                        <i class="bi bi-funnel-fill"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-dark" onclick="window.print()" title="Print Ledger">
+                        <i class="bi bi-printer"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if selected_account %}
+    <!-- PRINTABLE LEDGER AREA -->
+    <div id="printableLedgerArea">
+
+        <!-- HEADER FOR PRINT / PREVIEW -->
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded-3 border">
+            <div>
+                <h4 class="fw-bold mb-0 text-dark">
+                    <span class="badge bg-dark font-monospace me-2">{{ selected_account.code }}</span>
+                    {{ selected_account.name }}
+                </h4>
+                <small class="text-muted">Type: <strong>{{ selected_account.account_type }}</strong> | Category: <strong>{{ selected_account.parent.name }}</strong></small>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-info text-dark fw-bold">Period: {{ from_date }} to {{ to_date }}</span>
+            </div>
+        </div>
+
+        <!-- SUMMARY CARDS -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+                <div class="summary-card-lg">
+                    <small>Opening Balance</small>
+                    <h4 class="{% if opening_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        Rs. {{ opening_balance|floatformat:2 }}
+                    </h4>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="summary-card-lg">
+                    <small>Total Debit (+)</small>
+                    <h4 class="text-danger">Rs. {{ total_debit|floatformat:2 }}</h4>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="summary-card-lg">
+                    <small>Total Credit (-)</small>
+                    <h4 class="text-success">Rs. {{ total_credit|floatformat:2 }}</h4>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="summary-card-lg">
+                    <small>Closing Balance</small>
+                    <h4 class="{% if closing_balance >= 0 %}text-primary{% else %}text-danger{% endif %}">
+                        Rs. {{ closing_balance|floatformat:2 }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEDGER TABLE -->
+        <div class="ledger-table-card">
+            <div class="table-responsive">
+                <table class="table table-hover ledger-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">Sr#</th>
+                            <th style="width: 10%;">Date</th>
+                            <th style="width: 14%;">Voucher #</th>
+                            <th style="width: 12%;">Type</th>
+                            <th style="width: 12%;">Party</th>
+                            <th style="width: 23%;">Narration / Remarks</th>
+                            <th style="width: 8%; text-align: right;">Debit (Rs.)</th>
+                            <th style="width: 8%; text-align: right;">Credit (Rs.)</th>
+                            <th style="width: 8%; text-align: right;">Balance (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Opening balance row -->
+                        <tr class="table-light fw-bold">
+                            <td class="text-center">-</td>
+                            <td>{{ from_date }}</td>
+                            <td colspan="4"><i>OPENING BALANCE B/F</i></td>
+                            <td class="text-end font-monospace">-</td>
+                            <td class="text-end font-monospace">-</td>
+                            <td class="text-end font-monospace {% if opening_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ opening_balance|floatformat:2 }}
+                            </td>
+                        </tr>
+
+                        {% for row in ledger_entries %}
+                        <tr>
+                            <td class="text-center">{{ forloop.counter }}</td>
+                            <td>{{ row.date|date:'d-M-Y' }}</td>
+                            <td><span class="font-monospace fw-bold text-primary">{{ row.voucher_no }}</span></td>
+                            <td><small class="badge bg-secondary">{{ row.voucher_type }}</small></td>
+                            <td>{{ row.party }}</td>
+                            <td><small class="text-muted">{{ row.narration }}</small></td>
+                            <td class="text-end font-monospace text-danger">
+                                {% if row.debit > 0 %}{{ row.debit|floatformat:2 }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-end font-monospace text-success">
+                                {% if row.credit > 0 %}{{ row.credit|floatformat:2 }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-end font-monospace fw-bold {% if row.balance >= 0 %}text-dark{% else %}text-danger{% endif %}">
+                                {{ row.balance|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-1"></i> No transactions found in this date range.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark fw-bold">
+                        <tr>
+                            <td colspan="6" class="text-end">PERIOD TOTALS:</td>
+                            <td class="text-end font-monospace text-danger">Rs. {{ total_debit|floatformat:2 }}</td>
+                            <td class="text-end font-monospace text-success">Rs. {{ total_credit|floatformat:2 }}</td>
+                            <td class="text-end font-monospace text-warning">Rs. {{ closing_balance|floatformat:2 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('.select2-ledger').select2({ theme: 'bootstrap-5' });
+    });
+</script>
+{% endblock %}

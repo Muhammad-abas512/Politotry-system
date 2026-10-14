@@ -238,9 +238,16 @@ def dashboard_view(request):
 
     # ---------------------------------------------------------
     # NET POSITION
-    # Sales - Purchases - Expenses
+    # Total Debit (Dr) + Total Cash (Hand + Bank) - Total Credit (Cr)
     # ---------------------------------------------------------
-    net_position = total_sales - total_purchase - total_expense
+    from .reports import get_net_position_data
+    net_pos_summary = get_net_position_data(to_date=None)
+    net_position = net_pos_summary['net_position']
+    total_debit = net_pos_summary['total_debit']
+    total_credit = net_pos_summary['total_credit']
+    cash_in_hand = net_pos_summary['cash_in_hand']
+    cash_in_bank = net_pos_summary['cash_in_bank']
+    total_cash = net_pos_summary['total_cash']
 
     # ---------------------------------------------------------
     # PARTIES
@@ -379,10 +386,16 @@ def dashboard_view(request):
         'total_mortality_amount': total_mortality_amount,
 
         'net_position': net_position,
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'cash_in_hand': cash_in_hand,
+        'cash_in_bank': cash_in_bank,
+        'total_cash': total_cash,
 
         'total_vendors': total_vendors,
         'total_customers': total_customers,
         'total_traders': total_traders,
+        'total_parties': Parties.objects.count(),
 
         'wadya_maal': wadya_maal,
 

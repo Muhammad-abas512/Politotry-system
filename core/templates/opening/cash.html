@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Opening Stock - Politory{% endblock %}
+{% block title %}Cash Opening - Politory{% endblock %}
 
 {% block content %}
 <style>
@@ -18,27 +18,149 @@
 
     .card {
         background: #ffffff;
-        max-width: 480px;
+        max-width: 520px;
         width: 100%;
         border-radius: 28px;
-        box-shadow: 0 20px 35px -8px rgba(0, 20, 30, 0.15), 0 8px 18px -6px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 20px 35px -8px rgba(0, 20, 30, 0.12), 0 8px 18px -6px rgba(0, 0, 0, 0.04);
         padding: 2.2rem 2rem;
         border: 1px solid #e2edf2;
+        position: relative;
+    }
+
+    .card-header-flex {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
 
     h1 {
-        font-size: 1.8rem;
+        font-size: 1.7rem;
         font-weight: 700;
         letter-spacing: -0.02em;
         color: #0b2b3c;
-        margin-bottom: 1.5rem;
+        margin-bottom: 0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
 
-    .form-group {
+    .lock-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border-radius: 20px;
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+    }
+
+    .unlocked-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border-radius: 20px;
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    /* Lock Alert Banner */
+    .lock-banner {
+        background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
+        border: 1.5px solid #fecaca;
+        border-radius: 16px;
+        padding: 1rem 1.1rem;
         margin-bottom: 1.3rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+    }
+
+    .lock-banner-icon {
+        font-size: 1.5rem;
+        line-height: 1;
+        color: #dc2626;
+        padding-top: 2px;
+    }
+
+    .lock-banner-body {
+        flex: 1;
+    }
+
+    .lock-banner-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #991b1b;
+        margin-bottom: 0.25rem;
+    }
+
+    .lock-banner-text {
+        font-size: 0.82rem;
+        color: #7f1d1d;
+        margin-bottom: 0.45rem;
+        line-height: 1.4;
+    }
+
+    .lock-banner-meta {
+        font-size: 0.76rem;
+        color: #64748b;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        font-weight: 500;
+    }
+
+    /* Summary Breakdown Pills (When Locked) */
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.6rem;
+        margin-bottom: 1.3rem;
+    }
+
+    .summary-pill {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.65rem 0.6rem;
+        text-align: center;
+    }
+
+    .summary-pill.pill-total {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .pill-label {
+        display: block;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+
+    .pill-value {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #0b2545;
+    }
+
+    .pill-total .pill-value {
+        color: #1d4ed8;
+    }
+
+    .form-group {
+        margin-bottom: 1.2rem;
     }
 
     label {
@@ -90,10 +212,22 @@
         min-height: 80px;
     }
 
-    input:focus, textarea:focus {
+    input:focus:not([disabled]), textarea:focus:not([disabled]) {
         border-color: #2b8bb0;
         background: #ffffff;
         box-shadow: 0 0 0 4px rgba(43, 139, 176, 0.12);
+    }
+
+    /* Locked input styling */
+    input:disabled,
+    textarea:disabled,
+    input[readonly],
+    textarea[readonly] {
+        background: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        color: #475569 !important;
+        cursor: not-allowed !important;
+        font-weight: 600;
     }
 
     input[type="number"]::-webkit-outer-spin-button,
@@ -116,7 +250,7 @@
     }
 
     .actions {
-        margin-top: 1.5rem;
+        margin-top: 1.4rem;
     }
 
     button {
@@ -125,7 +259,7 @@
         color: white;
         border: none;
         padding: 0.9rem 1.5rem;
-        font-size: 1.05rem;
+        font-size: 1.02rem;
         font-weight: 600;
         border-radius: 30px;
         cursor: pointer;
@@ -136,13 +270,61 @@
         transition: background 0.2s, transform 0.15s;
     }
 
-    button:hover {
+    button:hover:not(:disabled) {
         background: #124a62;
     }
 
-    button:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
+    /* Locked button */
+    .btn-locked {
+        background: #64748b !important;
+        color: #e2e8f0 !important;
+        cursor: not-allowed !important;
+        opacity: 0.9;
+        box-shadow: none !important;
+    }
+
+    /* Quick links */
+    .quick-links {
+        margin-top: 1.3rem;
+        padding-top: 1.1rem;
+        border-top: 1px dashed #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.6rem;
+    }
+
+    .quick-link-btn {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.55rem 0.8rem;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .link-ledger {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+    .link-ledger:hover {
+        background: #dcfce7;
+        color: #14532d;
+    }
+
+    .link-report {
+        background: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+    .link-report:hover {
+        background: #e0f2fe;
+        color: #075985;
     }
 
     .message {
@@ -162,7 +344,55 @@
 
 <div class="cash-wrapper">
     <div class="card">
-        <h1><span>💰</span> Cash Position</h1>
+        <!-- Card Header -->
+        <div class="card-header-flex">
+            <h1><span>💰</span> Cash Opening</h1>
+            {% if is_locked %}
+                <span class="lock-badge" id="headerStatusBadge">
+                    <i>🔒</i> Locked (لاک شدہ)
+                </span>
+            {% else %}
+                <span class="unlocked-badge" id="headerStatusBadge">
+                    <i>🔓</i> Open for Entry
+                </span>
+            {% endif %}
+        </div>
+
+        <!-- Lock Alert Banner (Shown when locked) -->
+        <div id="lockBannerContainer" {% if not is_locked %}style="display: none;"{% endif %}>
+            <div class="lock-banner">
+                <div class="lock-banner-icon">
+                    <i>🔒</i>
+                </div>
+                <div class="lock-banner-body">
+                    <div class="lock-banner-title">Opening Balance Locked (اوپننگ لاک ہے)</div>
+                    <div class="lock-banner-text">
+                        کیش کی ابتدائی رقم ایک بار درج ہو چکی ہے۔ ڈپلیکیٹ انٹری سے بچاؤ کے لیے یہ فارم مکمل طور پر لاک کر دیا گیا ہے۔
+                    </div>
+                    {% if opening_date %}
+                    <div class="lock-banner-meta" id="lockMetaDate">
+                        <span><i>🕒</i> Recorded: <strong>{{ opening_date|date:"d-m-Y h:i A" }}</strong></span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Summary Breakdown (Hand, Bank, Total) -->
+            <div class="summary-grid" id="summaryGrid">
+                <div class="summary-pill">
+                    <span class="pill-label">In Hand</span>
+                    <span class="pill-value" id="dispHand">Rs {{ cash_in_hand|default:"0" }}</span>
+                </div>
+                <div class="summary-pill">
+                    <span class="pill-label">In Bank</span>
+                    <span class="pill-value" id="dispBank">Rs {{ cash_in_bank|default:"0" }}</span>
+                </div>
+                <div class="summary-pill pill-total">
+                    <span class="pill-label">Total Cash</span>
+                    <span class="pill-value" id="dispTotal">Rs {{ total_opening|default:"0" }}</span>
+                </div>
+            </div>
+        </div>
 
         <form id="cashForm" method="POST" novalidate>
             {% csrf_token %}
@@ -176,9 +406,11 @@
                         type="number" 
                         id="cashInHand" 
                         name="cashInHand" 
+                        value="{{ cash_in_hand }}"
                         placeholder="0" 
                         min="0"
                         autocomplete="off"
+                        {% if is_locked %}readonly disabled{% endif %}
                     >
                 </div>
             </div>
@@ -196,9 +428,11 @@
                         type="number" 
                         id="cashInBank" 
                         name="cashInBank" 
+                        value="{{ cash_in_bank }}"
                         placeholder="0" 
                         min="0"
                         autocomplete="off"
+                        {% if is_locked %}readonly disabled{% endif %}
                     >
                 </div>
             </div>
@@ -211,18 +445,35 @@
                     name="discription" 
                     placeholder="Enter details / remarks..."
                     maxlength="450"
-                ></textarea>
+                    {% if is_locked %}readonly disabled{% endif %}
+                >{{ discription }}</textarea>
             </div>
 
             <!-- Submit Button -->
             <div class="actions">
-                <button type="submit" id="submitBtn">
-                    <i>📋</i> Save Balances
-                </button>
+                {% if is_locked %}
+                    <button type="button" id="submitBtn" class="btn-locked" disabled>
+                        <i>🔒</i> Opening Saved & Locked (اوپننگ محفوظ ہے)
+                    </button>
+                {% else %}
+                    <button type="submit" id="submitBtn">
+                        <i>📋</i> Save Balances
+                    </button>
+                {% endif %}
             </div>
         </form>
 
         <div id="messageBox" class="message"></div>
+
+        <!-- Quick Links to Reports -->
+        <div class="quick-links">
+            <a href="{% url 'cash_ledger' %}" class="quick-link-btn link-ledger">
+                <i>📖</i> Cash Ledger
+            </a>
+            <a href="{% url 'cash_report' %}" class="quick-link-btn link-report">
+                <i>📊</i> Cash Report
+            </a>
+        </div>
     </div>
 </div>
 
@@ -231,6 +482,13 @@
         const form = document.getElementById('cashForm');
         const messageBox = document.getElementById('messageBox');
         const submitBtn = document.getElementById('submitBtn');
+        const lockBannerContainer = document.getElementById('lockBannerContainer');
+        const headerStatusBadge = document.getElementById('headerStatusBadge');
+        const handInput = document.getElementById('cashInHand');
+        const bankInput = document.getElementById('cashInBank');
+        const descInput = document.getElementById('discription');
+
+        let isFormLocked = {{ is_locked|yesno:"true,false" }};
 
         function showMessage(text, type = 'info') {
             messageBox.textContent = text;
@@ -242,12 +500,50 @@
             messageBox.className = 'message';
         }
 
+        function applyLockState(data) {
+            isFormLocked = true;
+            handInput.setAttribute('disabled', 'disabled');
+            handInput.setAttribute('readonly', 'readonly');
+            bankInput.setAttribute('disabled', 'disabled');
+            bankInput.setAttribute('readonly', 'readonly');
+            descInput.setAttribute('disabled', 'disabled');
+            descInput.setAttribute('readonly', 'readonly');
+
+            submitBtn.disabled = true;
+            submitBtn.className = 'btn-locked';
+            submitBtn.innerHTML = '<i>🔒</i> Opening Saved & Locked (اوپننگ محفوظ ہے)';
+
+            if (headerStatusBadge) {
+                headerStatusBadge.className = 'lock-badge';
+                headerStatusBadge.innerHTML = '<i>🔒</i> Locked (لاک شدہ)';
+            }
+
+            if (lockBannerContainer) {
+                lockBannerContainer.style.display = 'block';
+                if (data) {
+                    const dispHand = document.getElementById('dispHand');
+                    const dispBank = document.getElementById('dispBank');
+                    const dispTotal = document.getElementById('dispTotal');
+                    const h = parseFloat(data.cash_in_hand || handInput.value || 0);
+                    const b = parseFloat(data.cash_in_bank || bankInput.value || 0);
+                    if (dispHand) dispHand.textContent = 'Rs ' + h.toLocaleString();
+                    if (dispBank) dispBank.textContent = 'Rs ' + b.toLocaleString();
+                    if (dispTotal) dispTotal.textContent = 'Rs ' + (h + b).toLocaleString();
+                }
+            }
+        }
+
         form.addEventListener('submit', async function(event) {
             event.preventDefault();
             clearMessage();
 
-            const hand = document.getElementById('cashInHand').value.trim();
-            const bank = document.getElementById('cashInBank').value.trim();
+            if (isFormLocked) {
+                showMessage('⚠️ یہ فارم لاک ہو چکا ہے، دوبارہ اوپننگ درج نہیں کی جا سکتی۔', 'error');
+                return;
+            }
+
+            const hand = handInput.value.trim();
+            const bank = bankInput.value.trim();
 
             if (!hand && !bank) {
                 showMessage('Please enter at least Cash in Hand or Cash in Bank.', 'error');
@@ -272,13 +568,18 @@
 
                 if (response.ok && result.status === 'success') {
                     showMessage('✅ ' + result.message, 'success');
-                    form.reset();
+                    applyLockState(result);
                 } else {
                     showMessage(result.message || 'Error occurred while saving.', 'error');
+                    if (result.is_locked) {
+                        applyLockState(result);
+                    } else {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i>📋</i> Save Balances';
+                    }
                 }
             } catch (err) {
                 showMessage('Network error. Please try again.', 'error');
-            } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i>📋</i> Save Balances';
             }
