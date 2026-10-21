@@ -1,0 +1,3609 @@
+[
+{
+  "model": "auth.permission",
+  "pk": 1,
+  "fields": {
+    "name": "Can add log entry",
+    "content_type": 1,
+    "codename": "add_logentry"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 2,
+  "fields": {
+    "name": "Can change log entry",
+    "content_type": 1,
+    "codename": "change_logentry"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 3,
+  "fields": {
+    "name": "Can delete log entry",
+    "content_type": 1,
+    "codename": "delete_logentry"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 4,
+  "fields": {
+    "name": "Can view log entry",
+    "content_type": 1,
+    "codename": "view_logentry"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 5,
+  "fields": {
+    "name": "Can add permission",
+    "content_type": 2,
+    "codename": "add_permission"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 6,
+  "fields": {
+    "name": "Can change permission",
+    "content_type": 2,
+    "codename": "change_permission"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 7,
+  "fields": {
+    "name": "Can delete permission",
+    "content_type": 2,
+    "codename": "delete_permission"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 8,
+  "fields": {
+    "name": "Can view permission",
+    "content_type": 2,
+    "codename": "view_permission"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 9,
+  "fields": {
+    "name": "Can add group",
+    "content_type": 3,
+    "codename": "add_group"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 10,
+  "fields": {
+    "name": "Can change group",
+    "content_type": 3,
+    "codename": "change_group"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 11,
+  "fields": {
+    "name": "Can delete group",
+    "content_type": 3,
+    "codename": "delete_group"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 12,
+  "fields": {
+    "name": "Can view group",
+    "content_type": 3,
+    "codename": "view_group"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 13,
+  "fields": {
+    "name": "Can add user",
+    "content_type": 4,
+    "codename": "add_user"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 14,
+  "fields": {
+    "name": "Can change user",
+    "content_type": 4,
+    "codename": "change_user"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 15,
+  "fields": {
+    "name": "Can delete user",
+    "content_type": 4,
+    "codename": "delete_user"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 16,
+  "fields": {
+    "name": "Can view user",
+    "content_type": 4,
+    "codename": "view_user"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 17,
+  "fields": {
+    "name": "Can add content type",
+    "content_type": 5,
+    "codename": "add_contenttype"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 18,
+  "fields": {
+    "name": "Can change content type",
+    "content_type": 5,
+    "codename": "change_contenttype"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 19,
+  "fields": {
+    "name": "Can delete content type",
+    "content_type": 5,
+    "codename": "delete_contenttype"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 20,
+  "fields": {
+    "name": "Can view content type",
+    "content_type": 5,
+    "codename": "view_contenttype"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 21,
+  "fields": {
+    "name": "Can add session",
+    "content_type": 6,
+    "codename": "add_session"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 22,
+  "fields": {
+    "name": "Can change session",
+    "content_type": 6,
+    "codename": "change_session"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 23,
+  "fields": {
+    "name": "Can delete session",
+    "content_type": 6,
+    "codename": "delete_session"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 24,
+  "fields": {
+    "name": "Can view session",
+    "content_type": 6,
+    "codename": "view_session"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 25,
+  "fields": {
+    "name": "Can add broiler rate",
+    "content_type": 7,
+    "codename": "add_broilerrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 26,
+  "fields": {
+    "name": "Can change broiler rate",
+    "content_type": 7,
+    "codename": "change_broilerrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 27,
+  "fields": {
+    "name": "Can delete broiler rate",
+    "content_type": 7,
+    "codename": "delete_broilerrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 28,
+  "fields": {
+    "name": "Can view broiler rate",
+    "content_type": 7,
+    "codename": "view_broilerrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 29,
+  "fields": {
+    "name": "Can add core users",
+    "content_type": 8,
+    "codename": "add_coreusers"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 30,
+  "fields": {
+    "name": "Can change core users",
+    "content_type": 8,
+    "codename": "change_coreusers"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 31,
+  "fields": {
+    "name": "Can delete core users",
+    "content_type": 8,
+    "codename": "delete_coreusers"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 32,
+  "fields": {
+    "name": "Can view core users",
+    "content_type": 8,
+    "codename": "view_coreusers"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 33,
+  "fields": {
+    "name": "Can add expensedetail",
+    "content_type": 9,
+    "codename": "add_expensedetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 34,
+  "fields": {
+    "name": "Can change expensedetail",
+    "content_type": 9,
+    "codename": "change_expensedetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 35,
+  "fields": {
+    "name": "Can delete expensedetail",
+    "content_type": 9,
+    "codename": "delete_expensedetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 36,
+  "fields": {
+    "name": "Can view expensedetail",
+    "content_type": 9,
+    "codename": "view_expensedetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 37,
+  "fields": {
+    "name": "Can add expense head",
+    "content_type": 10,
+    "codename": "add_expensehead"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 38,
+  "fields": {
+    "name": "Can change expense head",
+    "content_type": 10,
+    "codename": "change_expensehead"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 39,
+  "fields": {
+    "name": "Can delete expense head",
+    "content_type": 10,
+    "codename": "delete_expensehead"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 40,
+  "fields": {
+    "name": "Can view expense head",
+    "content_type": 10,
+    "codename": "view_expensehead"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 41,
+  "fields": {
+    "name": "Can add fat rate",
+    "content_type": 11,
+    "codename": "add_fatrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 42,
+  "fields": {
+    "name": "Can change fat rate",
+    "content_type": 11,
+    "codename": "change_fatrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 43,
+  "fields": {
+    "name": "Can delete fat rate",
+    "content_type": 11,
+    "codename": "delete_fatrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 44,
+  "fields": {
+    "name": "Can view fat rate",
+    "content_type": 11,
+    "codename": "view_fatrate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 45,
+  "fields": {
+    "name": "Can add mortality",
+    "content_type": 12,
+    "codename": "add_mortality"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 46,
+  "fields": {
+    "name": "Can change mortality",
+    "content_type": 12,
+    "codename": "change_mortality"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 47,
+  "fields": {
+    "name": "Can delete mortality",
+    "content_type": 12,
+    "codename": "delete_mortality"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 48,
+  "fields": {
+    "name": "Can view mortality",
+    "content_type": 12,
+    "codename": "view_mortality"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 49,
+  "fields": {
+    "name": "Can add parties",
+    "content_type": 13,
+    "codename": "add_parties"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 50,
+  "fields": {
+    "name": "Can change parties",
+    "content_type": 13,
+    "codename": "change_parties"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 51,
+  "fields": {
+    "name": "Can delete parties",
+    "content_type": 13,
+    "codename": "delete_parties"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 52,
+  "fields": {
+    "name": "Can view parties",
+    "content_type": 13,
+    "codename": "view_parties"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 53,
+  "fields": {
+    "name": "Can add purchase payments",
+    "content_type": 14,
+    "codename": "add_purchasepayments"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 54,
+  "fields": {
+    "name": "Can change purchase payments",
+    "content_type": 14,
+    "codename": "change_purchasepayments"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 55,
+  "fields": {
+    "name": "Can delete purchase payments",
+    "content_type": 14,
+    "codename": "delete_purchasepayments"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 56,
+  "fields": {
+    "name": "Can view purchase payments",
+    "content_type": 14,
+    "codename": "view_purchasepayments"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 57,
+  "fields": {
+    "name": "Can add purchase receiving",
+    "content_type": 15,
+    "codename": "add_purchasereceiving"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 58,
+  "fields": {
+    "name": "Can change purchase receiving",
+    "content_type": 15,
+    "codename": "change_purchasereceiving"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 59,
+  "fields": {
+    "name": "Can delete purchase receiving",
+    "content_type": 15,
+    "codename": "delete_purchasereceiving"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 60,
+  "fields": {
+    "name": "Can view purchase receiving",
+    "content_type": 15,
+    "codename": "view_purchasereceiving"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 61,
+  "fields": {
+    "name": "Can add purchase receiving view",
+    "content_type": 16,
+    "codename": "add_purchasereceivingview"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 62,
+  "fields": {
+    "name": "Can change purchase receiving view",
+    "content_type": 16,
+    "codename": "change_purchasereceivingview"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 63,
+  "fields": {
+    "name": "Can delete purchase receiving view",
+    "content_type": 16,
+    "codename": "delete_purchasereceivingview"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 64,
+  "fields": {
+    "name": "Can view purchase receiving view",
+    "content_type": 16,
+    "codename": "view_purchasereceivingview"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 65,
+  "fields": {
+    "name": "Can add sells invoice",
+    "content_type": 17,
+    "codename": "add_sellsinvoice"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 66,
+  "fields": {
+    "name": "Can change sells invoice",
+    "content_type": 17,
+    "codename": "change_sellsinvoice"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 67,
+  "fields": {
+    "name": "Can delete sells invoice",
+    "content_type": 17,
+    "codename": "delete_sellsinvoice"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 68,
+  "fields": {
+    "name": "Can view sells invoice",
+    "content_type": 17,
+    "codename": "view_sellsinvoice"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 69,
+  "fields": {
+    "name": "Can add sellspayment",
+    "content_type": 18,
+    "codename": "add_sellspayment"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 70,
+  "fields": {
+    "name": "Can change sellspayment",
+    "content_type": 18,
+    "codename": "change_sellspayment"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 71,
+  "fields": {
+    "name": "Can delete sellspayment",
+    "content_type": 18,
+    "codename": "delete_sellspayment"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 72,
+  "fields": {
+    "name": "Can view sellspayment",
+    "content_type": 18,
+    "codename": "view_sellspayment"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 73,
+  "fields": {
+    "name": "Can add usermodule",
+    "content_type": 19,
+    "codename": "add_usermodule"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 74,
+  "fields": {
+    "name": "Can change usermodule",
+    "content_type": 19,
+    "codename": "change_usermodule"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 75,
+  "fields": {
+    "name": "Can delete usermodule",
+    "content_type": 19,
+    "codename": "delete_usermodule"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 76,
+  "fields": {
+    "name": "Can view usermodule",
+    "content_type": 19,
+    "codename": "view_usermodule"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 77,
+  "fields": {
+    "name": "Can add userpage",
+    "content_type": 20,
+    "codename": "add_userpage"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 78,
+  "fields": {
+    "name": "Can change userpage",
+    "content_type": 20,
+    "codename": "change_userpage"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 79,
+  "fields": {
+    "name": "Can delete userpage",
+    "content_type": 20,
+    "codename": "delete_userpage"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 80,
+  "fields": {
+    "name": "Can view userpage",
+    "content_type": 20,
+    "codename": "view_userpage"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 81,
+  "fields": {
+    "name": "Can add waste rate",
+    "content_type": 21,
+    "codename": "add_wasterate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 82,
+  "fields": {
+    "name": "Can change waste rate",
+    "content_type": 21,
+    "codename": "change_wasterate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 83,
+  "fields": {
+    "name": "Can delete waste rate",
+    "content_type": 21,
+    "codename": "delete_wasterate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 84,
+  "fields": {
+    "name": "Can view waste rate",
+    "content_type": 21,
+    "codename": "view_wasterate"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 85,
+  "fields": {
+    "name": "Can add cash record",
+    "content_type": 22,
+    "codename": "add_cashrecord"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 86,
+  "fields": {
+    "name": "Can change cash record",
+    "content_type": 22,
+    "codename": "change_cashrecord"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 87,
+  "fields": {
+    "name": "Can delete cash record",
+    "content_type": 22,
+    "codename": "delete_cashrecord"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 88,
+  "fields": {
+    "name": "Can view cash record",
+    "content_type": 22,
+    "codename": "view_cashrecord"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 89,
+  "fields": {
+    "name": "Can add purchase payment history",
+    "content_type": 23,
+    "codename": "add_purchasepaymenthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 90,
+  "fields": {
+    "name": "Can change purchase payment history",
+    "content_type": 23,
+    "codename": "change_purchasepaymenthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 91,
+  "fields": {
+    "name": "Can delete purchase payment history",
+    "content_type": 23,
+    "codename": "delete_purchasepaymenthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 92,
+  "fields": {
+    "name": "Can view purchase payment history",
+    "content_type": 23,
+    "codename": "view_purchasepaymenthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 93,
+  "fields": {
+    "name": "Can add receipt history",
+    "content_type": 24,
+    "codename": "add_receipthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 94,
+  "fields": {
+    "name": "Can change receipt history",
+    "content_type": 24,
+    "codename": "change_receipthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 95,
+  "fields": {
+    "name": "Can delete receipt history",
+    "content_type": 24,
+    "codename": "delete_receipthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 96,
+  "fields": {
+    "name": "Can view receipt history",
+    "content_type": 24,
+    "codename": "view_receipthistory"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 97,
+  "fields": {
+    "name": "Can add voucher",
+    "content_type": 25,
+    "codename": "add_voucher"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 98,
+  "fields": {
+    "name": "Can change voucher",
+    "content_type": 25,
+    "codename": "change_voucher"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 99,
+  "fields": {
+    "name": "Can delete voucher",
+    "content_type": 25,
+    "codename": "delete_voucher"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 100,
+  "fields": {
+    "name": "Can view voucher",
+    "content_type": 25,
+    "codename": "view_voucher"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 101,
+  "fields": {
+    "name": "Can add chart of account",
+    "content_type": 26,
+    "codename": "add_chartofaccount"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 102,
+  "fields": {
+    "name": "Can change chart of account",
+    "content_type": 26,
+    "codename": "change_chartofaccount"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 103,
+  "fields": {
+    "name": "Can delete chart of account",
+    "content_type": 26,
+    "codename": "delete_chartofaccount"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 104,
+  "fields": {
+    "name": "Can view chart of account",
+    "content_type": 26,
+    "codename": "view_chartofaccount"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 105,
+  "fields": {
+    "name": "Can add voucher detail",
+    "content_type": 27,
+    "codename": "add_voucherdetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 106,
+  "fields": {
+    "name": "Can change voucher detail",
+    "content_type": 27,
+    "codename": "change_voucherdetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 107,
+  "fields": {
+    "name": "Can delete voucher detail",
+    "content_type": 27,
+    "codename": "delete_voucherdetail"
+  }
+},
+{
+  "model": "auth.permission",
+  "pk": 108,
+  "fields": {
+    "name": "Can view voucher detail",
+    "content_type": 27,
+    "codename": "view_voucherdetail"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 1,
+  "fields": {
+    "app_label": "admin",
+    "model": "logentry"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 2,
+  "fields": {
+    "app_label": "auth",
+    "model": "permission"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 3,
+  "fields": {
+    "app_label": "auth",
+    "model": "group"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 4,
+  "fields": {
+    "app_label": "auth",
+    "model": "user"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 5,
+  "fields": {
+    "app_label": "contenttypes",
+    "model": "contenttype"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 6,
+  "fields": {
+    "app_label": "sessions",
+    "model": "session"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 7,
+  "fields": {
+    "app_label": "core",
+    "model": "broilerrate"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 8,
+  "fields": {
+    "app_label": "core",
+    "model": "coreusers"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 9,
+  "fields": {
+    "app_label": "core",
+    "model": "expensedetail"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 10,
+  "fields": {
+    "app_label": "core",
+    "model": "expensehead"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 11,
+  "fields": {
+    "app_label": "core",
+    "model": "fatrate"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 12,
+  "fields": {
+    "app_label": "core",
+    "model": "mortality"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 13,
+  "fields": {
+    "app_label": "core",
+    "model": "parties"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 14,
+  "fields": {
+    "app_label": "core",
+    "model": "purchasepayments"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 15,
+  "fields": {
+    "app_label": "core",
+    "model": "purchasereceiving"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 16,
+  "fields": {
+    "app_label": "core",
+    "model": "purchasereceivingview"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 17,
+  "fields": {
+    "app_label": "core",
+    "model": "sellsinvoice"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 18,
+  "fields": {
+    "app_label": "core",
+    "model": "sellspayment"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 19,
+  "fields": {
+    "app_label": "core",
+    "model": "usermodule"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 20,
+  "fields": {
+    "app_label": "core",
+    "model": "userpage"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 21,
+  "fields": {
+    "app_label": "core",
+    "model": "wasterate"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 22,
+  "fields": {
+    "app_label": "core",
+    "model": "cashrecord"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 23,
+  "fields": {
+    "app_label": "core",
+    "model": "purchasepaymenthistory"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 24,
+  "fields": {
+    "app_label": "core",
+    "model": "receipthistory"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 25,
+  "fields": {
+    "app_label": "core",
+    "model": "voucher"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 26,
+  "fields": {
+    "app_label": "core",
+    "model": "chartofaccount"
+  }
+},
+{
+  "model": "contenttypes.contenttype",
+  "pk": 27,
+  "fields": {
+    "app_label": "core",
+    "model": "voucherdetail"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "087z3jydq301jht6pzxz0pk93qoivaun",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xEqkf:XmCvGHkYjGb1diZfANS7B7TO6xX-xAuEoP5xKDeJyZ0",
+    "expire_date": "2026-10-22T16:13:49.614Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "0lqmdypvlbw9os9xdd96pcmafh0uxjzj",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x8grN:pbmh1I9TAGE_CbyDBK-2XjFsQEuVORvW-m3FO8iJjFw",
+    "expire_date": "2026-10-05T16:27:17.627Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "0mjfwue8imwguih39vhu953jgkd0nux2",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xFEph:2hrSJGm2Vq_qQZWtDhpVWQLmV6qD2y75asr2wW2srf8",
+    "expire_date": "2026-10-23T17:56:37.695Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "13sualk382j1m66waoao3a9unffjcknp",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xGKjn:4nn7EVk1C0IVnktfXTWO2VKVL3etxcyRybUCWEuZxng",
+    "expire_date": "2026-10-26T18:27:03.940Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "18y8xtj1t2smidw6fakd4lzn23otjx3q",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xHPi3:kyjek0z1D-RGEENzpqAMaY2T8KQl7ay8kEHh5N2XM98",
+    "expire_date": "2026-10-29T17:57:43.706Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "1en9lzf0i6cyowq444wjiehb47dsx0pu",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xHA36:1Zs4PIp9TrikQMLvNelyp_FOU4Ik95t9ZBSkDuQgV9U",
+    "expire_date": "2026-10-29T01:14:24.433Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "1zidrp91lihvio8nw2twe9wf963dm2f0",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiIsInVzZXJfbmFtZSI6InRhYmlzaCJ9:1xGKKB:sXZuBp80vBRZBh_p60kDhzDvQ4ONsinLq5_hSDxunQs",
+    "expire_date": "2026-10-26T18:00:35.044Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "251f9eu0xstycfktmkd3w1wqeekov0kn",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAdN:so1A2YN2wpV8VCGBETqsgxxInLA6kN7Rf3xSCv2vYF4",
+    "expire_date": "2026-10-29T01:51:53.821Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "2mtze2vu8k20umu42d4cbri91l8oklon",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x9dTX:Ni11b0dS1fWPww7cajy7Xcs1wFTk68rvwCj4KO9wSTM",
+    "expire_date": "2026-10-08T07:02:35.869Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "2pkim3sbya4712k7m9mv7h1jwhxybwzr",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAcw:MIT9A_Exb_V4fWCQ3Jadk-yvRAuzBCIO3Dv3vL_mehQ",
+    "expire_date": "2026-10-29T01:51:26.338Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "35aq2o3dryix5kaalvhz6z8dlj81twaj",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x50Va:qzBa-7w0SAO6FFSOKaYct6NoqBu-2eAN0HTkPDDG1Yg",
+    "expire_date": "2026-09-25T12:37:34.885Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "39kr2xzlvejq0tweh5ev1wu1wppc2zg2",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xGKhJ:JCh5Bt3SERZ2EQ4oRNi2Yw004ekqinm6Q5xmy9WA8Xg",
+    "expire_date": "2026-10-26T18:24:29.920Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "41w78870dbpd05gf57xkjf8wf00nfbjv",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xE8Kw:zoE0pFpU-4dbTw2aZKhyr5Sx5wugu9FjP7SKQhwFs9k",
+    "expire_date": "2026-10-20T16:48:18.929Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "45n4845zdp4xxtfjgiwkg5hdy6q1dc32",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xDuQL:WwDsxJ5Bu_DSqxfCvaELJp6bF-etN4YlkoV7vfQ2kIw",
+    "expire_date": "2026-10-20T01:56:57.767Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "48xw6fsmwzwqcuaw8vj6ib1301t5yjmh",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xEUrv:1bfqqorM8cpUyP9uuVQP7kQIVvZjOl12IPjzwHHhAuY",
+    "expire_date": "2026-10-21T16:51:51.905Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "4hc2le81kj41ts1u2a9os4a5vror52b0",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHB4m:3FCNltya2QDDTw500X0LGOi6hcpwBV0gS-Clq_tipGM",
+    "expire_date": "2026-10-29T02:20:12.171Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "4lfny3hwosm09ekhaqyerht2d5o26nvb",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x8HGO:xUsTHpN8rI-iuivBsREguSZ8cT8oDhd3sD4eypsrQVw",
+    "expire_date": "2026-10-04T13:07:24.149Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "4pho7hdeu60hvc43vqo4t3g0vxnzzdyi",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiIsInVzZXJfbmFtZSI6InRhYmlzaCJ9:1xGKTj:S2AxtbbkYqKpkY_7lfRoz8WdH5Mqx5BQKSVSTw220QI",
+    "expire_date": "2026-10-26T18:10:27.869Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "4qihdqocvh9rijgo16tkvc1qq3x7ahjx",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xCzKz:PEAe7wNx27We6mUQL96n9vpJA8lOQgLZ0Lyrp0txSAE",
+    "expire_date": "2026-10-17T12:59:37.830Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "5eoqo7huip4784j5vjnye1iphkwuhqix",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xGKYy:fsIpOCqmFNmf1iztTmww9rL7KEGfnAmUvVmFcg0oI5U",
+    "expire_date": "2026-10-26T18:15:52.840Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "5plx62owksnj1nrgw606vplukf6026eo",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiJ9:1xGKcA:qmfhoVYm0JJVTpTLpxZDM_xARb2AF4V3N70uK_xNWDU",
+    "expire_date": "2026-10-26T18:19:10.719Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "6h6mkicmqkf8mjva134brd8ccdwt449a",
+  "fields": {
+    "session_data": "e30:1xImjI:d2_8ilYq5cOkDODmFSKshlWsa2dg-j5YU69jVFjxWNo",
+    "expire_date": "2026-11-02T12:44:40.508Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "6nmsz7zdfqpnwn8zllzaowqa9upn4qv2",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiJ9:1xGKge:Mf8oTlFurlb1Vj4xv0WV-OF-graW7r7oFyijibXrWjY",
+    "expire_date": "2026-10-26T18:23:48.975Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "6u20302zbga0zgkeqjxnmp1je3cfy3ln",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xHPiR:0ae2n4GdUBtNa9m6d5p27HvI50YeVezk7f_wzkl9y7c",
+    "expire_date": "2026-10-29T17:58:07.005Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "7y81qixe23ixwgi2q8qz38wa22xgvrzc",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xE929:9fY-GLRim0kEo0fFdgPCG9hq2STD7a6AeEmG9E1cYE4",
+    "expire_date": "2026-10-20T17:32:57.771Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "96b5l4nlrc087tsmy59eyv2ag9nqkad8",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x7shF:qXX7m0xgVHbtUWui7tUpEHCrrP7FAGFjLZPl7tNcnVM",
+    "expire_date": "2026-10-03T10:53:29.625Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "avjbh4egx12orqtqr5n0xcvdkrrg1xk5",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xFrx6:ombsiJGJY_JpaxuupgHckyMWBfxKJLdzwut0wC4phkI",
+    "expire_date": "2026-10-25T11:42:52.934Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ay46kgxdpkhpzxnfadfkvzep37ndbrda",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xIPVF:swYqZVieX4U5TjpfxxteuP_tmBm6GkuTqgg-i57gNtE",
+    "expire_date": "2026-11-01T11:56:37.272Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "bvf8j28qr7c0xb3i5ahwsuoj52r9zpto",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xImkE:MU_oimhk0S5E7LtNSFoGFHq2bOdvdwpSpRtoMJnYGuE",
+    "expire_date": "2026-11-02T12:45:38.985Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "byz1f9a7tqz5uhhi6rlb0uo3o5oyw1q4",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x7kUl:khKTa2Ck-qePwBFCyDhAYcczHDysAO6iBtv0JPdlYk0",
+    "expire_date": "2026-10-03T02:08:03.061Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "cb34hioqmaal2heck4k25s72pqcr51hy",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xGKK1:tsUl5xC8HXOBZgAyhDQG5NX9cHxstMYjBSQmdEqTpkI",
+    "expire_date": "2026-10-26T18:00:25.013Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "cgdvrr209ug98k5bk2okqt0vv12fx7y1",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xE8LA:ITiinzxTBBxp5HeCHECpLTAD0iVSE44An3yzeOqmBOo",
+    "expire_date": "2026-10-20T16:48:32.697Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "cmn4xx195t3xjvpfxklse34h4k81i1n7",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoxfQ:1xByod:BFpSlxG2hUw-LpVWgrpUYnnIfDUgsYFkZfZKa6w7SIE",
+    "expire_date": "2026-10-14T18:14:03.421Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "d9gl0xs8c80nzbrgj5748s4teuikvy6i",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAdF:YfVp0DGoYNhrNc77oFplVUvuNo3v1OwRUl2724QG_fA",
+    "expire_date": "2026-10-29T01:51:45.592Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "dd1ki2k7ygxgdxgop2ei75x6uu6smaup",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xCgpi:MkdCNgnPtdylBcFh_jHZvQbswp_iAkUeqXglZ73Yxrk",
+    "expire_date": "2026-10-16T17:14:06.480Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ex791lbf30q2ze5bi3q3au8534kwnwvo",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xA7nv:9MiLIPYVLbxureNkad515bcfGmPukmEP8kknFsgdIoY",
+    "expire_date": "2026-10-09T15:25:39.074Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "fbp50ewm8f4oelfy8bqdwqig4dqmeq9w",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xGfRe:BXtEFw4xvz8pjeWqX5hDBHbAB8_MOEcWzdhzkFNavBg",
+    "expire_date": "2026-10-27T16:33:42.579Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "g0pgc85ee8pl3i39xv8xwr76gvyp2vfd",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xE7Xo:N5atAjoFBS1DcbOQ6C00x99-z1wO_UK8ESCHYMBJT4o",
+    "expire_date": "2026-10-20T15:57:32.228Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "g4ga1f7xm9f2reclaazy9dxshee41kl4",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xImk3:F2HYlUyM20Vh_qFPNpzV-olkbomnh7oz6kMpCT6ZteM",
+    "expire_date": "2026-11-02T12:45:27.897Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "h6jmld7trw8bk3qnfeyumnde9o3i6vou",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xFvX9:SLjpnVUUaqdVsgOJOX544XfSj-px6847jDzN9M0gWSI",
+    "expire_date": "2026-10-25T15:32:19.843Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "i7lkixoibagr0cwb69heo5l8u2yppukv",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xBjTq:bVv7KVVIFPhoYYQjVGZgQ6JgQ7ulU0rUuVE3EZO1hUE",
+    "expire_date": "2026-10-14T01:51:34.671Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "i7wj7cwu5owlqz30jpzz5i5dg80qzy3q",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xHjmC:y65qSnRlZ7aynhDu8ywu0IQsRrlBWk4AZKSh-3dtIvI",
+    "expire_date": "2026-10-30T15:23:20.461Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ig94i6ecw9ceva9q9ah8t4ksiqgfpras",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x4zcB:J7y8wfTFDh0Css4uRq7owtU-oMhbfpRwIhsZ7lFDX0g",
+    "expire_date": "2026-09-25T11:40:19.268Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "jmbgj5gt5pj6wdrqios8q4t2siy7vyzw",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xIlwo:iyQyLj9y1S7UMLDaPQOdaEf8tO91n6ElmFJB-dB7lJ4",
+    "expire_date": "2026-11-02T11:54:34.480Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "l758m1ryepf0u7b67qpa0rdpezo4s4l8",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiIsInVzZXJfbmFtZSI6InRhYmlzaCJ9:1xGKUW:sEw1gFK3ZXms8MzKRWqq2YCDRV6XXIPrZpXGfC4DSQg",
+    "expire_date": "2026-10-26T18:11:16.994Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "low8uei3no3cjjbnu1twog8mst5fco1t",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xHOPe:rkt63YIlCSqZnxaBuO9ecTo0eD3W9rDF1LcIiMBuCdQ",
+    "expire_date": "2026-10-29T16:34:38.040Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "m2iss8tzbmut3q7hhnz91suae2erpl2c",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x52Wi:4DiFSe9BFeTwOS1v5PuA9DtxJhZUKcmPOCnk3CWpPXg",
+    "expire_date": "2026-09-25T14:46:52.569Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "o2jz4i11c3kta3jahda36nhdibupbh6b",
+  "fields": {
+    "session_data": "e30:1xHAcZ:qnNefXWSviHJiHyrGRzp3AdP8aoagZMP37Fb4wuKQx4",
+    "expire_date": "2026-10-29T01:51:03.742Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "o8qkfcxn48ov1aoqbxgdnd9peeow6xvq",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoxfQ:1xImj7:lqGxXIXfa6VY6RumfT9t7sv18ykwNi9U9_XYzDht5Tg",
+    "expire_date": "2026-11-02T12:44:29.718Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "o95ai2ac5qdsvuanhqghz8ca00axdy3n",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xImjt:OMI_fapN7TK3Mr667e9hvto1sbEk9A_bHReTsM0uel8",
+    "expire_date": "2026-11-02T12:45:17.674Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "p82ypawvixwmdfn53tciol5rvkk1th1e",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xFEpz:oIfDQQisQoeqMLNIzlAVtphxgJPrVFg850VTXzz-etk",
+    "expire_date": "2026-10-23T17:56:55.652Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "q4nkzp2nruj2d6f6xe7vadgj404qsp0n",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VyX25hbWUiOiJ0YWJpc2giLCJyb2xlIjoiQWRtaW4ifQ:1xImjf:T5r_9mLqrhKkfr9AFM6IrGi4u_5pH68G1gnMM9VyXtU",
+    "expire_date": "2026-11-02T12:45:03.350Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "qgam7k77j7yn1e8cmbhlvjfgcpuihjn8",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHB51:UhbCIJ107hmzB5DUrpwX57YtistLIwezd0icVT1kXFw",
+    "expire_date": "2026-10-29T02:20:27.522Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "qisvhpm99a084hbn5qn2dszakkuztlee",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAdc:THjpFusq_HvU88G-2ez9fituP-MRm7Uhf_HA2O9K5B0",
+    "expire_date": "2026-10-29T01:52:08.666Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "qs9ejh1rpb8ojb1qi97vshf4rbmk3335",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiJ9:1xGKiT:IcCEsgGqWTsgiLCiZosP6Cj5ELf7lPhuMoTdWoiHHqA",
+    "expire_date": "2026-10-26T18:25:41.939Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "r7pmt2624jju2znqr3hst9n3b3i27udf",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xFDDk:PM1bNHo2XVBf4QDDChhUn44AC_GDT5iL_P4YBPGEvbc",
+    "expire_date": "2026-10-23T16:13:20.400Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "r9f5vcyg6ty53nps2tgoxcs15uhzrjj8",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiJ9:1xGKKJ:R948FQmt4qQJNFZFwKZvzUJWcFabjXxBhn-ectDIMMo",
+    "expire_date": "2026-10-26T18:00:43.583Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "rc4kj69kx16y4tvqq5qnyat90tjs0y5c",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiJ9:1xGKc0:sfxAOmIHUm-RoW4kjRbxgHyIVMNbd9As1EZVfkJvXMw",
+    "expire_date": "2026-10-26T18:19:00.547Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ryla7yjsnwb7xkhm3cf3hv6n8cso5f6h",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xFEqE:52ZewTza5BxGQ2LOyXJAyLsrATzUyJPd0Qt9N7qGgBQ",
+    "expire_date": "2026-10-23T17:57:10.203Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "tsneo7vvaw5w2c8camzgrcbgkn37ow9s",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiIsInVzZXJfbmFtZSI6InRhYmlzaCJ9:1xGKbq:tyJbTyVwoTUNXbJOeag45Zder84y2auA5IjnFPtejmw",
+    "expire_date": "2026-10-26T18:18:50.817Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "u1cxs6rj14yv2nkgedei99tpu5zxqdva",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VyX25hbWUiOiJ0YWJpc2giLCJyb2xlIjoiQWRtaW4ifQ:1xImjU:AfwNH5djysfwssrk3zuFRDIjdNKQS_dw2P7zH3Du5KM",
+    "expire_date": "2026-11-02T12:44:52.146Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "u42ydflnvqlaadls1az99xebdn555avq",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAcn:X_flZjx18o0DWiGZl88iPsic8zBEyjc4yiRDlQF7Btc",
+    "expire_date": "2026-10-29T01:51:17.808Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "u702rbqde13lwzs2fa6yihpl7uburbzd",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x93A9:67isNddCkJJ5IcaFu-QIzKqz44z7WRCWj1yRZAcTRbA",
+    "expire_date": "2026-10-06T16:16:09.961Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ul4mt9i4yqtsos7ham131wr8dhy1y8lc",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xDeLO:kPLXhE_h9s_4BkzqQ-WzmM7Q_im0ZyjTlAGlSwANYhk",
+    "expire_date": "2026-10-19T08:46:46.293Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "usglay3giog07qnz8wvi8o7j0w6dzhbf",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoiMiJ9:1xGKgS:rCXaGILqGslsf7m_nXB-Lr5nNO68O9wDXdXIRvc448k",
+    "expire_date": "2026-10-26T18:23:36.919Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "v774fzk233x4yk6bevtkec8omxbj59u8",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xFEpS:BmG1yzEsVmL3HCHyJMSlu8PgL7pdr--avLcllFyQBoo",
+    "expire_date": "2026-10-23T17:56:22.332Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "v7zgoqmay3bb8enzs1l70qk4r8cfqsab",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xHkts:FcXyLD4RFROL5JxHAKtupIwicYBrxj9vnHeW2F2xwI4",
+    "expire_date": "2026-10-30T16:35:20.177Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "vmkqwqambm3pjgw55emignim2n9ypjwp",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1x9ofJ:ciD1Z208bpGP2bvNeS9tVWs9hDhMv1hpVW36kJKO6vk",
+    "expire_date": "2026-10-08T18:59:29.210Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "w60gemr4mc9vvohwpoea3kryhf48p728",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyfQ:1xHPiG:wzbZXz6NYBCSw363-0UgTvxp3H4Q3WhYK9oOcegk3_c",
+    "expire_date": "2026-10-29T17:57:56.247Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "wx2ezfwkv91672xyk7bxg6sq8qp1fye6",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xAfm6:TKOSJgVy6Ss7_HtLAAMaoT1bo_PIJdxnEvqn2hzZ34Y",
+    "expire_date": "2026-10-11T03:42:02.968Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "x6j69bhecjkys4wo62ckqlpu19wvh113",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAd6:4XJpwI4ctrUmmlP3RjXZjEEiY8szZzNQPtcDhOPKs8I",
+    "expire_date": "2026-10-29T01:51:36.355Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "x8ptgokt9mgpblepuoh2mt5me1b17gah",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xDEP0:LLub1efVBCqXVgl0LZa6xO1BWgscUApfmBxZgO94TcU",
+    "expire_date": "2026-10-18T05:04:46.931Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "xffvoem5y70l8s7yz3qszpunnr22e4vl",
+  "fields": {
+    "session_data": "eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6InRhYmlzaCIsInJvbGUiOiJBZG1pbiJ9:1xHAdV:HJdAqhucZCem_hq1ogoKqBxF4kQAlUOHijQGLaS_uvs",
+    "expire_date": "2026-10-29T01:52:01.189Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "yip41tyzmu1mh6om6xxzny4x2tznekxj",
+  "fields": {
+    "session_data": ".eJyrViotTi2Kz0xRslIyUtKB8PISc1OB_JLEpMziDJhgUX4OSNAxJTczT6kWAA-CEqc:1xBwN5:C4T2vJRdhHiU_MsBRFMdbyi0L4GKffuaLh4TjnuPTx8",
+    "expire_date": "2026-10-14T15:37:27.051Z"
+  }
+},
+{
+  "model": "core.coreusers",
+  "pk": 2,
+  "fields": {
+    "name": "tabish",
+    "phone_number": "03106411072",
+    "password": "123",
+    "email": "tabish@gmail.com",
+    "role": "Admin",
+    "address": "abcd"
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 4,
+  "fields": {
+    "userid": 2,
+    "modulename": "New Accounts",
+    "module_url": "parties/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 6,
+  "fields": {
+    "userid": 2,
+    "modulename": "Inventory Management",
+    "module_url": "purchase_receiving/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 3
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 13,
+  "fields": {
+    "userid": 2,
+    "modulename": "Reports",
+    "module_url": "party_ledger/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 6
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 15,
+  "fields": {
+    "userid": 2,
+    "modulename": "Chart of Accounts",
+    "module_url": "voucher-entry/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 16,
+  "fields": {
+    "userid": 2,
+    "modulename": "User Management",
+    "module_url": "user-management/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 7
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 17,
+  "fields": {
+    "userid": 2,
+    "modulename": "Market Rate",
+    "module_url": "broiler-rate/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 4
+  }
+},
+{
+  "model": "core.usermodule",
+  "pk": 18,
+  "fields": {
+    "userid": 2,
+    "modulename": "Opening",
+    "module_url": "opening/",
+    "showmodule": true,
+    "can_module_add": true,
+    "can_module_edit": true,
+    "can_module_delete": true,
+    "is_admin": true,
+    "displayorder": 5
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 2,
+  "fields": {
+    "moduleid": 4,
+    "userid": 2,
+    "modulename": "New Accounts",
+    "pagename": "Parties Management",
+    "pageurl": "parties/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 3,
+  "fields": {
+    "moduleid": 17,
+    "userid": 2,
+    "modulename": "Market Rate",
+    "pagename": "Waste Rate",
+    "pageurl": "waste-rate/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 3
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 4,
+  "fields": {
+    "moduleid": 17,
+    "userid": 2,
+    "modulename": "Market Rate",
+    "pagename": "Fat Rate",
+    "pageurl": "fat-rate/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 5,
+  "fields": {
+    "moduleid": 17,
+    "userid": 2,
+    "modulename": "Market Rate",
+    "pagename": "Broiler Rate",
+    "pageurl": "broiler-rate/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 6,
+  "fields": {
+    "moduleid": 4,
+    "userid": 2,
+    "modulename": "New Accounts",
+    "pagename": "Expense Head Setup",
+    "pageurl": "expense-head/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 8,
+  "fields": {
+    "moduleid": 6,
+    "userid": 2,
+    "modulename": "Inventory Management",
+    "pagename": "Purchase Receiving",
+    "pageurl": "purchase_receiving/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 9,
+  "fields": {
+    "moduleid": 6,
+    "userid": 2,
+    "modulename": "Inventory Management",
+    "pagename": "Sells Invoice",
+    "pageurl": "sells/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 10,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Party Ledger",
+    "pageurl": "party_ledger/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 11,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Purchase Report",
+    "pageurl": "purchase_report/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 4
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 12,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Sell Report",
+    "pageurl": "sells_report/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 5
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 13,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Profit & Loss Report",
+    "pageurl": "profit_loss_report/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 8
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 14,
+  "fields": {
+    "moduleid": 18,
+    "userid": 2,
+    "modulename": "Opening",
+    "pagename": "Opening Page",
+    "pageurl": "opening/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 15,
+  "fields": {
+    "moduleid": 18,
+    "userid": 2,
+    "modulename": "Opening",
+    "pagename": "Cash Opening",
+    "pageurl": "cash/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 16,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Cash Ledger",
+    "pageurl": "cash_ledger/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 18,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Broiler Report",
+    "pageurl": "broiler_report/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 7
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 20,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Daily Cash Report",
+    "pageurl": "cashreport/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 3
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 22,
+  "fields": {
+    "moduleid": 13,
+    "userid": 2,
+    "modulename": "Reports",
+    "pagename": "Net Position",
+    "pageurl": "net_position/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 6
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 23,
+  "fields": {
+    "moduleid": 15,
+    "userid": 2,
+    "modulename": "Chart of Accounts",
+    "pagename": "Chart of Accounts",
+    "pageurl": "chart-of-accounts/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 24,
+  "fields": {
+    "moduleid": 15,
+    "userid": 2,
+    "modulename": "Chart of Accounts",
+    "pagename": "Voucher Entry",
+    "pageurl": "voucher-entry/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 25,
+  "fields": {
+    "moduleid": 15,
+    "userid": 2,
+    "modulename": "Chart of Accounts",
+    "pagename": "Account Ledger",
+    "pageurl": "account-ledger/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 3
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 26,
+  "fields": {
+    "moduleid": 15,
+    "userid": 2,
+    "modulename": "Chart of Accounts",
+    "pagename": "Daily Expenses",
+    "pageurl": "expenses/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 4
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 27,
+  "fields": {
+    "moduleid": 6,
+    "userid": 2,
+    "modulename": "Inventory Management",
+    "pagename": "Waste Entry",
+    "pageurl": "waste_entry/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 3
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 28,
+  "fields": {
+    "moduleid": 6,
+    "userid": 2,
+    "modulename": "Inventory Management",
+    "pagename": "Waste Payment",
+    "pageurl": "waste-payment/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 4
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 29,
+  "fields": {
+    "moduleid": 17,
+    "userid": 2,
+    "modulename": "Market Rate",
+    "pagename": "Today Rate",
+    "pageurl": "today-rate/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 4
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 30,
+  "fields": {
+    "moduleid": 16,
+    "userid": 2,
+    "modulename": "User Management",
+    "pagename": "User Management & Permissions",
+    "pageurl": "user-management/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 1
+  }
+},
+{
+  "model": "core.userpage",
+  "pk": 31,
+  "fields": {
+    "moduleid": 16,
+    "userid": 2,
+    "modulename": "User Management",
+    "pagename": "Hierarchy Control",
+    "pageurl": "hierarchy/",
+    "showpage": true,
+    "can_page_add": true,
+    "can_page_edit": true,
+    "can_page_delete": true,
+    "is_admin": true,
+    "displayorder": 2
+  }
+},
+{
+  "model": "core.parties",
+  "pk": 1,
+  "fields": {
+    "code": "0001",
+    "company_name": "vendor1",
+    "owner_name": "",
+    "number": "",
+    "party_type": "Party",
+    "address": "jknk",
+    "entry_date": "2026-10-17T15:58:46.088Z"
+  }
+},
+{
+  "model": "core.parties",
+  "pk": 2,
+  "fields": {
+    "code": "0002",
+    "company_name": "vendor2",
+    "owner_name": "",
+    "number": "",
+    "party_type": "Party",
+    "address": "asd",
+    "entry_date": "2026-10-17T15:58:55.206Z"
+  }
+},
+{
+  "model": "core.parties",
+  "pk": 3,
+  "fields": {
+    "code": "0003",
+    "company_name": "customer1",
+    "owner_name": "",
+    "number": "",
+    "party_type": "Party",
+    "address": "ad",
+    "entry_date": "2026-10-17T15:59:02.218Z"
+  }
+},
+{
+  "model": "core.parties",
+  "pk": 4,
+  "fields": {
+    "code": "0004",
+    "company_name": "customer2",
+    "owner_name": "",
+    "number": "",
+    "party_type": "Party",
+    "address": "asd",
+    "entry_date": "2026-10-17T15:59:11.596Z"
+  }
+},
+{
+  "model": "core.purchasereceiving",
+  "pk": 1,
+  "fields": {
+    "purchase_number": "PUR-00001",
+    "vendor_code": "0001",
+    "vendor_name": "vendor1",
+    "date": "2026-10-19T17:58:46.740Z",
+    "vendor_rate": "50",
+    "market_rate": "0",
+    "weight": "40",
+    "vehicle_number": "22",
+    "status": "Active",
+    "remaining_weight": "40",
+    "amount": "2000",
+    "payed_amount": "0",
+    "remaining_amount": "2000",
+    "discription": "maal lia hoa ham ny"
+  }
+},
+{
+  "model": "core.purchasereceivingview",
+  "pk": 1,
+  "fields": {
+    "purchase_number": "PUR-00001",
+    "vendor_name": "vendor1",
+    "date": "2026-10-19T17:58:46.740Z",
+    "vendor_rate": "50",
+    "market_rate": "0",
+    "weight": "40",
+    "vehicle_number": "22",
+    "status": "Active",
+    "remaining_weight": "40",
+    "amount": "2000",
+    "payed_amount": "0",
+    "remaining_amount": "2000"
+  }
+},
+{
+  "model": "core.purchasepaymenthistory",
+  "pk": 1,
+  "fields": {
+    "party_code": "0001",
+    "party_name": "vendor1",
+    "date": "2026-10-19T17:58:47Z",
+    "totall_amount": 2000,
+    "payed_amount": 0,
+    "due": 2000,
+    "advanced": 0,
+    "remarks": "maal lia hoa ham ny"
+  }
+},
+{
+  "model": "core.cashrecord",
+  "pk": 1,
+  "fields": {
+    "cash_in_hand": 1000,
+    "cash_in_bank": 2000,
+    "date": "2026-10-19T00:00:00Z",
+    "discription": "Opening Cash & Bank Balance"
+  }
+},
+{
+  "model": "core.cashrecord",
+  "pk": 2,
+  "fields": {
+    "cash_in_hand": 990,
+    "cash_in_bank": 2000,
+    "date": "2026-10-19T17:24:34Z",
+    "discription": "[CPV] #CPV-2026-00001: sss"
+  }
+},
+{
+  "model": "core.cashrecord",
+  "pk": 3,
+  "fields": {
+    "cash_in_hand": 990,
+    "cash_in_bank": 2050,
+    "date": "2026-10-19T17:28:39Z",
+    "discription": "[BRV] #BRV-2026-00001: ddd"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 1,
+  "fields": {
+    "code": "01",
+    "name": "Assets",
+    "level": 1,
+    "parent": null,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.207Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 2,
+  "fields": {
+    "code": "02",
+    "name": "Liabilities",
+    "level": 1,
+    "parent": null,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.213Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 3,
+  "fields": {
+    "code": "03",
+    "name": "Equity & Capital",
+    "level": 1,
+    "parent": null,
+    "account_type": "Equity",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.218Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 4,
+  "fields": {
+    "code": "04",
+    "name": "Revenue & Sales",
+    "level": 1,
+    "parent": null,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.222Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 5,
+  "fields": {
+    "code": "05",
+    "name": "Expenses",
+    "level": 1,
+    "parent": null,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.226Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 6,
+  "fields": {
+    "code": "0101",
+    "name": "Current Assets",
+    "level": 2,
+    "parent": 1,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.229Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 7,
+  "fields": {
+    "code": "0102",
+    "name": "Fixed & Non-Current Assets",
+    "level": 2,
+    "parent": 1,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.233Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 8,
+  "fields": {
+    "code": "0201",
+    "name": "Current Liabilities",
+    "level": 2,
+    "parent": 2,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.237Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 9,
+  "fields": {
+    "code": "0202",
+    "name": "Long-term Liabilities",
+    "level": 2,
+    "parent": 2,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.241Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 10,
+  "fields": {
+    "code": "0301",
+    "name": "Owner's Equity & Capital",
+    "level": 2,
+    "parent": 3,
+    "account_type": "Equity",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.245Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 11,
+  "fields": {
+    "code": "0401",
+    "name": "Operating Revenue & Sales",
+    "level": 2,
+    "parent": 4,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.250Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 12,
+  "fields": {
+    "code": "0501",
+    "name": "Direct Cost of Sales",
+    "level": 2,
+    "parent": 5,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.254Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 13,
+  "fields": {
+    "code": "0502",
+    "name": "Operating & Administrative Expenses",
+    "level": 2,
+    "parent": 5,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.257Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 14,
+  "fields": {
+    "code": "010101",
+    "name": "Cash & Bank Balances",
+    "level": 3,
+    "parent": 6,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.260Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 15,
+  "fields": {
+    "code": "010102",
+    "name": "Trade Receivables (Parties)",
+    "level": 3,
+    "parent": 6,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.264Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 16,
+  "fields": {
+    "code": "010103",
+    "name": "Inventory & Stock",
+    "level": 3,
+    "parent": 6,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.268Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 17,
+  "fields": {
+    "code": "010201",
+    "name": "Vehicles & Transport Assets",
+    "level": 3,
+    "parent": 7,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.271Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 18,
+  "fields": {
+    "code": "010202",
+    "name": "Plant & Equipment",
+    "level": 3,
+    "parent": 7,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.274Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 19,
+  "fields": {
+    "code": "020101",
+    "name": "Trade Payables (Parties)",
+    "level": 3,
+    "parent": 8,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.278Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 20,
+  "fields": {
+    "code": "020102",
+    "name": "Short Term Borrowings",
+    "level": 3,
+    "parent": 8,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.281Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 21,
+  "fields": {
+    "code": "030101",
+    "name": "Capital Account",
+    "level": 3,
+    "parent": 10,
+    "account_type": "Equity",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.285Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 22,
+  "fields": {
+    "code": "040101",
+    "name": "Poultry & Broiler Sales",
+    "level": 3,
+    "parent": 11,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.289Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 23,
+  "fields": {
+    "code": "040102",
+    "name": "By-Product Sales",
+    "level": 3,
+    "parent": 11,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.293Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 24,
+  "fields": {
+    "code": "050101",
+    "name": "Broiler Purchase Cost",
+    "level": 3,
+    "parent": 12,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.296Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 25,
+  "fields": {
+    "code": "050102",
+    "name": "Mortality Loss",
+    "level": 3,
+    "parent": 12,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.300Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 26,
+  "fields": {
+    "code": "050201",
+    "name": "Vehicle & Transport Expenses",
+    "level": 3,
+    "parent": 13,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.303Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 27,
+  "fields": {
+    "code": "050202",
+    "name": "Utilities & Bills",
+    "level": 3,
+    "parent": 13,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.307Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 28,
+  "fields": {
+    "code": "050203",
+    "name": "Salaries & Wages",
+    "level": 3,
+    "parent": 13,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.310Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 29,
+  "fields": {
+    "code": "050204",
+    "name": "Office & General Expenses",
+    "level": 3,
+    "parent": 13,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.314Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 30,
+  "fields": {
+    "code": "010101001",
+    "name": "Cash in Hand",
+    "level": 4,
+    "parent": 14,
+    "account_type": "Asset",
+    "opening_balance": "1000.00",
+    "current_balance": "990.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.318Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 31,
+  "fields": {
+    "code": "010101002",
+    "name": "Bank Al-Habib Main",
+    "level": 4,
+    "parent": 14,
+    "account_type": "Asset",
+    "opening_balance": "2000.00",
+    "current_balance": "2050.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.326Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 32,
+  "fields": {
+    "code": "010101003",
+    "name": "Meezan Bank Account",
+    "level": 4,
+    "parent": 14,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.331Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 33,
+  "fields": {
+    "code": "010101004",
+    "name": "MCB Bank Account",
+    "level": 4,
+    "parent": 14,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.336Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 34,
+  "fields": {
+    "code": "010102000",
+    "name": "General Party Receivables",
+    "level": 4,
+    "parent": 15,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.339Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 35,
+  "fields": {
+    "code": "010103001",
+    "name": "Live Broiler Stock",
+    "level": 4,
+    "parent": 16,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.343Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 36,
+  "fields": {
+    "code": "010201001",
+    "name": "Delivery Vehicles",
+    "level": 4,
+    "parent": 17,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.346Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 37,
+  "fields": {
+    "code": "010202001",
+    "name": "Cages & Weighing Scales",
+    "level": 4,
+    "parent": 18,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.350Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 38,
+  "fields": {
+    "code": "020101001",
+    "name": "General Party Payables",
+    "level": 4,
+    "parent": 19,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.359Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 39,
+  "fields": {
+    "code": "020102001",
+    "name": "Temporary Loans",
+    "level": 4,
+    "parent": 20,
+    "account_type": "Liability",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.363Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 40,
+  "fields": {
+    "code": "030101001",
+    "name": "Owner Capital",
+    "level": 4,
+    "parent": 21,
+    "account_type": "Equity",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.367Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 41,
+  "fields": {
+    "code": "030101002",
+    "name": "Owner Drawings",
+    "level": 4,
+    "parent": 21,
+    "account_type": "Equity",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.370Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 42,
+  "fields": {
+    "code": "040101001",
+    "name": "Broiler Sales",
+    "level": 4,
+    "parent": 22,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.375Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 43,
+  "fields": {
+    "code": "040102001",
+    "name": "Fat Sales",
+    "level": 4,
+    "parent": 23,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.378Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 44,
+  "fields": {
+    "code": "040102002",
+    "name": "Waste Sales",
+    "level": 4,
+    "parent": 23,
+    "account_type": "Revenue",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.382Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 45,
+  "fields": {
+    "code": "050101001",
+    "name": "Broiler Purchases",
+    "level": 4,
+    "parent": 24,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "2000.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.385Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 46,
+  "fields": {
+    "code": "050102001",
+    "name": "Mortality Loss",
+    "level": 4,
+    "parent": 25,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.389Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 47,
+  "fields": {
+    "code": "050201001",
+    "name": "Diesel & Fuel Expense",
+    "level": 4,
+    "parent": 26,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.392Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 48,
+  "fields": {
+    "code": "050201002",
+    "name": "Vehicle Maintenance & Repair",
+    "level": 4,
+    "parent": 26,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.396Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 49,
+  "fields": {
+    "code": "050202001",
+    "name": "Electricity Bill",
+    "level": 4,
+    "parent": 27,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.399Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 50,
+  "fields": {
+    "code": "050202002",
+    "name": "Mobile & Internet Expense",
+    "level": 4,
+    "parent": 27,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.403Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 51,
+  "fields": {
+    "code": "050203001",
+    "name": "Staff Monthly Salaries",
+    "level": 4,
+    "parent": 28,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.406Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 52,
+  "fields": {
+    "code": "050203002",
+    "name": "Daily Labour Wages",
+    "level": 4,
+    "parent": 28,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.409Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 53,
+  "fields": {
+    "code": "050204001",
+    "name": "Office Tea & Entertainment",
+    "level": 4,
+    "parent": 29,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.412Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 54,
+  "fields": {
+    "code": "050204002",
+    "name": "Office Rent",
+    "level": 4,
+    "parent": 29,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.416Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 55,
+  "fields": {
+    "code": "050204003",
+    "name": "Stationery & Printing",
+    "level": 4,
+    "parent": 29,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.419Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 56,
+  "fields": {
+    "code": "050204004",
+    "name": "Miscellaneous Expense",
+    "level": 4,
+    "parent": 29,
+    "account_type": "Expense",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": null,
+    "is_active": true,
+    "description": null,
+    "created_at": "2026-10-13T17:30:48.423Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 82,
+  "fields": {
+    "code": "010102001",
+    "name": "vendor1",
+    "level": 4,
+    "parent": 15,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "-2050.00",
+    "party": 1,
+    "is_active": true,
+    "description": "",
+    "created_at": "2026-10-17T15:58:46.096Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 83,
+  "fields": {
+    "code": "010102002",
+    "name": "vendor2",
+    "level": 4,
+    "parent": 15,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": 2,
+    "is_active": true,
+    "description": "Level 4 Party Account: vendor2 (Party)",
+    "created_at": "2026-10-17T15:58:55.216Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 84,
+  "fields": {
+    "code": "010102003",
+    "name": "customer1",
+    "level": 4,
+    "parent": 15,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "10.00",
+    "party": 3,
+    "is_active": true,
+    "description": "Level 4 Party Account: customer1 (Party)",
+    "created_at": "2026-10-17T15:59:02.226Z"
+  }
+},
+{
+  "model": "core.chartofaccount",
+  "pk": 85,
+  "fields": {
+    "code": "010102004",
+    "name": "customer2",
+    "level": 4,
+    "parent": 15,
+    "account_type": "Asset",
+    "opening_balance": "0.00",
+    "current_balance": "0.00",
+    "party": 4,
+    "is_active": true,
+    "description": "Level 4 Party Account: customer2 (Party)",
+    "created_at": "2026-10-17T15:59:11.605Z"
+  }
+},
+{
+  "model": "core.voucher",
+  "pk": 1,
+  "fields": {
+    "voucher_no": "CPV-2026-00001",
+    "voucher_type": "CPV",
+    "date": "2026-10-19",
+    "reference_no": "CPV-2026-00001",
+    "total_amount": "10.00",
+    "remarks": "sss",
+    "created_by": "tabish",
+    "created_at": "2026-10-19T12:24:33.954Z"
+  }
+},
+{
+  "model": "core.voucher",
+  "pk": 2,
+  "fields": {
+    "voucher_no": "BRV-2026-00001",
+    "voucher_type": "BRV",
+    "date": "2026-10-19",
+    "reference_no": "BRV-2026-00001",
+    "total_amount": "50.00",
+    "remarks": "ddd",
+    "created_by": "tabish",
+    "created_at": "2026-10-19T12:28:38.928Z"
+  }
+},
+{
+  "model": "core.voucher",
+  "pk": 3,
+  "fields": {
+    "voucher_no": "PUR-PUR-00001",
+    "voucher_type": "JV",
+    "date": "2026-10-19",
+    "reference_no": "22",
+    "total_amount": "2000.00",
+    "remarks": "Purchase #PUR-00001 - vendor1 (40kg @ Rs. 50) - maal lia hoa ham ny",
+    "created_by": "System / Purchase",
+    "created_at": "2026-10-19T12:58:46.789Z"
+  }
+},
+{
+  "model": "core.voucherdetail",
+  "pk": 1,
+  "fields": {
+    "voucher": 1,
+    "account": 84,
+    "debit": "10.00",
+    "credit": "0.00",
+    "narration": "sss",
+    "party": 3
+  }
+},
+{
+  "model": "core.voucherdetail",
+  "pk": 2,
+  "fields": {
+    "voucher": 1,
+    "account": 30,
+    "debit": "0.00",
+    "credit": "10.00",
+    "narration": "sss",
+    "party": null
+  }
+},
+{
+  "model": "core.voucherdetail",
+  "pk": 3,
+  "fields": {
+    "voucher": 2,
+    "account": 31,
+    "debit": "50.00",
+    "credit": "0.00",
+    "narration": "ddd",
+    "party": null
+  }
+},
+{
+  "model": "core.voucherdetail",
+  "pk": 4,
+  "fields": {
+    "voucher": 2,
+    "account": 82,
+    "debit": "0.00",
+    "credit": "50.00",
+    "narration": "ddd",
+    "party": 1
+  }
+},
+{
+  "model": "core.voucherdetail",
+  "pk": 5,
+  "fields": {
+    "voucher": 3,
+    "account": 45,
+    "debit": "2000.00",
+    "credit": "0.00",
+    "narration": "Purchase #PUR-00001: 40kg @ 50",
+    "party": null
+  }
+},
+{
+  "model": "core.voucherdetail",
+  "pk": 6,
+  "fields": {
+    "voucher": 3,
+    "account": 82,
+    "debit": "0.00",
+    "credit": "2000.00",
+    "narration": "Purchase Bill #PUR-00001",
+    "party": 1
+  }
+}
+]

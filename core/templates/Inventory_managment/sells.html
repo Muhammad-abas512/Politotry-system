@@ -561,10 +561,10 @@
                                 {% for customer in customer_list %}
 
                                     <option
-                                        value="{{ customer.company_name }}"
+                                        value="{{ customer.company_name|default:customer.owner_name }}"
                                     >
 
-                                        {{ customer.company_name }}
+                                        {{ customer.company_name|default:customer.owner_name }}
 
                                         {% if customer.party_type %}
 

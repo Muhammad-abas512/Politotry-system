@@ -26,8 +26,214 @@ def login_view(request):
     return render(request, 'login.html')
 
 
+SYSTEM_CATALOG = [
+    {
+        'modulename': 'Chart of Accounts',
+        'module_url': 'voucher-entry/',
+        'displayorder': 1,
+        'icon': 'bi-receipt-cutoff',
+        'pages': [
+            {'pagename': 'Voucher Entry', 'pageurl': 'voucher-entry/', 'icon': 'bi-receipt'},
+            {'pagename': 'Chart of Accounts', 'pageurl': 'chart-of-accounts/', 'icon': 'bi-diagram-3'},
+            {'pagename': 'Account Ledger', 'pageurl': 'account-ledger/', 'icon': 'bi-journal-bookmark'},
+            {'pagename': 'Daily Expenses', 'pageurl': 'expenses/', 'icon': 'bi-cash-coin'},
+        ]
+    },
+    {
+        'modulename': 'New Accounts',
+        'module_url': 'parties/',
+        'displayorder': 2,
+        'icon': 'bi-people',
+        'pages': [
+            {'pagename': 'Parties Management', 'pageurl': 'parties/', 'icon': 'bi-person-lines-fill'},
+            {'pagename': 'Expense Head Setup', 'pageurl': 'expense-head/', 'icon': 'bi-tags'},
+        ]
+    },
+    {
+        'modulename': 'Inventory Management',
+        'module_url': 'purchase_receiving/',
+        'displayorder': 3,
+        'icon': 'bi-boxes',
+        'pages': [
+            {'pagename': 'Purchase Receiving', 'pageurl': 'purchase_receiving/', 'icon': 'bi-cart-plus'},
+            {'pagename': 'Sells Invoice', 'pageurl': 'sells/', 'icon': 'bi-cart-check'},
+            {'pagename': 'Waste Entry', 'pageurl': 'waste_entry/', 'icon': 'bi-trash3'},
+            {'pagename': 'Waste Payment', 'pageurl': 'waste-payment/', 'icon': 'bi-credit-card'},
+        ]
+    },
+    {
+        'modulename': 'Market Rate',
+        'module_url': 'broiler-rate/',
+        'displayorder': 4,
+        'icon': 'bi-graph-up',
+        'pages': [
+            {'pagename': 'Broiler Rate', 'pageurl': 'broiler-rate/', 'icon': 'bi-currency-dollar'},
+            {'pagename': 'Fat Rate', 'pageurl': 'fat-rate/', 'icon': 'bi-percent'},
+            {'pagename': 'Waste Rate', 'pageurl': 'waste-rate/', 'icon': 'bi-trash'},
+            {'pagename': 'Today Rate', 'pageurl': 'today-rate/', 'icon': 'bi-calendar-check'},
+        ]
+    },
+    {
+        'modulename': 'Opening',
+        'module_url': 'opening/',
+        'displayorder': 5,
+        'icon': 'bi-box-arrow-in-down',
+        'pages': [
+            {'pagename': 'Opening Page', 'pageurl': 'opening/', 'icon': 'bi-door-open'},
+            {'pagename': 'Cash Opening', 'pageurl': 'cash/', 'icon': 'bi-cash-stack'},
+        ]
+    },
+    {
+        'modulename': 'Reports',
+        'module_url': 'party_ledger/',
+        'displayorder': 6,
+        'icon': 'bi-bar-chart-line',
+        'pages': [
+            {'pagename': 'Party Ledger', 'pageurl': 'party_ledger/', 'icon': 'bi-person-badge'},
+            {'pagename': 'Cash Ledger', 'pageurl': 'cash_ledger/', 'icon': 'bi-wallet2'},
+            {'pagename': 'Daily Cash Report', 'pageurl': 'cashreport/', 'icon': 'bi-calculator'},
+            {'pagename': 'Purchase Report', 'pageurl': 'purchase_report/', 'icon': 'bi-file-earmark-text'},
+            {'pagename': 'Sell Report', 'pageurl': 'sells_report/', 'icon': 'bi-file-earmark-bar-graph'},
+            {'pagename': 'Net Position', 'pageurl': 'net_position/', 'icon': 'bi-shield-check'},
+            {'pagename': 'Broiler Report', 'pageurl': 'broiler_report/', 'icon': 'bi-pie-chart'},
+            {'pagename': 'Profit & Loss Report', 'pageurl': 'profit_loss_report/', 'icon': 'bi-graph-up-arrow'},
+        ]
+    },
+    {
+        'modulename': 'User Management',
+        'module_url': 'user-management/',
+        'displayorder': 7,
+        'icon': 'bi-shield-lock',
+        'pages': [
+            {'pagename': 'User Management & Permissions', 'pageurl': 'user-management/', 'icon': 'bi-people-fill'},
+            {'pagename': 'Hierarchy Control', 'pageurl': 'hierarchy/', 'icon': 'bi-diagram-2'},
+        ]
+    },
+]
+
+CATALOG_ICONS = {
+    'Chart of Accounts': 'bi-receipt-cutoff',
+    'Accounts & Vouchers': 'bi-receipt-cutoff',
+    'New Accounts': 'bi-people',
+    'Setup & Parties': 'bi-people',
+    'Inventory Management': 'bi-boxes',
+    'Market Rate': 'bi-graph-up',
+    'Opening': 'bi-box-arrow-in-down',
+    'Reports': 'bi-bar-chart-line',
+    'User Management': 'bi-shield-lock',
+    'Administration': 'bi-shield-lock',
+}
+
+PAGE_ICONS = {
+    'voucher-entry/': 'bi-receipt',
+    'chart-of-accounts/': 'bi-diagram-3',
+    'account-ledger/': 'bi-journal-bookmark',
+    'expenses/': 'bi-cash-coin',
+    'parties/': 'bi-person-lines-fill',
+    'expense-head/': 'bi-tags',
+    'purchase_receiving/': 'bi-cart-plus',
+    'sells/': 'bi-cart-check',
+    'waste_entry/': 'bi-trash3',
+    'waste-payment/': 'bi-credit-card',
+    'broiler-rate/': 'bi-currency-dollar',
+    'fat-rate/': 'bi-percent',
+    'waste-rate/': 'bi-trash',
+    'today-rate/': 'bi-calendar-check',
+    'opening/': 'bi-door-open',
+    'cash/': 'bi-cash-stack',
+    'party_ledger/': 'bi-person-badge',
+    'cash_ledger/': 'bi-wallet2',
+    'cashreport/': 'bi-calculator',
+    'purchase_report/': 'bi-file-earmark-text',
+    'sells_report/': 'bi-file-earmark-bar-graph',
+    'net_position/': 'bi-shield-check',
+    'broiler_report/': 'bi-pie-chart',
+    'profit_loss_report/': 'bi-graph-up-arrow',
+    'user-management/': 'bi-people-fill',
+    'hierarchy/': 'bi-diagram-2',
+}
+
+
+def sync_user_catalog_permissions(user_id, is_admin=False):
+    """Ensure modules and pages exist in Usermodule and Userpage for user_id"""
+    # Clean up obsolete empty modules
+    Usermodule.objects.filter(
+        userid=user_id,
+        modulename__in=['Receipt', 'Payment', 'Expenses', 'Waste Payment', 'Waste Entry']
+    ).delete()
+
+    for m in SYSTEM_CATALOG:
+        aliases = [m['modulename']]
+        if m['modulename'] == 'User Management':
+            aliases.append('Administration')
+        elif m['modulename'] == 'Chart of Accounts':
+            aliases.append('Accounts & Vouchers')
+        elif m['modulename'] == 'New Accounts':
+            aliases.append('Setup & Parties')
+
+        um = Usermodule.objects.filter(userid=user_id, modulename__in=aliases).first()
+        if not um:
+            um = Usermodule.objects.create(
+                userid=user_id,
+                modulename=m['modulename'],
+                module_url=m['module_url'],
+                showmodule=True if is_admin else False,
+                can_module_add=True if is_admin else False,
+                can_module_edit=True if is_admin else False,
+                can_module_delete=True if is_admin else False,
+                is_admin=is_admin,
+                displayorder=m['displayorder'],
+            )
+        else:
+            um.modulename = m['modulename']
+            um.module_url = m['module_url']
+            um.displayorder = m['displayorder']
+            if is_admin:
+                um.showmodule = True
+                um.is_admin = True
+            um.save()
+
+        for idx, p in enumerate(m['pages'], 1):
+            p_url = p['pageurl']
+            url_variants = [p_url, p_url.rstrip('/'), p_url.lstrip('/')]
+            up = Userpage.objects.filter(userid=user_id, pageurl__in=url_variants).first()
+            if not up:
+                Userpage.objects.create(
+                    moduleid=um,
+                    userid=user_id,
+                    modulename=m['modulename'],
+                    pagename=p['pagename'],
+                    pageurl=p_url,
+                    showpage=True if is_admin else False,
+                    can_page_add=True if is_admin else False,
+                    can_page_edit=True if is_admin else False,
+                    can_page_delete=True if is_admin else False,
+                    is_admin=is_admin,
+                    displayorder=idx,
+                )
+            else:
+                up.moduleid = um
+                up.modulename = m['modulename']
+                up.pagename = p['pagename']
+                up.pageurl = p_url
+                up.displayorder = idx
+                if is_admin:
+                    up.showpage = True
+                    up.is_admin = True
+                up.save()
+
+
 def get_sidebar_data(user_id):
     """Sidebar data fetch karo - modules aur unke pages"""
+    if not user_id:
+        return []
+
+    user = CoreUsers.objects.filter(id=user_id).first()
+    is_admin = bool(user and str(user.role).strip().lower() == 'admin')
+
+    # Automatically ensure user has all catalog modules and pages in DB!
+    sync_user_catalog_permissions(user_id, is_admin=is_admin)
+
     modules = Usermodule.objects.filter(
         userid=user_id, showmodule=True
     ).order_by('displayorder')
@@ -42,19 +248,28 @@ def get_sidebar_data(user_id):
 
         page_list = []
         for page in pages:
+            raw_url = (page.pageurl or '').strip().lstrip('/')
+            clean_url = raw_url if raw_url.endswith('/') or not raw_url else raw_url + '/'
+            page_icon = PAGE_ICONS.get(clean_url, PAGE_ICONS.get(raw_url, 'bi-circle-fill'))
+
             page_list.append({
                 'pageid': page.pageid,
                 'pagename': page.pagename or '',
-                'pageurl': page.pageurl or '#',
+                'pageurl': clean_url,
+                'icon': page_icon,
                 'can_add': page.can_page_add,
                 'can_edit': page.can_page_edit,
                 'can_delete': page.can_page_delete,
             })
 
+        clean_mod_url = (module.module_url or '').strip().lstrip('/')
+        mod_icon = CATALOG_ICONS.get(module.modulename, 'bi-folder2')
+
         sidebar.append({
             'moduleid': module.moduleid,
             'modulename': module.modulename or '',
-            'module_url': module.module_url or '#',
+            'module_url': clean_mod_url,
+            'icon': mod_icon,
             'can_add': module.can_module_add,
             'can_edit': module.can_module_edit,
             'can_delete': module.can_module_delete,
@@ -426,24 +641,89 @@ def user_management(request):
         return redirect('login')
 
     user_id = request.session.get('user_id')
+    user_role = request.session.get('user_role', '')
+
+    # Ensure admin has full catalog
+    if str(user_role).lower() == 'admin':
+        sync_user_catalog_permissions(user_id, is_admin=True)
+
     sidebar = get_sidebar_data(user_id)
+    total_system_pages = sum(len(m['pages']) for m in SYSTEM_CATALOG)
 
     if request.method == 'GET':
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            users = CoreUsers.objects.all().values(
-                'id', 'name', 'role', 'phone_number', 'email', 'address', 'password'
+        action = request.GET.get('action')
+
+        # AJAX: Fetch permissions for a specific user to populate Setting modal
+        if action == 'get_permissions':
+            target_id = request.GET.get('user_id')
+            target_user = get_object_or_404(CoreUsers, id=target_id)
+            is_target_admin = str(target_user.role).lower() == 'admin'
+
+            # Ensure user catalog rows exist
+            sync_user_catalog_permissions(target_id, is_admin=is_target_admin)
+
+            # Get granted URLs
+            granted_urls = set(
+                Userpage.objects.filter(userid=target_id, showpage=True).values_list('pageurl', flat=True)
             )
-            clean_users = []
-            for u in users:
-                clean_user = {}
-                for key, val in u.items():
-                    if isinstance(val, Decimal):
-                        clean_user[key] = str(val)
-                    else:
-                        clean_user[key] = val
-                clean_users.append(clean_user)
-            return JsonResponse({'users': clean_users})
-        return render(request, 'user_management.html', {'sidebar': sidebar})
+
+            catalog_data = []
+            for m in SYSTEM_CATALOG:
+                pages_data = []
+                for p in m['pages']:
+                    is_granted = True if is_target_admin else (p['pageurl'] in granted_urls)
+                    pages_data.append({
+                        'name': p['pagename'],
+                        'pagename': p['pagename'],
+                        'url': p['pageurl'],
+                        'pageurl': p['pageurl'],
+                        'icon': p.get('icon', 'bi-circle'),
+                        'granted': is_granted
+                    })
+                catalog_data.append({
+                    'module_name': m['modulename'],
+                    'module_url': m['module_url'],
+                    'icon': m.get('icon', 'bi-folder'),
+                    'pages': pages_data
+                })
+
+            return JsonResponse({
+                'success': True,
+                'user_id': target_user.id,
+                'user_name': target_user.name,
+                'role': target_user.role,
+                'is_admin': is_target_admin,
+                'catalog': catalog_data
+            })
+
+        # Regular Page Render: All users shown in table below form
+        users = CoreUsers.objects.all().order_by('id')
+        user_list = []
+        for u in users:
+            is_adm = str(u.role).lower() == 'admin'
+            if is_adm:
+                allowed_count = total_system_pages
+            else:
+                allowed_count = Userpage.objects.filter(userid=u.id, showpage=True).count()
+
+            user_list.append({
+                'id': u.id,
+                'name': u.name or '',
+                'role': u.role or 'Staff',
+                'phone_number': u.phone_number or '',
+                'email': u.email or '',
+                'address': u.address or '',
+                'password': u.password or '',
+                'allowed_count': allowed_count,
+                'total_pages': total_system_pages,
+            })
+
+        return render(request, 'user_management.html', {
+            'sidebar': sidebar,
+            'users': user_list,
+            'catalog': SYSTEM_CATALOG,
+            'total_pages': total_system_pages
+        })
 
     if request.method == 'POST':
         try:
@@ -452,32 +732,109 @@ def user_management(request):
 
             if action == 'save':
                 user_id_form = data.get('id')
+                name = (data.get('name') or '').strip()
+                password = (data.get('password') or '').strip()
+                role = (data.get('role') or 'Staff').strip()
+                phone_number = (data.get('phone_number') or '').strip()
+                email = (data.get('email') or '').strip()
+                address = (data.get('address') or '').strip()
+
+                if not name or not password:
+                    return JsonResponse({'status': 'error', 'message': 'Username and Password are required'})
+
                 if user_id_form:
                     user = get_object_or_404(CoreUsers, id=user_id_form)
-                    user.name = data.get('name')
-                    user.password = data.get('password')
-                    user.role = data.get('role')
-                    user.phone_number = data.get('phone_number')
-                    user.email = data.get('email')
-                    user.address = data.get('address')
+                    user.name = name
+                    user.password = password
+                    user.role = role
+                    user.phone_number = phone_number
+                    user.email = email
+                    user.address = address
                     user.save()
-                    return JsonResponse({'status': 'success', 'message': 'User updated successfully!'})
+
+                    if role.lower() == 'admin':
+                        sync_user_catalog_permissions(user.id, is_admin=True)
+
+                    return JsonResponse({'status': 'success', 'message': f'User "{user.name}" updated successfully!'})
                 else:
-                    CoreUsers.objects.create(
-                        name=data.get('name'),
-                        password=data.get('password'),
-                        role=data.get('role'),
-                        phone_number=data.get('phone_number'),
-                        email=data.get('email'),
-                        address=data.get('address'),
+                    new_user = CoreUsers.objects.create(
+                        name=name,
+                        password=password,
+                        role=role,
+                        phone_number=phone_number,
+                        email=email,
+                        address=address,
                     )
-                    return JsonResponse({'status': 'success', 'message': 'User saved successfully!'})
+                    # Initialize permissions
+                    sync_user_catalog_permissions(new_user.id, is_admin=(role.lower() == 'admin'))
+                    return JsonResponse({'status': 'success', 'message': f'User "{new_user.name}" created successfully!'})
+
+            elif action == 'save_permissions':
+                target_id = data.get('user_id')
+                raw_selected = data.get('selected_pages') or data.get('page_urls') or []
+                selected_urls = set(raw_selected)
+                target_user = get_object_or_404(CoreUsers, id=target_id)
+                is_target_admin = str(target_user.role).lower() == 'admin'
+
+                for m in SYSTEM_CATALOG:
+                    has_module_access = is_target_admin or any(p['pageurl'] in selected_urls for p in m['pages'])
+                    um = Usermodule.objects.filter(userid=target_id, modulename=m['modulename']).first()
+                    if not um:
+                        um = Usermodule.objects.create(
+                            userid=target_id,
+                            modulename=m['modulename'],
+                            module_url=m['module_url'],
+                            showmodule=has_module_access,
+                            can_module_add=is_target_admin,
+                            can_module_edit=is_target_admin,
+                            can_module_delete=is_target_admin,
+                            is_admin=is_target_admin,
+                            displayorder=m['displayorder']
+                        )
+                    else:
+                        um.showmodule = has_module_access
+                        um.save()
+
+                    for idx, p in enumerate(m['pages'], 1):
+                        p_url = p['pageurl']
+                        url_variants = [p_url, p_url.rstrip('/'), p_url.lstrip('/')]
+                        up = Userpage.objects.filter(userid=target_id, pageurl__in=url_variants).first()
+                        if not up:
+                            up = Userpage.objects.create(
+                                moduleid=um,
+                                userid=target_id,
+                                modulename=m['modulename'],
+                                pagename=p['pagename'],
+                                pageurl=p_url,
+                                showpage=is_target_admin or (p_url in selected_urls),
+                                can_page_add=is_target_admin,
+                                can_page_edit=is_target_admin,
+                                can_page_delete=is_target_admin,
+                                is_admin=is_target_admin,
+                                displayorder=idx
+                            )
+                        else:
+                            up.moduleid = um
+                            up.modulename = m['modulename']
+                            up.pagename = p['pagename']
+                            up.pageurl = p_url
+                            up.showpage = is_target_admin or (p_url in selected_urls)
+                            up.displayorder = idx
+                            up.save()
+
+                return JsonResponse({'status': 'success', 'message': f'Permissions for "{target_user.name}" saved successfully!'})
 
             elif action == 'delete':
                 del_id = data.get('id')
+                if str(del_id) == str(user_id):
+                    return JsonResponse({'status': 'error', 'message': 'You cannot delete your own logged-in account!'})
+
                 user = get_object_or_404(CoreUsers, id=del_id)
+                u_name = user.name
+                Userpage.objects.filter(userid=del_id).delete()
+                Usermodule.objects.filter(userid=del_id).delete()
                 user.delete()
-                return JsonResponse({'status': 'success', 'message': 'User deleted successfully!'})
+                return JsonResponse({'status': 'success', 'message': f'User "{u_name}" deleted successfully!'})
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
@@ -691,515 +1048,23 @@ from .models import (
 
 
 def receipt(request):
-    if not request.session.get("user_id"):
-        return redirect("login")
-
-    # ========================================================
-    # 1. SAVE RECEIPT (POST)
-    # ========================================================
-    if request.method == "POST":
-        party_code_post = (request.POST.get("party_code") or "").strip()
-        party_name_post = (request.POST.get("party_name") or "").strip()
-        received_amt_input = request.POST.get("amount")
-        payment_method = request.POST.get("payment_mode")
-        description = (request.POST.get("description") or "").strip()
-        entry_date_str = request.POST.get("date")
-
-        try:
-            # ---------------- Pakistan local time ----------------
-            pk_now = _pk_now()
-
-            if entry_date_str:
-                try:
-                    selected_date = datetime.strptime(
-                        entry_date_str, "%Y-%m-%d"
-                    ).date()
-                    final_entry_date = datetime.combine(
-                        selected_date, pk_now.time()
-                    )
-                except ValueError:
-                    final_entry_date = pk_now
-            else:
-                final_entry_date = pk_now
-
-            # ---------------- Amount validation ----------------
-            amt_to_receive = _to_decimal(received_amt_input)
-            if amt_to_receive <= 0:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": "Please enter a valid amount greater than 0.",
-                    }
-                )
-
-            # ---------------- Party resolution ----------------
-            party_code = party_code_post
-            party_name = party_name_post
-
-            if not party_code and party_name:
-                p = (
-                    Parties.objects.filter(company_name=party_name).first()
-                    or Parties.objects.filter(owner_name=party_name).first()
-                )
-                if p:
-                    party_code = p.code or ""
-                    party_name = p.company_name or p.owner_name or party_name
-
-            if not party_code:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": "Party code missing — please select a party from the modal.",
-                    }
-                )
-
-            if not party_name:
-                p = Parties.objects.filter(code=party_code).first()
-                if p:
-                    party_name = p.company_name or p.owner_name or ""
-
-            # ==================================================
-            # TRANSACTION (Atomic)
-            # ==================================================
-            with transaction.atomic():
-
-                # -------- Previous due / advance --------
-                last_hist = (
-                    ReceiptHistory.objects.filter(part_code=party_code)
-                    .order_by("-id")
-                    .first()
-                )
-                prev_due = (
-                    int(last_hist.due) if last_hist and last_hist.due else 0
-                )
-                prev_adv = (
-                    int(last_hist.advance)
-                    if last_hist and last_hist.advance
-                    else 0
-                )
-
-                net_before = prev_due - prev_adv
-
-                # ==================================================
-                # FIFO — Oldest unpaid invoices clear first
-                # ==================================================
-                cash_pool = amt_to_receive
-
-                unpaid_invoices = (
-                    SellsInvoice.objects.select_for_update()
-                    .filter(customer_name=party_name)
-                    .order_by("entry_date", "id")
-                )
-
-                for inv in unpaid_invoices:
-                    if cash_pool <= 0:
-                        break
-
-                    inv_received = _to_decimal(inv.received_amount)
-                    inv_remaining = _to_decimal(inv.remaining_amount)
-
-                    if inv_remaining <= 0:
-                        inv_total = _to_decimal(inv.amount)
-                        inv_remaining = inv_total - inv_received
-                        if inv_remaining <= 0:
-                            continue
-
-                    apply_now = min(inv_remaining, cash_pool)
-
-                    new_received = inv_received + apply_now
-                    new_remaining = inv_remaining - apply_now
-
-                    inv.received_amount = str(new_received)
-                    inv.remaining_amount = str(new_remaining)
-                    inv.save(
-                        update_fields=["received_amount", "remaining_amount"]
-                    )
-
-                    Sellspayment.objects.create(
-                        sell_no=inv.sells_no,
-                        customer_name=inv.customer_name or party_name,
-                        weight=inv.weight,
-                        rate=inv.rate,
-                        vehicle_no=inv.vehicle_no,
-                        amount=inv.amount,
-                        received_amount=str(apply_now),
-                        description=description,
-                        payment_method=payment_method,
-                        entry_date=final_entry_date,
-                    )
-
-                    cash_pool -= apply_now
-
-                # -------- New due / advance --------
-                net_after = net_before - int(amt_to_receive)
-
-                if net_after >= 0:
-                    new_due, new_adv = net_after, 0
-                else:
-                    new_due, new_adv = 0, abs(net_after)
-
-                # -------- Insert receipt_history --------
-                ReceiptHistory.objects.create(
-                    party_name=party_name,
-                    part_code=party_code,
-                    amount=0,
-                    received_amount=str(amt_to_receive),
-                    payment_method=payment_method,
-                    date=final_entry_date,
-                    due=new_due,
-                    advance=new_adv,
-                )
-
-                # ==================================================
-                # NEW ADDITION: CASHRECORD INTEGRATION
-                # ==================================================
-                # Database se sabse latest Cash Record nikalte hain
-                last_cash = CashRecord.objects.order_by("-id").first()
-                prev_cash_in_hand = (
-                    last_cash.cash_in_hand
-                    if (last_cash and last_cash.cash_in_hand)
-                    else 0
-                )
-                prev_cash_in_bank = (
-                    last_cash.cash_in_bank
-                    if (last_cash and last_cash.cash_in_bank)
-                    else 0
-                )
-
-                # Amount ko integer me convert karte hain
-                received_amount_int = int(amt_to_receive)
-
-                new_cash_in_hand = prev_cash_in_hand
-                new_cash_in_bank = prev_cash_in_bank
-
-                # Payment mode check kar ke relevant field update karenge
-                if payment_method == "Cash":
-                    new_cash_in_hand += received_amount_int
-                elif payment_method == "Bank Transfer":
-                    new_cash_in_bank += received_amount_int
-
-                # ID sequence error (1364) se bachne ke liye safe next ID generate karenge
-                max_cash_id = CashRecord.objects.aggregate(Max("id"))["id__max"]
-                next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
-
-                # CashRecord table me details save karna
-                CashRecord.objects.create(
-                    id=next_cash_id,
-                    cash_in_hand=new_cash_in_hand,
-                    cash_in_bank=new_cash_in_bank,
-                    date=final_entry_date,  # Selected date with time
-                    discription=description,  # Remarks / Description column
-                )
-
-            return JsonResponse({"success": True})
-
-        except Exception as e:
-            return JsonResponse({"success": False, "message": str(e)})
-
-    # ========================================================
-    # 2. AJAX — PENDING PARTIES (from receipt_history)
-    # ========================================================
-    if request.GET.get("action") == "get_sales":
-        history_qs = ReceiptHistory.objects.order_by("part_code", "-id")
-
-        latest_entries = {}
-        for row in history_qs:
-            if row.part_code and row.part_code not in latest_entries:
-                latest_entries[row.part_code] = row
-
-        data = []
-        for code, row in latest_entries.items():
-            due = row.due or 0
-            adv = row.advance or 0
-            if due <= 0 and adv <= 0:
-                continue
-            data.append(
-                {
-                    "part_code": row.part_code or "",
-                    "party_name": row.party_name or "",
-                    "due": due,
-                    "advance": adv,
-                    "date": (
-                        row.date.strftime("%d %b %Y") if row.date else "-"
-                    ),
-                }
-            )
-
-        data.sort(key=lambda x: (x["party_name"] or "").lower())
-        return JsonResponse({"success": True, "data": data})
-
-    # ========================================================
-    # 3. DEFAULT PAGE
-    # ========================================================
-    pk_now = _pk_now()
-    today_date = pk_now.strftime("%Y-%m-%d")
-    parties = Parties.objects.all().order_by("company_name")
-
-    context = {
-        "parties": parties,
-        "today_date": today_date,
-    }
-    return render(request, "receipt.html", context)
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.db import transaction
-from django.db.models import F, Max
-from decimal import Decimal, InvalidOperation
-from datetime import datetime
-import pytz
-from django.utils import timezone
-
-from .models import (
-    Parties,
-    PurchaseReceiving,
-    PurchasePayments,
-    PurchasePaymentHistory,
-    CashRecord,
-)
+    """
+    Separate Receipt form is removed and unified into Voucher Entry (CRV / BRV).
+    """
+    if not request.session.get('user_id'):
+        return redirect('login')
+    messages.info(request, 'Separate Receipt form has been unified into Voucher Entry. Use CRV (Cash Receipt) or BRV (Bank Receipt).')
+    return redirect('/voucher-entry/?type=CRV')
 
 
 def payment(request):
-    # ==================================================
-    # LOGIN CHECK
-    # ==================================================
+    """
+    Separate Payment form is removed and unified into Voucher Entry (CPV / BPV).
+    """
     if not request.session.get('user_id'):
         return redirect('login')
-
-    # ==================================================
-    # SAVE PAYMENT (POST)
-    # ==================================================
-    if request.method == 'POST':
-        party_name        = (request.POST.get('party_name') or '').strip()
-        party_code        = (request.POST.get('party_code') or '').strip()
-        payment_date_str  = request.POST.get('payment_date')
-        paying_amount_raw = (request.POST.get('paying_amount') or '').strip()
-        payment_mode      = (request.POST.get('payment_mode') or '').strip()
-        remarks           = (request.POST.get('remarks') or '').strip()
-        clear_advance     = request.POST.get('clear_advance') == 'on'
-
-        try:
-            # ---------------- Amount validation ----------------
-            if clear_advance:
-                paying_amount = Decimal('0')
-            else:
-                try:
-                    paying_amount = Decimal(paying_amount_raw)
-                except (InvalidOperation, TypeError, ValueError):
-                    raise ValueError("Please enter a valid payment amount.")
-                if paying_amount <= 0:
-                    raise ValueError("Payment amount must be greater than 0.")
-
-            if not party_name and not party_code:
-                raise ValueError("Please select a party.")
-
-            # ---------------- Pakistan local time ----------------
-            PK_TZ = pytz.timezone('Asia/Karachi')
-            pakistan_now = timezone.now().astimezone(PK_TZ).replace(tzinfo=None)
-
-            if payment_date_str:
-                try:
-                    selected_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
-                    final_payment_datetime = datetime.combine(selected_date, pakistan_now.time())
-                except ValueError:
-                    final_payment_datetime = pakistan_now
-            else:
-                final_payment_datetime = pakistan_now
-
-            # ---------------- Resolve Party Code ----------------
-            if not party_code:
-                party_obj = Parties.objects.filter(company_name=party_name).first() or \
-                            Parties.objects.filter(owner_name=party_name).first()
-                party_code = party_obj.code if party_obj else ''
-
-            if not party_code:
-                raise ValueError("Party code could not be resolved.")
-
-            # ==================================================
-            # TRANSACTION (Atomic Start)
-            # ==================================================
-            with transaction.atomic():
-
-                # 1) Get Last History for Running Balance
-                last_history = (
-                    PurchasePaymentHistory.objects
-                    .select_for_update()
-                    .filter(party_code=party_code)
-                    .order_by('-id')
-                    .first()
-                )
-
-                prev_due = Decimal(last_history.due if last_history and last_history.due else 0)
-                prev_adv = Decimal(last_history.advanced if last_history and last_history.advanced else 0)
-
-                # 2) Calculate New Due / Advance
-                if clear_advance:
-                    refund_amount = prev_adv
-                    new_due = 0
-                    new_adv = 0
-                    final_payed_val = refund_amount
-                else:
-                    net = (prev_due - prev_adv) - paying_amount
-                    if net >= 0:
-                        new_due, new_adv = net, 0
-                    else:
-                        new_due, new_adv = 0, abs(net)
-                    final_payed_val = paying_amount
-
-                amount_to_pay = int(final_payed_val)
-
-                # ==================================================
-                # CASHRECORD CHECK & VALIDATION
-                # ==================================================
-                last_cash = (
-                    CashRecord.objects
-                    .select_for_update()
-                    .order_by('-id')
-                    .first()
-                )
-                prev_cash_in_hand = (
-                    int(last_cash.cash_in_hand)
-                    if (last_cash and last_cash.cash_in_hand is not None)
-                    else 0
-                )
-                prev_cash_in_bank = (
-                    int(last_cash.cash_in_bank)
-                    if (last_cash and last_cash.cash_in_bank is not None)
-                    else 0
-                )
-
-                if payment_mode == 'Bank Transfer':
-                    if amount_to_pay > prev_cash_in_bank:
-                        raise ValueError(
-                            f"cash in bank mai itni amount nhi hy jitni ap pay kr rai ho (Mojooda Cash in Bank: Rs. {prev_cash_in_bank:,})"
-                        )
-                    new_cash_in_bank = prev_cash_in_bank - amount_to_pay
-                    new_cash_in_hand = prev_cash_in_hand
-                else:
-                    # Cash in Hand
-                    if amount_to_pay > prev_cash_in_hand:
-                        raise ValueError(
-                            f"cash in hand mai itni amount nhi hy jitni ap pay kr rai ho (Mojooda Cash in Hand: Rs. {prev_cash_in_hand:,})"
-                        )
-                    new_cash_in_hand = prev_cash_in_hand - amount_to_pay
-                    new_cash_in_bank = prev_cash_in_bank
-
-                # 3) FIFO Logic: Update PurchaseReceiving
-                if not clear_advance:
-                    temp_amount = paying_amount
-                    pending_purchases = PurchaseReceiving.objects.filter(
-                        vendor_code=party_code
-                    ).order_by('date', 'id')
-
-                    for purchase in pending_purchases:
-                        if temp_amount <= 0:
-                            break
-
-                        total_amt    = Decimal(purchase.amount or 0)
-                        already_paid = Decimal(purchase.payed_amount or 0)
-                        needed       = total_amt - already_paid
-
-                        if needed > 0:
-                            if temp_amount >= needed:
-                                purchase.payed_amount = total_amt
-                                temp_amount -= needed
-                            else:
-                                purchase.payed_amount = already_paid + temp_amount
-                                temp_amount = 0
-
-                            purchase.save()
-
-                # 4) Insert into PurchasePaymentHistory
-                PurchasePaymentHistory.objects.create(
-                    party_code    = party_code,
-                    party_name    = party_name,
-                    date          = final_payment_datetime,
-                    totall_amount = 0,
-                    payed_amount  = int(final_payed_val),
-                    due           = int(new_due),
-                    advanced      = int(new_adv),
-                    remarks       = (remarks or ('Advance cleared' if clear_advance else ''))[:500],
-                )
-
-                # 5) Log into PurchasePayments
-                PurchasePayments.objects.create(
-                    purchase_number = '',
-                    party_code      = party_code,
-                    part_name       = party_name,
-                    date            = final_payment_datetime,
-                    amount          = str(final_payed_val),
-                    payment_mood    = payment_mode or 'Cash',
-                    remarks         = (remarks or ('Advance cleared' if clear_advance else ''))[:50]
-                )
-
-                # 6) CASHRECORD ENTRY (New Row)
-                if amount_to_pay > 0:
-                    max_cash_id = CashRecord.objects.aggregate(Max("id"))["id__max"]
-                    next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
-
-                    cash_description = (
-                        remarks or ('Advance cleared' if clear_advance else f'Payment to {party_name}')
-                    )[:450]
-
-                    CashRecord.objects.create(
-                        id=next_cash_id,
-                        cash_in_hand=new_cash_in_hand,
-                        cash_in_bank=new_cash_in_bank,
-                        date=final_payment_datetime,
-                        discription=cash_description,
-                    )
-
-            # Success Response
-            msg = f"Payment Successful! Party: {party_name} | Paid: {final_payed_val}"
-            messages.success(request, msg)
-            return redirect('payment')
-
-        except ValueError as e:
-            messages.error(request, str(e))
-            return redirect('payment')
-        except Exception as e:
-            messages.error(request, f'Error: {str(e)}')
-            return redirect('payment')
-
-    # ==================================================
-    # GET Logic (Latest Entries & Parties List)
-    # ==================================================
-    history_qs = PurchasePaymentHistory.objects.order_by('party_code', '-id')
-    latest_entries = {}
-    for row in history_qs:
-        if row.party_code and row.party_code not in latest_entries:
-            latest_entries[row.party_code] = row
-
-    pending_parties = [
-        row for row in latest_entries.values()
-        if (row.due and row.due > 0) or (row.advanced and row.advanced > 0)
-    ]
-    pending_parties.sort(key=lambda x: (x.party_name or '').lower())
-
-    parties_list = []
-    for p in Parties.objects.all().order_by('company_name'):
-        bal = latest_entries.get(p.code)
-        p.balance_due = int(bal.due) if bal and bal.due else 0
-        p.balance_adv = int(bal.advanced) if bal and bal.advanced else 0
-        parties_list.append(p)
-
-    last_cash = CashRecord.objects.order_by('-id').first()
-    cash_in_hand = (
-        int(last_cash.cash_in_hand)
-        if (last_cash and last_cash.cash_in_hand is not None)
-        else 0
-    )
-    cash_in_bank = (
-        int(last_cash.cash_in_bank)
-        if (last_cash and last_cash.cash_in_bank is not None)
-        else 0
-    )
-
-    return render(request, 'payment.html', {
-        'parties': parties_list,
-        'pending_parties': pending_parties,
-        'cash_in_hand': cash_in_hand,
-        'cash_in_bank': cash_in_bank,
-    })
+    messages.info(request, 'Separate Payment form has been unified into Voucher Entry. Use CPV (Cash Payment) or BPV (Bank Payment).')
+    return redirect('/voucher-entry/?type=CPV')
 
 
 def waste_payment(request):

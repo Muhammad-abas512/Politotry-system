@@ -1,562 +1,525 @@
 {% extends 'base.html' %}
 
-{% block title %}Cash Opening - Politory{% endblock %}
+{% block title %}Cash & Bank Opening - Politory{% endblock %}
 
 {% block content %}
 <style>
-    * {
-        box-sizing: border-box;
+    .opening-container {
+        max-width: 980px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
     }
 
-    .cash-wrapper {
-        min-height: 85vh;
+    /* KPI Summary Cards */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 1.25rem 1.4rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+    }
+
+    .kpi-icon-wrap {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1.5rem;
+        font-size: 1.6rem;
     }
+    .icon-hand { background: #ecfdf5; color: #059669; }
+    .icon-bank { background: #eff6ff; color: #2563eb; }
+    .icon-total { background: #fef3c7; color: #d97706; }
 
-    .card {
-        background: #ffffff;
-        max-width: 520px;
-        width: 100%;
-        border-radius: 28px;
-        box-shadow: 0 20px 35px -8px rgba(0, 20, 30, 0.12), 0 8px 18px -6px rgba(0, 0, 0, 0.04);
-        padding: 2.2rem 2rem;
-        border: 1px solid #e2edf2;
-        position: relative;
-    }
-
-    .card-header-flex {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.2rem;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-
-    h1 {
-        font-size: 1.7rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        color: #0b2b3c;
-        margin-bottom: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .lock-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.75rem;
-        font-size: 0.78rem;
-        font-weight: 700;
-        border-radius: 20px;
-        background: #fee2e2;
-        color: #b91c1c;
-        border: 1px solid #fecaca;
-    }
-
-    .unlocked-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.75rem;
-        font-size: 0.78rem;
-        font-weight: 700;
-        border-radius: 20px;
-        background: #dcfce7;
-        color: #15803d;
-        border: 1px solid #bbf7d0;
-    }
-
-    /* Lock Alert Banner */
-    .lock-banner {
-        background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
-        border: 1.5px solid #fecaca;
-        border-radius: 16px;
-        padding: 1rem 1.1rem;
-        margin-bottom: 1.3rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 0.85rem;
-    }
-
-    .lock-banner-icon {
-        font-size: 1.5rem;
-        line-height: 1;
-        color: #dc2626;
-        padding-top: 2px;
-    }
-
-    .lock-banner-body {
-        flex: 1;
-    }
-
-    .lock-banner-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #991b1b;
-        margin-bottom: 0.25rem;
-    }
-
-    .lock-banner-text {
-        font-size: 0.82rem;
-        color: #7f1d1d;
-        margin-bottom: 0.45rem;
-        line-height: 1.4;
-    }
-
-    .lock-banner-meta {
-        font-size: 0.76rem;
-        color: #64748b;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.8rem;
-        font-weight: 500;
-    }
-
-    /* Summary Breakdown Pills (When Locked) */
-    .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.6rem;
-        margin-bottom: 1.3rem;
-    }
-
-    .summary-pill {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 0.65rem 0.6rem;
-        text-align: center;
-    }
-
-    .summary-pill.pill-total {
-        background: #eff6ff;
-        border-color: #bfdbfe;
-    }
-
-    .pill-label {
-        display: block;
-        font-size: 0.7rem;
+    .kpi-info { flex: 1; }
+    .kpi-label {
+        font-size: 0.8rem;
         text-transform: uppercase;
+        letter-spacing: 0.04em;
         font-weight: 700;
         color: #64748b;
         margin-bottom: 0.2rem;
     }
-
-    .pill-value {
-        font-size: 0.95rem;
+    .kpi-val {
+        font-size: 1.35rem;
         font-weight: 800;
-        color: #0b2545;
+        color: #0f172a;
+    }
+    .kpi-sub {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        margin-top: 0.15rem;
     }
 
-    .pill-total .pill-value {
-        color: #1d4ed8;
+    /* Main Form Card */
+    .form-card {
+        background: #ffffff;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
     }
 
-    .form-group {
-        margin-bottom: 1.2rem;
-    }
-
-    label {
+    .form-header {
+        background: linear-gradient(135deg, #0b2b3c 0%, #1e4963 100%);
+        color: white;
+        padding: 1.25rem 1.6rem;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-weight: 600;
-        font-size: 0.92rem;
-        color: #1d4a5e;
-        margin-bottom: 0.4rem;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
     }
 
-    .input-wrapper {
+    .form-header h4 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .header-badge {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    .form-body {
+        padding: 1.8rem 1.6rem;
+    }
+
+    .field-group {
+        margin-bottom: 1.35rem;
+    }
+
+    .field-label {
+        display: block;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: #1e293b;
+        margin-bottom: 0.45rem;
+    }
+
+    .field-label .urdu-txt {
+        font-weight: 500;
+        color: #64748b;
+        font-size: 0.82rem;
+        margin-left: 0.35rem;
+    }
+
+    .input-addon-wrap {
         position: relative;
         display: flex;
         align-items: center;
     }
 
-    .currency-symbol {
+    .currency-tag {
         position: absolute;
-        left: 1.1rem;
-        font-weight: 600;
-        color: #2d6e8f;
-        font-size: 1rem;
+        left: 1rem;
+        font-weight: 700;
+        color: #0b2b3c;
+        font-size: 0.95rem;
         pointer-events: none;
     }
 
-    input[type="number"],
-    textarea {
+    .currency-input {
         width: 100%;
-        font-size: 0.95rem;
-        font-weight: 500;
-        background: #f9fdff;
-        border: 1.5px solid #cde3ed;
-        border-radius: 14px;
+        padding: 0.75rem 1rem 0.75rem 2.6rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0f172a;
+        background: #f8fafc;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
         outline: none;
-        transition: all 0.2s ease;
-        color: #113946;
-        font-family: inherit;
+        transition: all 0.2s;
     }
-
-    input[type="number"] {
-        padding: 0.85rem 1rem 0.85rem 2.4rem;
-    }
-
-    textarea {
-        padding: 0.85rem 1rem;
-        resize: vertical;
-        min-height: 80px;
-    }
-
-    input:focus:not([disabled]), textarea:focus:not([disabled]) {
-        border-color: #2b8bb0;
+    .currency-input:focus {
+        border-color: #0284c7;
         background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(43, 139, 176, 0.12);
+        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
     }
 
-    /* Locked input styling */
-    input:disabled,
-    textarea:disabled,
-    input[readonly],
-    textarea[readonly] {
-        background: #f1f5f9 !important;
-        border-color: #cbd5e1 !important;
-        color: #475569 !important;
-        cursor: not-allowed !important;
-        font-weight: 600;
-    }
-
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-    .field-divider {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 0.8rem 0;
-    }
-
-    .field-divider hr {
-        flex: 1;
-        border: none;
-        border-top: 1px dashed #c3dae6;
-    }
-
-    .actions {
-        margin-top: 1.4rem;
-    }
-
-    button {
+    .regular-input, .select-custom {
         width: 100%;
-        background: #0b2b3c;
-        color: white;
-        border: none;
-        padding: 0.9rem 1.5rem;
-        font-size: 1.02rem;
-        font-weight: 600;
-        border-radius: 30px;
-        cursor: pointer;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        color: #0f172a;
+        background: #f8fafc;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .regular-input:focus, .select-custom:focus {
+        border-color: #0284c7;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
+    }
+
+    /* Live Preview Banner */
+    .live-preview-box {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border: 1.5px solid #86efac;
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 0.6rem;
-        transition: background 0.2s, transform 0.15s;
-    }
-
-    button:hover:not(:disabled) {
-        background: #124a62;
-    }
-
-    /* Locked button */
-    .btn-locked {
-        background: #64748b !important;
-        color: #e2e8f0 !important;
-        cursor: not-allowed !important;
-        opacity: 0.9;
-        box-shadow: none !important;
-    }
-
-    /* Quick links */
-    .quick-links {
-        margin-top: 1.3rem;
-        padding-top: 1.1rem;
-        border-top: 1px dashed #e2e8f0;
-        display: flex;
         justify-content: space-between;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
         gap: 0.6rem;
     }
-
-    .quick-link-btn {
-        flex: 1;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        padding: 0.55rem 0.8rem;
-        border-radius: 10px;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-
-    .link-ledger {
-        background: #f0fdf4;
+    .preview-label {
+        font-weight: 700;
         color: #166534;
-        border: 1px solid #bbf7d0;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-    .link-ledger:hover {
-        background: #dcfce7;
+    .preview-amount {
+        font-size: 1.4rem;
+        font-weight: 900;
         color: #14532d;
     }
 
-    .link-report {
-        background: #f0f9ff;
-        color: #0369a1;
-        border: 1px solid #bae6fd;
+    /* Submit Button */
+    .btn-submit {
+        background: linear-gradient(135deg, #0b2b3c 0%, #155e75 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.85rem 1.8rem;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        transition: all 0.2s;
+        box-shadow: 0 4px 14px rgba(11, 43, 60, 0.25);
     }
-    .link-report:hover {
-        background: #e0f2fe;
-        color: #075985;
+    .btn-submit:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(11, 43, 60, 0.35);
+        background: linear-gradient(135deg, #08212e 0%, #0e7490 100%);
+    }
+    .btn-submit:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
     }
 
-    .message {
-        margin-top: 1.2rem;
-        padding: 0.9rem 1.1rem;
-        border-radius: 14px;
+    /* Quick Links */
+    .quick-nav {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    .quick-btn {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        text-decoration: none;
+        color: #334155;
+        font-weight: 600;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    .quick-btn:hover {
+        background: #f1f5f9;
+        color: #0b2b3c;
+        border-color: #cbd5e1;
+    }
+
+    /* Alerts */
+    .alert-box {
+        padding: 0.9rem 1.2rem;
+        border-radius: 12px;
         font-size: 0.9rem;
-        font-weight: 500;
+        font-weight: 600;
+        margin-bottom: 1.25rem;
         display: none;
-        word-break: break-word;
     }
-
-    .message.show { display: block; }
-    .message.error { background: #ffe9e9; border-left: 5px solid #c73b3b; color: #7a1e1e; }
-    .message.success { background: #e1f3e8; border-left: 5px solid #1e8b5c; color: #145c3d; }
+    .alert-success { background: #dcfce7; border: 1px solid #86efac; color: #166534; display: block; }
+    .alert-error   { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; display: block; }
 </style>
 
-<div class="cash-wrapper">
-    <div class="card">
-        <!-- Card Header -->
-        <div class="card-header-flex">
-            <h1><span>💰</span> Cash Opening</h1>
-            {% if is_locked %}
-                <span class="lock-badge" id="headerStatusBadge">
-                    <i>🔒</i> Locked (لاک شدہ)
-                </span>
-            {% else %}
-                <span class="unlocked-badge" id="headerStatusBadge">
-                    <i>🔓</i> Open for Entry
-                </span>
-            {% endif %}
-        </div>
+<div class="opening-container">
 
-        <!-- Lock Alert Banner (Shown when locked) -->
-        <div id="lockBannerContainer" {% if not is_locked %}style="display: none;"{% endif %}>
-            <div class="lock-banner">
-                <div class="lock-banner-icon">
-                    <i>🔒</i>
-                </div>
-                <div class="lock-banner-body">
-                    <div class="lock-banner-title">Opening Balance Locked (اوپننگ لاک ہے)</div>
-                    <div class="lock-banner-text">
-                        کیش کی ابتدائی رقم ایک بار درج ہو چکی ہے۔ ڈپلیکیٹ انٹری سے بچاؤ کے لیے یہ فارم مکمل طور پر لاک کر دیا گیا ہے۔
-                    </div>
-                    {% if opening_date %}
-                    <div class="lock-banner-meta" id="lockMetaDate">
-                        <span><i>🕒</i> Recorded: <strong>{{ opening_date|date:"d-m-Y h:i A" }}</strong></span>
-                    </div>
-                    {% endif %}
-                </div>
+    <!-- KPI CARDS -->
+    <div class="kpi-row">
+        <!-- Cash in Hand KPI -->
+        <div class="kpi-card">
+            <div class="kpi-icon-wrap icon-hand">
+                <i class="bi bi-cash-stack"></i>
             </div>
-
-            <!-- Summary Breakdown (Hand, Bank, Total) -->
-            <div class="summary-grid" id="summaryGrid">
-                <div class="summary-pill">
-                    <span class="pill-label">In Hand</span>
-                    <span class="pill-value" id="dispHand">Rs {{ cash_in_hand|default:"0" }}</span>
-                </div>
-                <div class="summary-pill">
-                    <span class="pill-label">In Bank</span>
-                    <span class="pill-value" id="dispBank">Rs {{ cash_in_bank|default:"0" }}</span>
-                </div>
-                <div class="summary-pill pill-total">
-                    <span class="pill-label">Total Cash</span>
-                    <span class="pill-value" id="dispTotal">Rs {{ total_opening|default:"0" }}</span>
-                </div>
+            <div class="kpi-info">
+                <div class="kpi-label">Cash in Hand</div>
+                <div class="kpi-val" id="kpiHandVal">Rs. {{ cash_in_hand|default:"0" }}</div>
+                <div class="kpi-sub">ہاتھ میں موجود رقم (010101001)</div>
             </div>
         </div>
 
-        <form id="cashForm" method="POST" novalidate>
-            {% csrf_token %}
-
-            <!-- Cash in Hand -->
-            <div class="form-group">
-                <label for="cashInHand"><i>🖐️</i> Cash in Hand</label>
-                <div class="input-wrapper">
-                    <span class="currency-symbol">Rs</span>
-                    <input 
-                        type="number" 
-                        id="cashInHand" 
-                        name="cashInHand" 
-                        value="{{ cash_in_hand }}"
-                        placeholder="0" 
-                        min="0"
-                        autocomplete="off"
-                        {% if is_locked %}readonly disabled{% endif %}
-                    >
-                </div>
+        <!-- Cash in Bank KPI -->
+        <div class="kpi-card">
+            <div class="kpi-icon-wrap icon-bank">
+                <i class="bi bi-bank2"></i>
             </div>
-
-            <div class="field-divider">
-                <hr><span>➕</span><hr>
+            <div class="kpi-info">
+                <div class="kpi-label">Cash in Bank</div>
+                <div class="kpi-val" id="kpiBankVal">Rs. {{ cash_in_bank|default:"0" }}</div>
+                <div class="kpi-sub">بینک بیلنس (Bank COA)</div>
             </div>
+        </div>
 
-            <!-- Cash in Bank -->
-            <div class="form-group">
-                <label for="cashInBank"><i>🏦</i> Cash in Bank</label>
-                <div class="input-wrapper">
-                    <span class="currency-symbol">Rs</span>
-                    <input 
-                        type="number" 
-                        id="cashInBank" 
-                        name="cashInBank" 
-                        value="{{ cash_in_bank }}"
-                        placeholder="0" 
-                        min="0"
-                        autocomplete="off"
-                        {% if is_locked %}readonly disabled{% endif %}
-                    >
-                </div>
+        <!-- Total Liquid KPI -->
+        <div class="kpi-card">
+            <div class="kpi-icon-wrap icon-total">
+                <i class="bi bi-wallet2"></i>
             </div>
-
-            <!-- Description -->
-            <div class="form-group">
-                <label for="discription"><i>📝</i> Description</label>
-                <textarea 
-                    id="discription" 
-                    name="discription" 
-                    placeholder="Enter details / remarks..."
-                    maxlength="450"
-                    {% if is_locked %}readonly disabled{% endif %}
-                >{{ discription }}</textarea>
+            <div class="kpi-info">
+                <div class="kpi-label">Total Opening Cash</div>
+                <div class="kpi-val" id="kpiTotalVal">Rs. {{ total_opening|default:"0" }}</div>
+                <div class="kpi-sub">مجموعی ابتدائی رقم</div>
             </div>
-
-            <!-- Submit Button -->
-            <div class="actions">
-                {% if is_locked %}
-                    <button type="button" id="submitBtn" class="btn-locked" disabled>
-                        <i>🔒</i> Opening Saved & Locked (اوپننگ محفوظ ہے)
-                    </button>
-                {% else %}
-                    <button type="submit" id="submitBtn">
-                        <i>📋</i> Save Balances
-                    </button>
-                {% endif %}
-            </div>
-        </form>
-
-        <div id="messageBox" class="message"></div>
-
-        <!-- Quick Links to Reports -->
-        <div class="quick-links">
-            <a href="{% url 'cash_ledger' %}" class="quick-link-btn link-ledger">
-                <i>📖</i> Cash Ledger
-            </a>
-            <a href="{% url 'cash_report' %}" class="quick-link-btn link-report">
-                <i>📊</i> Cash Report
-            </a>
         </div>
     </div>
+
+    <!-- Django Messages (if non-AJAX) -->
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert-box alert-{% if 'error' in message.tags %}error{% else %}success{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- AJAX Alert Box -->
+    <div id="ajaxAlert" class="alert-box"></div>
+
+    <!-- MAIN FORM CARD -->
+    <div class="form-card">
+        <div class="form-header">
+            <h4>
+                <i class="bi bi-cash-coin"></i>
+                Cash & Bank Opening Setup (ابتدائی کیش بیلنس)
+            </h4>
+            <span class="header-badge">
+                <i class="bi bi-shield-check me-1"></i> COA Level 4 Synced
+            </span>
+        </div>
+
+        <div class="form-body">
+            <form id="cashOpeningForm" method="POST" action="{% url 'cash' %}">
+                {% csrf_token %}
+                <input type="hidden" name="is_ajax" value="1">
+
+                <div class="row g-3">
+                    <!-- Cash in Hand -->
+                    <div class="col-12 col-md-6 field-group">
+                        <label class="field-label" for="cashInHand">
+                            <i class="bi bi-cash me-1 text-success"></i> Cash in Hand Amount
+                            <span class="urdu-txt">(کیش ان ہینڈ)</span>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-addon-wrap">
+                            <span class="currency-tag">Rs.</span>
+                            <input 
+                                type="number" 
+                                class="currency-input" 
+                                id="cashInHand" 
+                                name="cashInHand" 
+                                value="{{ cash_in_hand|default:'0' }}" 
+                                min="0" 
+                                step="1" 
+                                placeholder="0"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Cash in Bank -->
+                    <div class="col-12 col-md-6 field-group">
+                        <label class="field-label" for="cashInBank">
+                            <i class="bi bi-bank me-1 text-primary"></i> Cash in Bank Amount
+                            <span class="urdu-txt">(بینک کی ابتدائی رقم)</span>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-addon-wrap">
+                            <span class="currency-tag">Rs.</span>
+                            <input 
+                                type="number" 
+                                class="currency-input" 
+                                id="cashInBank" 
+                                name="cashInBank" 
+                                value="{{ cash_in_bank|default:'0' }}" 
+                                min="0" 
+                                step="1" 
+                                placeholder="0"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Bank Account Dropdown -->
+                    <div class="col-12 col-md-6 field-group">
+                        <label class="field-label" for="bankAccountId">
+                            <i class="bi bi-diagram-3 me-1 text-info"></i> Target Bank Account (COA Level 4)
+                            <span class="urdu-txt">(بینک کھاتہ منتخب کریں)</span>
+                        </label>
+                        <select name="bankAccountId" id="bankAccountId" class="select-custom">
+                            {% for b in bank_accounts %}
+                            <option value="{{ b.id }}" {% if selected_bank_id == b.id %}selected{% endif %}>
+                                {{ b.code }} - {{ b.name }}
+                            </option>
+                            {% empty %}
+                            <option value="">Default Bank Account</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Date Field -->
+                    <div class="col-12 col-md-6 field-group">
+                        <label class="field-label" for="dateField">
+                            <i class="bi bi-calendar3 me-1 text-warning"></i> Effective Date
+                            <span class="urdu-txt">(تاریخ)</span>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input 
+                            type="date" 
+                            class="regular-input" 
+                            id="dateField" 
+                            name="date" 
+                            value="{{ opening_date }}" 
+                            required
+                        >
+                    </div>
+
+                    <!-- Description Field -->
+                    <div class="col-12 field-group">
+                        <label class="field-label" for="descriptionField">
+                            <i class="bi bi-pencil-square me-1 text-secondary"></i> Description / Remarks
+                            <span class="urdu-txt">(تفصیل / ریمارکس)</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            class="regular-input" 
+                            id="descriptionField" 
+                            name="discription" 
+                            value="{{ discription }}" 
+                            placeholder="Initial Business Opening Cash & Bank Balance"
+                            maxlength="450"
+                        >
+                    </div>
+                </div>
+
+                <!-- LIVE TOTAL CALCULATOR PREVIEW -->
+                <div class="live-preview-box">
+                    <div class="preview-label">
+                        <i class="bi bi-calculator-fill fs-5"></i>
+                        <span>Combined Total Opening Cash (مجموعی رقم):</span>
+                    </div>
+                    <div class="preview-amount" id="previewTotal">
+                        Rs. {{ total_opening|default:"0" }}
+                    </div>
+                </div>
+
+                <!-- SUBMIT BUTTON -->
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="bi bi-check-circle-fill"></i> Save / Update Opening Balances
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- QUICK NAVIGATION -->
+    <div class="quick-nav">
+        <a href="{% url 'cash_ledger' %}" class="quick-btn">
+            <i class="bi bi-journal-text text-success"></i> Cash Ledger (کیش لیجر)
+        </a>
+        <a href="{% url 'cash_report' %}" class="quick-btn">
+            <i class="bi bi-file-earmark-bar-graph text-primary"></i> Daily Cash Report (کیش رپورٹ)
+        </a>
+        <a href="{% url 'voucher_entry' %}" class="quick-btn">
+            <i class="bi bi-receipt text-warning"></i> Voucher Entry (واؤچر انٹری)
+        </a>
+        <a href="{% url 'opening' %}" class="quick-btn">
+            <i class="bi bi-people-fill text-danger"></i> Party Opening Balances (پارٹی اوپننگ)
+        </a>
+    </div>
+
 </div>
 
 <script>
-    (function() {
-        const form = document.getElementById('cashForm');
-        const messageBox = document.getElementById('messageBox');
-        const submitBtn = document.getElementById('submitBtn');
-        const lockBannerContainer = document.getElementById('lockBannerContainer');
-        const headerStatusBadge = document.getElementById('headerStatusBadge');
+    document.addEventListener('DOMContentLoaded', function () {
         const handInput = document.getElementById('cashInHand');
         const bankInput = document.getElementById('cashInBank');
-        const descInput = document.getElementById('discription');
+        const previewTotal = document.getElementById('previewTotal');
+        const kpiHandVal = document.getElementById('kpiHandVal');
+        const kpiBankVal = document.getElementById('kpiBankVal');
+        const kpiTotalVal = document.getElementById('kpiTotalVal');
+        const cashForm = document.getElementById('cashOpeningForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const ajaxAlert = document.getElementById('ajaxAlert');
 
-        let isFormLocked = {{ is_locked|yesno:"true,false" }};
-
-        function showMessage(text, type = 'info') {
-            messageBox.textContent = text;
-            messageBox.className = 'message show ' + type;
+        function formatNumber(num) {
+            return Number(num || 0).toLocaleString('en-US');
         }
 
-        function clearMessage() {
-            messageBox.textContent = '';
-            messageBox.className = 'message';
+        function updateLiveTotal() {
+            const h = parseFloat(handInput.value) || 0;
+            const b = parseFloat(bankInput.value) || 0;
+            const total = h + b;
+            previewTotal.textContent = 'Rs. ' + formatNumber(total);
         }
 
-        function applyLockState(data) {
-            isFormLocked = true;
-            handInput.setAttribute('disabled', 'disabled');
-            handInput.setAttribute('readonly', 'readonly');
-            bankInput.setAttribute('disabled', 'disabled');
-            bankInput.setAttribute('readonly', 'readonly');
-            descInput.setAttribute('disabled', 'disabled');
-            descInput.setAttribute('readonly', 'readonly');
+        handInput.addEventListener('input', updateLiveTotal);
+        bankInput.addEventListener('input', updateLiveTotal);
+
+        cashForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
 
             submitBtn.disabled = true;
-            submitBtn.className = 'btn-locked';
-            submitBtn.innerHTML = '<i>🔒</i> Opening Saved & Locked (اوپننگ محفوظ ہے)';
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Saving Opening Balances...';
+            ajaxAlert.style.display = 'none';
+            ajaxAlert.className = 'alert-box';
 
-            if (headerStatusBadge) {
-                headerStatusBadge.className = 'lock-badge';
-                headerStatusBadge.innerHTML = '<i>🔒</i> Locked (لاک شدہ)';
-            }
-
-            if (lockBannerContainer) {
-                lockBannerContainer.style.display = 'block';
-                if (data) {
-                    const dispHand = document.getElementById('dispHand');
-                    const dispBank = document.getElementById('dispBank');
-                    const dispTotal = document.getElementById('dispTotal');
-                    const h = parseFloat(data.cash_in_hand || handInput.value || 0);
-                    const b = parseFloat(data.cash_in_bank || bankInput.value || 0);
-                    if (dispHand) dispHand.textContent = 'Rs ' + h.toLocaleString();
-                    if (dispBank) dispBank.textContent = 'Rs ' + b.toLocaleString();
-                    if (dispTotal) dispTotal.textContent = 'Rs ' + (h + b).toLocaleString();
-                }
-            }
-        }
-
-        form.addEventListener('submit', async function(event) {
-            event.preventDefault();
-            clearMessage();
-
-            if (isFormLocked) {
-                showMessage('⚠️ یہ فارم لاک ہو چکا ہے، دوبارہ اوپننگ درج نہیں کی جا سکتی۔', 'error');
-                return;
-            }
-
-            const hand = handInput.value.trim();
-            const bank = bankInput.value.trim();
-
-            if (!hand && !bank) {
-                showMessage('Please enter at least Cash in Hand or Cash in Bank.', 'error');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i>⏳</i> Saving...';
-
-            const formData = new FormData(form);
+            const formData = new FormData(cashForm);
 
             try {
-                const response = await fetch(window.location.href, {
+                const response = await fetch(cashForm.action, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -564,26 +527,35 @@
                     }
                 });
 
-                const result = await response.json();
+                const data = await response.json();
 
-                if (response.ok && result.status === 'success') {
-                    showMessage('✅ ' + result.message, 'success');
-                    applyLockState(result);
+                if (response.ok && data.status === 'success') {
+                    ajaxAlert.className = 'alert-box alert-success';
+                    ajaxAlert.innerHTML = '✅ ' + data.message;
+                    ajaxAlert.style.display = 'block';
+
+                    // Update KPIs dynamically
+                    kpiHandVal.textContent = 'Rs. ' + formatNumber(data.cash_in_hand);
+                    kpiBankVal.textContent = 'Rs. ' + formatNumber(data.cash_in_bank);
+                    kpiTotalVal.textContent = 'Rs. ' + formatNumber(data.total_opening);
+                    previewTotal.textContent = 'Rs. ' + formatNumber(data.total_opening);
+
+                    // Scroll to alert
+                    ajaxAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
-                    showMessage(result.message || 'Error occurred while saving.', 'error');
-                    if (result.is_locked) {
-                        applyLockState(result);
-                    } else {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<i>📋</i> Save Balances';
-                    }
+                    ajaxAlert.className = 'alert-box alert-error';
+                    ajaxAlert.innerHTML = '❌ ' + (data.message || 'Error occurred while saving.');
+                    ajaxAlert.style.display = 'block';
                 }
             } catch (err) {
-                showMessage('Network error. Please try again.', 'error');
+                // If JSON parse fails or network issue, fallback submit normally
+                cashForm.submit();
+                return;
+            } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i>📋</i> Save Balances';
+                submitBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> Save / Update Opening Balances';
             }
         });
-    })();
+    });
 </script>
 {% endblock %}

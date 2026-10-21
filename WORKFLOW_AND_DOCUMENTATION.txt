@@ -1,0 +1,393 @@
+================================================================================
+POLITORY POULTRY ERP & INTEGRATED ACCOUNTING SYSTEM
+SYSTEM OVERVIEW, TECHNICAL ARCHITECTURE & COMPLETE USER WORKFLOW GUIDE
+================================================================================
+Language: Roman Urdu & English
+Generated: October 2026
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. SUMMARY OF IMPLEMENTED REQUIREMENTS
+2. REMOVAL OF SEPARATE PAYMENT & RECEIPT FORMS -> UNIFIED VOUCHER ENTRY
+3. VOUCHER TYPES & ACCOUNTING MECHANICS (CPV, CRV, BPV, BRV, JV)
+4. CHART OF ACCOUNTS (COA) LEVEL 4 & PARTY INTEGRATION
+5. PARTY LEDGER, CASH LEDGER & REPORTS INTEGRATION
+6. USER MANAGEMENT & PAGE-BY-PAGE ACCESS CONTROL
+7. STEP-BY-STEP WORKFLOW GUIDE (KAISE USE KARNA HAI - ROMAN URDU)
+8. DATABASE SCHEMA & ORM MODELS SUMMARY
+
+================================================================================
+1. SUMMARY OF IMPLEMENTED REQUIREMENTS
+================================================================================
+Aapki tamam requirements ke mutabiq system ko mukammal taur par upgrade aur
+centralize kar diya gaya hai:
+
+a. Alag se payment aur receipt ke forms remove kar diye gaye hain. Tamam
+   transactions (payments, receipts, advances, head-to-head transfers) ab sirf
+   aur sirf Centralized "Voucher Entry" form se process hoti hain.
+b. 4 explicit standard voucher types create kiye gaye hain:
+   - CPV: Cash Payment Voucher (Cash in Hand kam hoga / Credit, Party/Expense Debit)
+   - CRV: Cash Receipt Voucher (Cash in Hand barhega / Debit, Party/Income Credit)
+   - BPV: Bank Payment Voucher (Bank Account kam hoga / Credit, Party/Expense Debit)
+   - BRV: Bank Receipt Voucher (Bank Account barhega / Debit, Party/Income Credit)
+   - JV:  Journal / Transfer Voucher (Multi-line cross-head balancing)
+c. Chart of Accounts me har party Level 4 par exist karti hai:
+   - Level 3 Head: 1120 ("Trade Accounts (Parties)")
+   - Har party ka apna Level 4 account auto-create aur auto-sync hota hai (e.g. 11200001, 11200002).
+   - Kisi bhi party se advance lia ja sakta hai, kisi ko bhi advance diya ja sakta hai,
+     kisi se bhi purchase aur kisi ko bhi sell ki ja sakti hai.
+d. Har party ka mukammal Party Ledger banta hai jisme purchase bills, sales invoices,
+   aur vouchers (CPV, CRV, BPV, BRV, JV) running balance ke sath aate hain.
+e. Cash Ledger aur Daily Cash Report voucher entry se direct connect ho chuki hain.
+   Jo bhi paisa cash in hand me aya ya gaya wo cash ledger aur cash report me reflect hota hai.
+f. Proper User Management System:
+   - Form sab se upar (Top) mojood hai: Username, Password, Role (Admin/Staff), Mobile, Email, Address.
+   - Form ke theek neechay registered users ka responsive table mojood hai.
+   - Har table row par "Settings" / Permissions ka button laga hua hai jo Modal
+     open karta hai aur wahan se har module ke har page ki checkbox se access
+     grant ya revoke ki ja sakti hai.
+
+================================================================================
+2. REMOVAL OF SEPARATE PAYMENT & RECEIPT FORMS -> UNIFIED VOUCHER ENTRY
+================================================================================
+Pehlay system me alag se payment.html aur receipt.html the jinki logic alag alag thi.
+Aapki requirement ke mutabiq:
+- Purani standalone views ko redirect kar diya gaya hai:
+  * /payment/  -> /voucher-entry/?type=CPV
+  * /receipt/  -> /voucher-entry/?type=CRV
+- Sidebar aur Navigation me se "Payment" aur "Receipt" ke purane links ko
+  centralized "Voucher Entry (CPV, CRV, BPV, BRV)" se replace kar diya gaya hai.
+- Ab koi bhi transaction (chahe party ka purana bill ho, naya advance ho, ya expense ho)
+  sirf Voucher Entry se enter hota hai.
+
+================================================================================
+3. VOUCHER TYPES & ACCOUNTING MECHANICS (CPV, CRV, BPV, BRV, JV)
+================================================================================
+System me double-entry accounting rules ke mutabiq 5 tabs hain:
+
+1. CPV (Cash Payment Voucher):
+   - Prefix: CPV-YYYY-XXXXX (e.g. CPV-2026-00001)
+   - Kab use karna hai: Jab aap Cash in Hand se kisi party ko advance dein,
+     kisi supplier ko purchase payment karein, ya company ka expense pay karein.
+   - Accounting Rule:
+     * Credit: Cash in Hand [1110001] (Raqam kam hogi)
+     * Debit:  Party Account [1120000X] ya Expense Account [521000X] (Raqam barhegi/bill pay hoga)
+   - Effect: CashRecord me Cash Out hoga aur Cash in Hand balance decrease hoga.
+             Party Ledger me payment show hogi aur party ka balance adjust hoga.
+
+2. CRV (Cash Receipt Voucher):
+   - Prefix: CRV-YYYY-XXXXX (e.g. CRV-2026-00001)
+   - Kab use karna hai: Jab aap Cash in Hand me kisi party se advance lein,
+     sales invoice ki cash collection karein, ya koi aamdani receive karein.
+   - Accounting Rule:
+     * Debit:  Cash in Hand [1110001] (Cash barhega)
+     * Credit: Party Account [1120000X] ya Income Account (Party due kam hogi ya advance barhega)
+   - Effect: CashRecord me Cash In hoga aur Cash in Hand balance increase hoga.
+             Party Ledger me Credit me aayega aur customer ki due kam hogi.
+
+3. BPV (Bank Payment Voucher):
+   - Prefix: BPV-YYYY-XXXXX (e.g. BPV-2026-00001)
+   - Kab use karna hai: Jab aap kisi Bank Account (e.g. Bank Al-Habib, Meezan, MCB)
+     se cheque ya online transfer ke zariye payment ya advance karein.
+   - Accounting Rule:
+     * Credit: Selected Bank Account [1110002 / 1110003 / 1110004] (Bank balance kam hoga)
+     * Debit:  Party Account ya Expense Account
+   - Effect: CashRecord me cash_in_bank decrease hoga.
+
+4. BRV (Bank Receipt Voucher):
+   - Prefix: BRV-YYYY-XXXXX (e.g. BRV-2026-00001)
+   - Kab use karna hai: Jab party aapke bank account me online paisay bhejay
+     ya cheque deposit ho.
+   - Accounting Rule:
+     * Debit:  Selected Bank Account [1110002 / 1110003 / 1110004] (Bank balance barhega)
+     * Credit: Party Account ya Income Account
+   - Effect: CashRecord me cash_in_bank increase hoga.
+
+5. JV (Journal / Transfer Voucher & Multi-line Grid):
+   - Prefix: JV-YYYY-XXXXX (e.g. JV-2026-00001)
+   - Kab use karna hai: Jab Cash se Bank me paisay jama karwayen (Contra),
+     Bank se Cash nikala jaye, ya Party-to-Party adjustment karni ho.
+   - Multi-line Grid mode me multiple Debit aur Credit rows add ki ja sakti hain
+     jahan Total Debit = Total Credit hona zaroori hai.
+
+================================================================================
+4. CHART OF ACCOUNTS (COA) LEVEL 4 & PARTY INTEGRATION
+================================================================================
+Chart of Accounts ka 4-Level structure:
+- Level 1: Main Head (1000 Assets, 2000 Liabilities, 3000 Equity, 4000 Revenue, 5000 Expenses)
+- Level 2: Sub Head (1100 Current Assets, 5200 Operating Expenses, etc.)
+- Level 3: Control Head:
+  * 1110: Cash & Bank Balances
+  * 1120: Trade Accounts (Parties)  <--- YAHAN HAR PARTY EXIST KARTI HAI!
+  * 5210: Daily Operating Expenses
+- Level 4: Transactional Accounts:
+  * 1110001: Cash in Hand
+  * 1110002: Bank Al-Habib
+  * 1110003: Meezan Bank
+  * 1110004: MCB Bank
+  * 11200001: Party 1 (Linked to Parties model via party_id)
+  * 11200002: Party 2
+  * ... tamam parties Level 4 par mojood hain.
+
+Party Sync Mechanism:
+- Jab bhi aap Parties page se nayi party banate hain ya edit karte hain,
+  system automatically `sync_single_party_to_coa()` call karta hai.
+- Agar party pehle se na ho to uska Level 4 code generate hota hai aur
+  Parties table ke sath foreign key se link ho jata hai.
+- Tamam 11 parties Level 4 par sync ho chuki hain.
+
+================================================================================
+5. PARTY LEDGER, CASH LEDGER & REPORTS INTEGRATION
+================================================================================
+1. Party Ledger (/party_ledger/):
+   - Kisi bhi party ka ledger select karein aur date filter lagayein.
+   - Opening Balance: Date range se pehle ke tamam Purchase bills, Sales invoices,
+     aur Vouchers (CPV, CRV, BPV, BRV, JV) ka net opening balance calculate hota hai.
+   - Period Transactions:
+     * Purchase Bill: Credit (Hum ne party ko dena hai)
+     * Sales Invoice: Debit (Party ne humein dena hai)
+     * CPV / BPV (Payment/Advance to party): Debit (Hum ne de diya)
+     * CRV / BRV (Receipt/Advance from party): Credit (Party ne de diya)
+   - Har line par running balance calculate hota hai.
+   - PDF Export button se mukammal statement print/download ho sakti hai.
+
+2. Cash Ledger (/cash_ledger/):
+   - Har roz cash in hand aur bank me aane wale aur jane wale paison ka
+     complete debit/credit ledger banta hai.
+   - CPV aur BPV cash out / payments me aate hain.
+   - CRV aur BRV cash in / receipts me aate hain.
+
+3. Daily Cash Report (/cashreport/):
+   - Left Side: Receipts / Sales & CRV/BRV vouchers + Previous Day Closing.
+   - Right Side: Purchase Payments, CPV/BPV vouchers & Expenses.
+   - Bottom: Net Cash in Hand & Cash in Bank closing balances.
+
+4. Purchase Reports (/purchase_report/):
+   - Purchase receiving se generate hoti hai, party-wise aur date-wise bills.
+
+5. Sales Reports (/sells_report/):
+   - Sales invoices se generate hoti hai.
+
+6. Net Position Report (/net_position/):
+   - Tamam parties ki current net position (Receivable / Payable / Advance)
+     live calculate karke display karti hai.
+
+================================================================================
+6. USER MANAGEMENT & PAGE-BY-PAGE ACCESS CONTROL
+================================================================================
+User Management (/user-management/) ko mukammal taur par redesign kiya gaya hai:
+
+A. Form Section (Top of Page):
+   - Username (Required)
+   - Password (with Show/Hide Eye button)
+   - Role: Admin ya Staff
+   - Mobile Number (03XX-XXXXXXX)
+   - Email Address
+   - Address / Branch
+   - "Save User" aur "Reset" buttons.
+   - Agar kisi user ko edit karna ho to neechay table se Pencil button click karein,
+     form auto-fill ho jayega aur button "Update User" ban jayega.
+
+B. Registered Users Table (Directly Below Form):
+   - Column 1: # (Serial Number)
+   - Column 2: Username & User ID
+   - Column 3: Role Badge (Red badge for Admin, Blue for Staff)
+   - Column 4: Mobile Number
+   - Column 5: Email
+   - Column 6: Page Access Summary (e.g. "Full Access (All 21 Pages)" ya "14 of 21 Pages")
+   - Column 7: Actions:
+     * "Settings" Button (Gear icon): Page permissions modal open karta hai.
+     * "Edit" Button (Pencil icon): User ko edit form me load karta hai.
+     * "Delete" Button (Trash icon): User ko confirm karke delete karta hai
+       (apne hi logged-in account ko delete hone se rokta hai).
+
+C. Page Access Permissions Modal ("Settings" Button):
+   - Header me user ka naam aur role show hota hai.
+   - "Select All" aur "Deselect All" quick buttons hain.
+   - Search box hai jahan se kisi bhi page ka naam likh kar filter kiya ja sakta hai.
+   - Tamam pages 7 Modules me grouped hain:
+     1. Dashboard:
+        - Dashboard Overview (/dashboard/)
+     2. Setup & Parties:
+        - Parties Management (/parties/)
+        - Expense Head Setup (/expense-head/)
+        - Today Rates (/today-rate/)
+     3. Rates & Market:
+        - Broiler Rate (/broiler-rate/)
+        - Fat Rate (/fat-rate/)
+        - Waste Rate (/waste-rate/)
+     4. Inventory & Trade:
+        - Sales Invoice (/sells/)
+        - Purchase Receiving (/purchase_receiving/)
+        - Waste Entry (/waste_entry/)
+     5. Accounts & Vouchers:
+        - Chart of Accounts (/chart-of-accounts/)
+        - Voucher Entry (CPV, CRV, BPV, BRV) (/voucher-entry/)
+        - Account Ledger (/account-ledger/)
+        - Daily Expenses (/expenses/)
+     6. Reports:
+        - Party Ledger (/party_ledger/)
+        - Cash Ledger (/cash_ledger/)
+        - Daily Cash Report (/cashreport/)
+        - Purchase Report (/purchase_report/)
+        - Sales Report (/sells_report/)
+        - Net Position (/net_position/)
+        - Broiler Report (/broiler_report/)
+        - Profit & Loss Report (/profit_loss_report/)
+     7. Settings & Administration:
+        - User Management (/user-management/)
+        - Hierarchy Control (/hierarchy/)
+   - Har page ke aagay toggle switch laga hua hai.
+   - "Save Access Rights" par click karne se permissions foran database me
+     Userpage aur Usermodule me save ho jati hain aur table ka count update ho jata hai.
+
+================================================================================
+7. STEP-BY-STEP WORKFLOW GUIDE (KAISE USE KARNA HAI - ROMAN URDU)
+================================================================================
+
+SCENARIO 1: ADMIN SE LOGIN KARNA AUR NAYA STAFF USER BANANA
+1. Browser me system open karein aur Admin account se login karein (e.g. tabish / 123).
+2. Sidebar se "User Management" page par jayen.
+3. Form me naya username dein (e.g. "cashier_ali"), password set karein (e.g. "pass123"),
+   Role me "Staff" select karein, phone number aur address likhein.
+4. "Save User" par click karein.
+5. User add hotay hi theek neechay table me show ho jayega.
+6. Us user ki row me "Settings" button par click karein. Modal open hoga.
+7. Ab agar aap chahte hain ke Ali sirf Voucher Entry, Sales, aur Party Ledger dekh sakay:
+   - "Deselect All" dabayein.
+   - Phir "Voucher Entry", "Sales Invoice", aur "Party Ledger" ke checkboxes ko ON karein.
+   - "Save Access Rights" par click karein.
+   - Ab jab Ali login karega to usko sirf wahi 3 pages nazar aayenge, baki pages block honge.
+
+SCENARIO 2: NAYI PARTY BANANA AUR LEVEL 4 COA ME CHECK KARNA
+1. Sidebar se "Parties" page par jayen.
+2. Company name likhein (e.g. "Al-Madina Poultry Farm"), owner name, phone number, address.
+3. "Save Party" par click karein.
+4. System foran is party ka Level 4 account Head 1120 ke andar bana dega.
+5. "Chart of Accounts" page par ja kar 1100 -> 1120 ("Trade Accounts (Parties)")
+   expand karein, aapko "Al-Madina Poultry Farm" wahan Level 4 par nazar aayegi.
+
+SCENARIO 3: PARTY KO CASH ADVANCE DENA (CPV - CASH PAYMENT VOUCHER)
+1. Sidebar se "Voucher Entry" page par jayen.
+2. Red color ka pehla tab "CPV" (Cash Payment Voucher) select karein.
+3. Amount likhein: e.g. 50000.
+4. "Party (For Party Ledger)" dropdown se party select karein (e.g. "Al-Madina Poultry").
+5. Paid From: Cash in Hand [1110001] pehle se select hoga.
+6. Paid To: Party ka account select ho jayega.
+7. Narration me likhein: "Advance payment given for upcoming broiler purchase".
+8. "Post & Save Voucher" par click karein.
+9. Nateeja:
+   - Cash in Hand se Rs. 50,000 kam ho gaye.
+   - Party ke account me Rs. 50,000 debit (advance) darj ho gaya.
+   - Party Ledger me ye transaction voucher no CPV-2026-00001 ke sath show hogi.
+
+SCENARIO 4: PARTY SE CASH ADVANCE YA PAYMENT LENA (CRV - CASH RECEIPT VOUCHER)
+1. "Voucher Entry" page par Green color ka second tab "CRV" (Cash Receipt Voucher) dabayein.
+2. Amount likhein: e.g. 80000.
+3. Party select karein (e.g. "Khan Traders").
+4. Received In: Cash in Hand [1110001] select hoga (Debit).
+5. Received From: Party ka account select hoga (Credit).
+6. Narration: "Received advance cash against future supply".
+7. "Post & Save Voucher" dabayein.
+8. Nateeja:
+   - Cash in Hand me Rs. 80,000 jama ho gaye.
+   - Party Ledger me Rs. 80,000 credit record ho gaye.
+
+SCENARIO 5: BANK SE PAYMENT DENA (BPV) YA BANK ME RECEIPT LENA (BRV)
+1. BPV Tab:
+   - Bank se payment dene ke liye BPV tab select karein.
+   - Bank account select karein (e.g. Meezan Bank ya Bank Al-Habib).
+   - Debit head me Party ya Expense select karein.
+   - Cheque number reference me daalein aur save karein.
+2. BRV Tab:
+   - Bank me raqam aane par BRV tab select karein.
+   - Kis bank me deposit hua wo select karein aur credit me party select karein.
+
+SCENARIO 6: PARTY LEDGER CHECK KARNA
+1. Sidebar se "Reports" -> "Party Ledger" par jayen.
+2. Dropdown se party select karein.
+3. Date range select karein aur "Search / View Ledger" dabayein.
+4. Screen par:
+   - Opening Balance nazar aayega.
+   - Date-wise Purchase bills (Credit), Sales invoices (Debit),
+     CPV/BPV payments (Debit), aur CRV/BRV receipts (Credit) nazar aayengi.
+   - Running Balance auto-calculate hoga.
+   - "Export PDF" button se client ko bhejne ke liye printable PDF ban jayegi.
+
+SCENARIO 7: DAILY CASH REPORT & CASH LEDGER DEKHNA
+1. "Reports" -> "Daily Cash Report" par jayen.
+2. Date select karein.
+3. Left table me tamam cash receipts (CRV aur sales collections) + previous closing hogi.
+4. Right table me tamam cash payments (CPV aur purchase payments) + expenses honge.
+5. Bottom par exact Closing Balance Cash in Hand show hoga.
+6. "Cash Ledger" page par rozana ki har aik cash aur bank entry line-by-line dekh saktay hain.
+
+SCENARIO 7: INITIAL OPENING BALANCES DAALNA (CASH, BANK, AUR PARTIES)
+--------------------------------------------------------------------------------
+A) CASH IN HAND & CASH IN BANK OPENING (/cash/):
+   1. Sidebar me "Cash Opening" (/cash/) open karein.
+   2. "Cash in Hand" me apni jeb / daraz me mojood initial cash likhein (e.g. 50,000).
+   3. "Cash in Bank" me bank me mojood opening raqam likhein (e.g. 200,000).
+   4. "Target Bank Account" dropdown se apna bank select karein (e.g. Meezan Bank / Bank Al-Habib).
+   5. Date aur Description likhein (e.g. "Initial Business Opening Balance").
+   6. "Save / Update Opening Balances" dabayein.
+   7. Yeh foran CashRecord aur Level 4 COA (1110001 Cash in Hand aur 1110002+ Bank) ko update kar dega.
+   8. Kisi bhi waqt agar adjust karna ho, baghair kisi locking ke dubara change kar ke save kiya ja sakta hai.
+
+B) PARTY OPENING BALANCES (/opening/):
+   Parties ka opening balance dalna intahai aasan kar diya gaya hai:
+   1. Party Select karein (e.g. Customer ya Vendor). Party code auto fill ho jayega.
+   2. Sirf yeh select karein ke paise lene hain ya dene hain:
+      - "لینا ہے (Receivable / Dr)": Agar party se purani baqaya raqam leni hai.
+      - "دینا ہے (Payable / Cr)": Agar party ko purani baqaya raqam deni hai.
+      (Customer select karne par khud-b-khud "لینا ہے" aur Vendor select karne par "دینا ہے" auto-select ho jata hai).
+   3. Amount (Raqam) likhein aur "محفوظ کریں (Save)" dabayein.
+   4. System automatically party ke ledger aur Chart of Accounts me entry darj kar deta hai.
+   5. Neche table me tamam opening records show hotay hain, agar ghalat entry ho jaye to "Delete" dabane se foran reset ho jati hai.
+
+================================================================================
+8. DATABASE SCHEMA & ORM MODELS SUMMARY
+================================================================================
+1. `core_chartofaccount`:
+   - id (PK)
+   - code (VARCHAR 50, Unique): e.g. '1110001', '11200001'
+   - name (VARCHAR 200): Head title
+   - level (INT): 1, 2, 3, ya 4
+   - parent_id (FK to self): Tree hierarchy
+   - account_type (VARCHAR 50): Asset, Liability, Equity, Revenue, Expense
+   - party_id (FK to core_parties, Nullable): Connects Level 4 to Party!
+   - opening_balance, current_balance (DECIMAL 18,2)
+   - is_active (BOOLEAN)
+
+2. `core_voucher`:
+   - id (PK)
+   - voucher_no (VARCHAR 50, Unique): CPV-YYYY-XXXXX, CRV-YYYY-XXXXX, etc.
+   - voucher_type (VARCHAR 30): CPV, CRV, BPV, BRV, JV
+   - date (DATE)
+   - reference_no (VARCHAR 100)
+   - total_amount (DECIMAL 18,2)
+   - remarks (LONGTEXT)
+   - created_by, created_at, updated_at
+
+3. `core_voucherdetail`:
+   - id (PK)
+   - voucher_id (FK to core_voucher)
+   - account_id (FK to core_chartofaccount)
+   - party_id (FK to core_parties, Nullable)
+   - debit (DECIMAL 18,2)
+   - credit (DECIMAL 18,2)
+   - narration (VARCHAR 255)
+
+4. `core_parties`:
+   - id (PK), code, company_name, owner_name, number, party_type, address
+
+5. `core_users`, `core_userpage`, `core_usermodule`:
+   - Proper user authentication and granular page permission control.
+
+6. `cash_records`:
+   - Synced with vouchers for cash in hand & cash in bank live tracking.
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

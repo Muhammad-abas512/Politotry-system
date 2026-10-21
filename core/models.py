@@ -33,7 +33,7 @@ class Usermodule(models.Model):
 
 
 class Userpage(models.Model):
-    moduleid = models.ForeignKey('Usermodule', models.DO_NOTHING, db_column='ModuleID', blank=True, null=True)  # Field name made lowercase.
+    moduleid = models.ForeignKey('Usermodule', models.DO_NOTHING, db_column='ModuleID', blank=True, null=True, db_constraint=False)  # Field name made lowercase.
     userid = models.IntegerField(db_column='UserID', blank=True, null=True)  # Field name made lowercase.
     modulename = models.CharField(db_column='ModuleName', max_length=50, blank=True, null=True)  # Field name made lowercase.
     pageid = models.AutoField(db_column='PageId', primary_key=True)  # Field name made lowercase.
@@ -297,11 +297,14 @@ class ChartOfAccount(models.Model):
     name = models.CharField(max_length=150)
     level = models.IntegerField(choices=LEVEL_CHOICES, default=1)
     parent = models.ForeignKey(
-        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='children'
+        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='children', db_constraint=False
     )
     account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES)
     opening_balance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     current_balance = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+    party = models.ForeignKey(
+        'Parties', on_delete=models.SET_NULL, null=True, blank=True, related_name='chart_accounts', db_constraint=False
+    )
     is_active = models.BooleanField(default=True)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -314,9 +317,28 @@ class ChartOfAccount(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name} (L{self.level})"
 
+    @property
+    def current_balance_abs(self):
+        from decimal import Decimal
+        return abs(self.current_balance or Decimal('0'))
+
+    @property
+    def balance_type(self):
+        from decimal import Decimal
+        bal = self.current_balance or Decimal('0')
+        if self.account_type in ['Asset', 'Expense']:
+            return 'Dr' if bal >= 0 else 'Cr'
+        else:
+            return 'Cr' if bal >= 0 else 'Dr'
+
 
 class Voucher(models.Model):
     VOUCHER_TYPES = (
+        ('CPV', 'Cash Payment Voucher (CPV)'),
+        ('CRV', 'Cash Receipt Voucher (CRV)'),
+        ('BPV', 'Bank Payment Voucher (BPV)'),
+        ('BRV', 'Bank Receipt Voucher (BRV)'),
+        ('JV', 'Journal Voucher (JV)'),
         ('Payment Voucher', 'Payment Voucher (Cash/Bank Out)'),
         ('Receipt Voucher', 'Receipt Voucher (Cash/Bank In)'),
         ('Transfer Voucher', 'Transfer / Journal Voucher (Head to Head)'),
@@ -334,19 +356,19 @@ class Voucher(models.Model):
     class Meta:
         managed = True
         db_table = 'vouchers'
-        ordering = ['-id']
+        ordering = ['date', 'id']
 
     def __str__(self):
         return f"{self.voucher_no} ({self.voucher_type}) - Rs. {self.total_amount}"
 
 
 class VoucherDetail(models.Model):
-    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name='details')
-    account = models.ForeignKey(ChartOfAccount, on_delete=models.CASCADE, related_name='voucher_lines')
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name='details', db_constraint=False)
+    account = models.ForeignKey(ChartOfAccount, on_delete=models.CASCADE, related_name='voucher_lines', db_constraint=False)
     debit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     credit = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     narration = models.CharField(max_length=255, blank=True, null=True)
-    party = models.ForeignKey(Parties, on_delete=models.SET_NULL, null=True, blank=True)
+    party = models.ForeignKey(Parties, on_delete=models.SET_NULL, null=True, blank=True, db_constraint=False)
 
     class Meta:
         managed = True

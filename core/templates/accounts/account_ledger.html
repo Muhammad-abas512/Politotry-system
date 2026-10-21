@@ -68,11 +68,38 @@
         vertical-align: middle;
     }
 
+    .badge-bal {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 4px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        vertical-align: middle;
+    }
+    .bal-dr {
+        color: #0d6efd;
+        background-color: #e7f1ff;
+        border: 1px solid #b6d4fe;
+    }
+    .bal-cr {
+        color: #dc3545;
+        background-color: #f8d7da;
+        border: 1px solid #f5c2c7;
+    }
+
     @media print {
         body * { visibility: hidden; }
         #printableLedgerArea, #printableLedgerArea * { visibility: visible; }
         #printableLedgerArea { position: absolute; left: 0; top: 0; width: 100%; }
         .filter-box, .btn, .ledger-banner { display: none !important; }
+        .badge-bal {
+            border: 1px solid #333 !important;
+            background: transparent !important;
+            color: #000 !important;
+        }
     }
 </style>
 {% endblock %}
@@ -153,8 +180,11 @@
             <div class="col-md-3 col-6">
                 <div class="summary-card-lg">
                     <small>Opening Balance</small>
-                    <h4 class="{% if opening_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        Rs. {{ opening_balance|floatformat:2 }}
+                    <h4 class="{% if opening_balance_type == 'Dr' %}text-primary{% else %}text-danger{% endif %}">
+                        Rs. {{ opening_balance_abs|floatformat:2 }}
+                        {% if opening_balance_abs > 0 %}
+                        <span class="badge {% if opening_balance_type == 'Dr' %}bg-primary{% else %}bg-danger{% endif %} fs-6 ms-1">{{ opening_balance_type }}</span>
+                        {% endif %}
                     </h4>
                 </div>
             </div>
@@ -173,8 +203,11 @@
             <div class="col-md-3 col-6">
                 <div class="summary-card-lg">
                     <small>Closing Balance</small>
-                    <h4 class="{% if closing_balance >= 0 %}text-primary{% else %}text-danger{% endif %}">
-                        Rs. {{ closing_balance|floatformat:2 }}
+                    <h4 class="{% if closing_balance_type == 'Dr' %}text-primary{% else %}text-danger{% endif %}">
+                        Rs. {{ closing_balance_abs|floatformat:2 }}
+                        {% if closing_balance_abs > 0 %}
+                        <span class="badge {% if closing_balance_type == 'Dr' %}bg-primary{% else %}bg-danger{% endif %} fs-6 ms-1">{{ closing_balance_type }}</span>
+                        {% endif %}
                     </h4>
                 </div>
             </div>
@@ -189,12 +222,12 @@
                             <th style="width: 5%;">Sr#</th>
                             <th style="width: 10%;">Date</th>
                             <th style="width: 14%;">Voucher #</th>
-                            <th style="width: 12%;">Type</th>
+                            <th style="width: 8%;">Type</th>
                             <th style="width: 12%;">Party</th>
-                            <th style="width: 23%;">Narration / Remarks</th>
+                            <th style="width: 25%;">Narration / Remarks</th>
                             <th style="width: 8%; text-align: right;">Debit (Rs.)</th>
                             <th style="width: 8%; text-align: right;">Credit (Rs.)</th>
-                            <th style="width: 8%; text-align: right;">Balance (Rs.)</th>
+                            <th style="width: 10%; text-align: right;">Balance (Rs.)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -205,8 +238,11 @@
                             <td colspan="4"><i>OPENING BALANCE B/F</i></td>
                             <td class="text-end font-monospace">-</td>
                             <td class="text-end font-monospace">-</td>
-                            <td class="text-end font-monospace {% if opening_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                {{ opening_balance|floatformat:2 }}
+                            <td class="text-end font-monospace {% if opening_balance_type == 'Dr' %}text-primary{% else %}text-danger{% endif %}">
+                                {{ opening_balance_abs|floatformat:2 }}
+                                {% if opening_balance_abs > 0 %}
+                                <span class="badge-bal {% if opening_balance_type == 'Dr' %}bal-dr{% else %}bal-cr{% endif %}">{{ opening_balance_type }}</span>
+                                {% endif %}
                             </td>
                         </tr>
 
@@ -224,8 +260,11 @@
                             <td class="text-end font-monospace text-success">
                                 {% if row.credit > 0 %}{{ row.credit|floatformat:2 }}{% else %}-{% endif %}
                             </td>
-                            <td class="text-end font-monospace fw-bold {% if row.balance >= 0 %}text-dark{% else %}text-danger{% endif %}">
-                                {{ row.balance|floatformat:2 }}
+                            <td class="text-end font-monospace fw-bold {% if row.balance_type == 'Dr' %}text-dark{% else %}text-danger{% endif %}">
+                                {{ row.balance_abs|floatformat:2 }}
+                                {% if row.balance_abs > 0 %}
+                                <span class="badge-bal {% if row.balance_type == 'Dr' %}bal-dr{% else %}bal-cr{% endif %}">{{ row.balance_type }}</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
@@ -241,7 +280,12 @@
                             <td colspan="6" class="text-end">PERIOD TOTALS:</td>
                             <td class="text-end font-monospace text-danger">Rs. {{ total_debit|floatformat:2 }}</td>
                             <td class="text-end font-monospace text-success">Rs. {{ total_credit|floatformat:2 }}</td>
-                            <td class="text-end font-monospace text-warning">Rs. {{ closing_balance|floatformat:2 }}</td>
+                            <td class="text-end font-monospace text-warning">
+                                Rs. {{ closing_balance_abs|floatformat:2 }}
+                                {% if closing_balance_abs > 0 %}
+                                <span class="badge {% if closing_balance_type == 'Dr' %}bg-primary text-white{% else %}bg-danger text-white{% endif %} ms-1" style="font-size: 0.72rem; vertical-align: middle;">{{ closing_balance_type }}</span>
+                                {% endif %}
+                            </td>
                         </tr>
                     </tfoot>
                 </table>

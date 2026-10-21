@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.db.models import Q
 import json
 from .models import Parties
+from .accounts_views import sync_single_party_to_coa, sync_all_parties_to_coa
 
 
 def generate_party_code():
@@ -27,6 +28,9 @@ def parties(request):
             return JsonResponse({'success': False, 'message': 'Session expired'}, status=401)
         return redirect('login')
 
+    # Ensure parties exist in Chart of Accounts Level 4
+    sync_all_parties_to_coa()
+
     action = request.GET.get('action') or request.POST.get('action')
 
     # ============ SAVE / UPDATE ============
@@ -37,13 +41,13 @@ def parties(request):
             company_name = (data.get('company_name') or '').strip()
             owner_name = (data.get('owner_name') or '').strip()
             number = (data.get('number') or '').strip()
-            party_type = (data.get('party_type') or 'Party').strip()
+            party_type = (data.get('party_type') or 'All-in-One').strip()
             address = (data.get('address') or '').strip()
 
             if not company_name:
                 return JsonResponse({'success': False, 'message': 'Company name is required'})
-            if not party_type:
-                party_type = 'Party'
+            if not party_type or party_type.lower() == 'party':
+                party_type = 'All-in-One'
 
             if party_id:
                 # UPDATE (code remains same)
@@ -54,7 +58,8 @@ def parties(request):
                 party.party_type = party_type
                 party.address = address
                 party.save()
-                return JsonResponse({'success': True, 'message': 'Party updated successfully', 'code': party.code})
+                sync_single_party_to_coa(party)
+                return JsonResponse({'success': True, 'message': 'Party updated successfully and synced to Level 4 COA', 'code': party.code})
             else:
                 # CREATE (auto-generate code)
                 new_code = generate_party_code()
@@ -67,9 +72,10 @@ def parties(request):
                     address=address,
                     entry_date=timezone.now()
                 )
+                sync_single_party_to_coa(new_party)
                 return JsonResponse({
                     'success': True,
-                    'message': f'Party saved successfully (Code: {new_code})',
+                    'message': f'Party saved successfully (Code: {new_code}) and created in Level 4 COA',
                     'code': new_code
                 })
         except Parties.DoesNotExist:

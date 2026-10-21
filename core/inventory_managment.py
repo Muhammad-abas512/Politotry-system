@@ -6,7 +6,167 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 import pytz
-from .models import PurchaseReceiving, Parties, BroilerRate, PurchasePaymentHistory
+from .models import (
+    PurchaseReceiving, Parties, BroilerRate, PurchasePaymentHistory,
+    ChartOfAccount, Voucher, VoucherDetail, SellsInvoice
+)
+from .accounts_views import sync_single_party_to_coa, _update_account_balance
+
+
+def sync_purchase_voucher(purchase, is_delete=False):
+    """
+    Synchronizes a PurchaseReceiving entry to a Double-Entry Accounting Voucher:
+    Debit: Broiler Purchases (5110001)
+    Credit: Party Level 4 Account (1120000X)
+    """
+    try:
+        voucher_no = f"PUR-{purchase.purchase_number}"
+        existing_v = Voucher.objects.filter(voucher_no=voucher_no).first()
+
+        if existing_v:
+            for line in existing_v.details.all():
+                _update_account_balance(line.account, line.credit, line.debit)
+            existing_v.delete()
+
+        if is_delete:
+            return
+
+        party_obj = None
+        if purchase.vendor_code:
+            party_obj = Parties.objects.filter(code=purchase.vendor_code).first()
+        if not party_obj and purchase.vendor_name:
+            party_obj = (
+                Parties.objects.filter(company_name=purchase.vendor_name).first()
+                or Parties.objects.filter(owner_name=purchase.vendor_name).first()
+            )
+
+        if not party_obj:
+            return
+
+        party_acc = sync_single_party_to_coa(party_obj)
+        pur_acc = ChartOfAccount.objects.filter(code__in=['050101001', '5110001'], level=4).first()
+        if not pur_acc:
+            pur_acc = ChartOfAccount.objects.filter(level=4, name__icontains='Broiler Purchase').first()
+
+        pur_amt = Decimal(str(purchase.amount or 0))
+        if pur_amt <= 0 or not party_acc or not pur_acc:
+            return
+
+        v_date = purchase.date.date() if purchase.date else timezone.localdate()
+        rem = f"Purchase #{purchase.purchase_number} - {purchase.vendor_name} ({purchase.weight}kg @ Rs. {purchase.vendor_rate})"
+        if purchase.discription:
+            rem += f" - {purchase.discription}"
+
+        v = Voucher.objects.create(
+            voucher_no=voucher_no,
+            voucher_type='JV',
+            date=v_date,
+            reference_no=purchase.vehicle_number or '',
+            total_amount=pur_amt,
+            remarks=rem[:450],
+            created_by='System / Purchase'
+        )
+
+        # Debit: Broiler Purchases
+        VoucherDetail.objects.create(
+            voucher=v,
+            account=pur_acc,
+            debit=pur_amt,
+            credit=Decimal('0'),
+            narration=f"Purchase #{purchase.purchase_number}: {purchase.weight}kg @ {purchase.vendor_rate}"
+        )
+        _update_account_balance(pur_acc, pur_amt, Decimal('0'))
+
+        # Credit: Party Account
+        VoucherDetail.objects.create(
+            voucher=v,
+            account=party_acc,
+            debit=Decimal('0'),
+            credit=pur_amt,
+            party=party_obj,
+            narration=f"Purchase Bill #{purchase.purchase_number}"
+        )
+        _update_account_balance(party_acc, Decimal('0'), pur_amt)
+
+    except Exception as e:
+        print(f"Error syncing purchase voucher: {e}")
+
+
+def sync_sell_voucher(sell_obj, is_delete=False):
+    """
+    Synchronizes a SellsInvoice entry to a Double-Entry Accounting Voucher:
+    Debit: Party Level 4 Account (1120000X)
+    Credit: Broiler Sales (4110001)
+    """
+    try:
+        voucher_no = f"SLS-{sell_obj.sells_no}"
+        existing_v = Voucher.objects.filter(voucher_no=voucher_no).first()
+
+        if existing_v:
+            for line in existing_v.details.all():
+                _update_account_balance(line.account, line.credit, line.debit)
+            existing_v.delete()
+
+        if is_delete:
+            return
+
+        party_obj = None
+        if sell_obj.customer_code:
+            party_obj = Parties.objects.filter(code=sell_obj.customer_code).first()
+        if not party_obj and sell_obj.customer_name:
+            party_obj = (
+                Parties.objects.filter(company_name=sell_obj.customer_name).first()
+                or Parties.objects.filter(owner_name=sell_obj.customer_name).first()
+            )
+
+        if not party_obj:
+            return
+
+        party_acc = sync_single_party_to_coa(party_obj)
+        sales_acc = ChartOfAccount.objects.filter(code__in=['040101001', '4110001'], level=4).first()
+        if not sales_acc:
+            sales_acc = ChartOfAccount.objects.filter(level=4, name__icontains='Broiler Sales').first()
+
+        sell_amt = Decimal(str(sell_obj.amount or 0))
+        if sell_amt <= 0 or not party_acc or not sales_acc:
+            return
+
+        v_date = sell_obj.entry_date.date() if sell_obj.entry_date else timezone.localdate()
+        rem = f"Sale #{sell_obj.sells_no} on Pur #{sell_obj.purchase_number} - {sell_obj.customer_name} ({sell_obj.weight}kg @ Rs. {sell_obj.rate})"
+
+        v = Voucher.objects.create(
+            voucher_no=voucher_no,
+            voucher_type='JV',
+            date=v_date,
+            reference_no=sell_obj.vehicle_no or '',
+            total_amount=sell_amt,
+            remarks=rem[:450],
+            created_by='System / Sell'
+        )
+
+        # Debit: Party Account
+        VoucherDetail.objects.create(
+            voucher=v,
+            account=party_acc,
+            debit=sell_amt,
+            credit=Decimal('0'),
+            party=party_obj,
+            narration=f"Sale Invoice #{sell_obj.sells_no}: {sell_obj.weight}kg @ {sell_obj.rate}"
+        )
+        _update_account_balance(party_acc, sell_amt, Decimal('0'))
+
+        # Credit: Broiler Sales
+        VoucherDetail.objects.create(
+            voucher=v,
+            account=sales_acc,
+            debit=Decimal('0'),
+            credit=sell_amt,
+            narration=f"Broiler Sale #{sell_obj.sells_no}"
+        )
+        _update_account_balance(sales_acc, Decimal('0'), sell_amt)
+
+    except Exception as e:
+        print(f"Error syncing sell voucher: {e}")
 
 
 def generate_purchase_number():
@@ -61,6 +221,7 @@ def purchase_receiving(request):
                 party_name=purchase.vendor_name,
                 totall_amount=old_amount
             ).delete()
+            sync_purchase_voucher(purchase, is_delete=True)
             purchase.delete()
             messages.success(request, "Purchase record deleted!")
         return redirect('purchase_receiving')
@@ -160,6 +321,7 @@ def purchase_receiving(request):
                 purchase.payed_amount     = str(payed_for_receiving)   # 👈 only here
                 purchase.discription      = description
                 purchase.save()
+                sync_purchase_voucher(purchase)
 
                 # history row — payed_amount stays 0
                 PurchasePaymentHistory.objects.create(
@@ -228,7 +390,7 @@ def purchase_receiving(request):
                 new_adv = 0
                 new_due = prev_due + total_amt
 
-            PurchaseReceiving.objects.create(
+            new_pur = PurchaseReceiving.objects.create(
                 purchase_number  = purchase_number,
                 vendor_code      = party_code,
                 vendor_name      = vendor_name,
@@ -243,6 +405,7 @@ def purchase_receiving(request):
                 payed_amount     = str(payed_for_receiving),   # 👈 only here
                 discription      = description,
             )
+            sync_purchase_voucher(new_pur)
 
             # history row — payed_amount stays 0
             PurchasePaymentHistory.objects.create(
@@ -412,6 +575,7 @@ def sells(request):
                     purchase_obj.remaining_weight = sell_number(restored_remaining)
                     purchase_obj.save(update_fields=['remaining_weight'])
 
+                sync_sell_voucher(sell_obj, is_delete=True)
                 sell_obj.delete()
 
             messages.success(request, 'Sell deleted and stock restored successfully.')
@@ -556,13 +720,24 @@ def sells(request):
 
                 final_sell_datetime = datetime.combine(purchase_date or sell_date, pk_now.time())
 
+                # Resolve party code & object
+                party_obj = Parties.objects.filter(
+                    company_name=customer_name
+                ).first()
+                if not party_obj:
+                    party_obj = Parties.objects.filter(
+                        owner_name=customer_name
+                    ).first()
+                party_code = party_obj.code if party_obj else ''
+
                 # =================================================
                 # INSERT SELL RECORD
                 # =================================================
-                SellsInvoice.objects.create(
+                new_sell = SellsInvoice.objects.create(
                     sells_no         = sells_no,
                     purchase_number  = purchase_number,
                     customer_name    = customer_name,
+                    customer_code    = party_code,
                     weight           = sell_number(sell_weight),
                     rate             = sell_number(sell_rate),
                     amount           = sell_number(calculated_amount),
@@ -571,6 +746,7 @@ def sells(request):
                     vehicle_no       = (vehicle_no or purchase_obj.vehicle_number or ''),
                     entry_date       = final_sell_datetime
                 )
+                sync_sell_voucher(new_sell)
 
                 # =================================================
                 # UPDATE PURCHASE REMAINING
@@ -581,15 +757,6 @@ def sells(request):
                 # =================================================
                 # 💰 INSERT INTO receipt_history
                 # =================================================
-                # Party code / name
-                party_obj = Parties.objects.filter(
-                    company_name=customer_name
-                ).first()
-                if not party_obj:
-                    party_obj = Parties.objects.filter(
-                        owner_name=customer_name
-                    ).first()
-                party_code = party_obj.code if party_obj else ''
 
                 # Get last entry for this party → carry forward due/advance
                 last_receipt = (

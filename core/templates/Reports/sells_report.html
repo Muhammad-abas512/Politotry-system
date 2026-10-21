@@ -161,7 +161,7 @@
                             <td>Rs. {{ row.rate|default:"0" }}</td>
                             <td class="fw-bold">Rs. {{ row.amount|default:"0" }}</td>
                             <td class="fw-bold text-success">Rs. {{ row.received_amount|default:"0" }}</td>
-                            <td class="fw-bold text-danger">Rs. {{ row.remaining_amount|default:"0" }}</td>
+                            <td class="fw-bold text-danger">Rs. {{ row.calc_remaining|floatformat:2 }}</td>
                         </tr>
                         {% empty %}
                         <tr>

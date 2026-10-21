@@ -314,7 +314,7 @@
                                     </div>
                                     <div class="d-flex align-items-center gap-3">
                                         <span class="balance-pill-coa {% if l4.current_balance > 0 %}bal-pos{% elif l4.current_balance < 0 %}bal-neg{% else %}bal-zero{% endif %}">
-                                            Rs. {{ l4.current_balance|floatformat:2 }}
+                                            Rs. {{ l4.current_balance_abs|floatformat:2 }}{% if l4.current_balance != 0 %} {{ l4.balance_type }}{% endif %}
                                         </span>
                                         <a href="{% url 'account_ledger' %}?account={{ l4.id }}" class="btn btn-sm btn-outline-info btn-action-sm" title="View Ledger">
                                             <i class="bi bi-journal-text"></i>

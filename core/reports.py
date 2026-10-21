@@ -2,7 +2,12 @@ import io
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, FileResponse, HttpResponse
 from datetime import datetime, time
-from .models import Parties, SellsInvoice, Sellspayment, PurchaseReceiving, PurchasePayments, Expensedetail, CashRecord, Mortality
+from django.db.models import Q, Sum
+from .models import (
+    Parties, SellsInvoice, Sellspayment, PurchaseReceiving,
+    PurchasePayments, Expensedetail, CashRecord, Mortality,
+    Voucher, VoucherDetail, ChartOfAccount
+)
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -38,28 +43,157 @@ def get_party_ledger(request):
         from_dt = datetime.combine(from_date, time.min)
         to_dt = datetime.combine(to_date, time.max)
 
-        # 1. OPENING BALANCE LOGIC
-        old_sales = SellsInvoice.objects.filter(customer_name__iexact=target_name, entry_date__lt=from_dt)
-        old_receipts = Sellspayment.objects.filter(customer_name__iexact=target_name, entry_date__lt=from_dt)
-        old_purchases = PurchaseReceiving.objects.filter(vendor_name__iexact=target_name, date__lt=from_dt)
-        old_vendor_pays = PurchasePayments.objects.filter(part_name__iexact=target_name, date__lt=from_dt)
+        # Build comprehensive Party Matching Filters (by Name, Code, and Owner)
+        sales_q = Q(customer_name__iexact=target_name)
+        pur_q = Q(vendor_name__iexact=target_name)
+        if party.code:
+            sales_q |= Q(customer_code=party.code)
+            pur_q |= Q(vendor_code=party.code)
+        if party.company_name:
+            sales_q |= Q(customer_name__iexact=party.company_name.strip())
+            pur_q |= Q(vendor_name__iexact=party.company_name.strip())
+        if party.owner_name:
+            sales_q |= Q(customer_name__iexact=party.owner_name.strip())
+            pur_q |= Q(vendor_name__iexact=party.owner_name.strip())
 
-        op_dr = sum(safe_decimal(s.amount) for s in old_sales) + sum(safe_decimal(vp.amount) for vp in old_vendor_pays)
-        op_cr = sum(safe_decimal(r.received_amount) or safe_decimal(r.amount) for r in old_receipts) + sum(safe_decimal(p.amount) for p in old_purchases)
-        opening_balance = op_dr - op_cr
+        receipt_q = sales_q | (Q(customer_code=party.code) if party.code else Q())
+        vp_q = Q(part_name__iexact=target_name)
+        if party.code:
+            vp_q |= Q(party_code=party.code)
+        if party.company_name:
+            vp_q |= Q(part_name__iexact=party.company_name.strip())
+        if party.owner_name:
+            vp_q |= Q(part_name__iexact=party.owner_name.strip())
+
+        # 1. OPENING BALANCE LOGIC
+        old_sales = SellsInvoice.objects.filter(sales_q, entry_date__date__lt=from_date)
+        old_receipts = Sellspayment.objects.filter(receipt_q, entry_date__date__lt=from_date)
+        old_purchases = PurchaseReceiving.objects.filter(pur_q, date__date__lt=from_date)
+        old_vendor_pays = PurchasePayments.objects.filter(vp_q, date__date__lt=from_date)
+
+        # Voucher lines before from_date for this party (excluding PUR- and SLS- vouchers to prevent double counting with invoices)
+        party_q = Q(party=party) | Q(account__party=party)
+        if target_name:
+            party_q |= Q(account__name__iexact=target_name)
+
+        voucher_filter = party_q & ~Q(voucher__voucher_no__startswith='PUR-') & ~Q(voucher__voucher_no__startswith='SLS-')
+
+        past_vouchers = VoucherDetail.objects.filter(voucher_filter, voucher__date__lt=from_date)
+        past_v_dr = sum(safe_decimal(v.debit) for v in past_vouchers)
+        past_v_cr = sum(safe_decimal(v.credit) for v in past_vouchers)
+
+        # Base opening balance from Level 4 Chart of Account for this party
+        party_acc = ChartOfAccount.objects.filter(party=party, level=4).first()
+        if not party_acc and party.code:
+            party_acc = ChartOfAccount.objects.filter(code=party.code, level=4).first()
+        base_opening = safe_decimal(party_acc.opening_balance) if party_acc else 0.0
+
+        op_dr = sum(safe_decimal(s.amount) for s in old_sales) + sum(safe_decimal(vp.amount) for vp in old_vendor_pays) + past_v_dr
+        op_cr = sum(safe_decimal(r.received_amount) or safe_decimal(r.amount) for r in old_receipts) + sum(safe_decimal(p.amount) for p in old_purchases) + past_v_cr
+        opening_balance = base_opening + op_dr - op_cr
 
         # 2. TRANSACTIONS
         combined = []
-        for inv in SellsInvoice.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]):
-            combined.append({'dt': inv.entry_date, 'priority': 1, 'desc': f"Sale Invoice #{inv.sells_no}", 'w': inv.weight, 'mr': '-', 'vr': inv.rate, 'dr': safe_decimal(inv.amount), 'cr': 0.0})
-        for rec in Sellspayment.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]):
-            combined.append({'dt': rec.entry_date, 'priority': 2, 'desc': rec.description or "Customer Receipt", 'w': rec.weight, 'mr': '-', 'vr': rec.rate, 'dr': 0.0, 'cr': safe_decimal(rec.received_amount) or safe_decimal(rec.amount)})
-        for pur in PurchaseReceiving.objects.filter(vendor_name__iexact=target_name, date__range=[from_dt, to_dt]):
-            combined.append({'dt': pur.date, 'priority': 1, 'desc': f"Purchase Invoice #{pur.purchase_number}", 'w': pur.weight, 'mr': pur.market_rate, 'vr': pur.vendor_rate, 'dr': 0.0, 'cr': safe_decimal(pur.amount)})
-        for vp in PurchasePayments.objects.filter(part_name__iexact=target_name, date__range=[from_dt, to_dt]):
-            combined.append({'dt': vp.date, 'priority': 2, 'desc': vp.remarks or "Vendor Payment", 'w': '-', 'mr': '-', 'vr': '-', 'dr': safe_decimal(vp.amount), 'cr': 0.0})
+        for inv in SellsInvoice.objects.filter(sales_q, entry_date__date__gte=from_date, entry_date__date__lte=to_date).order_by('entry_date', 'id'):
+            combined.append({
+                'dt': inv.entry_date,
+                'id': inv.id or 0,
+                'priority': 1,
+                'desc': f"Sale Invoice #{inv.sells_no}",
+                'w': inv.weight,
+                'mr': '-',
+                'vr': inv.rate,
+                'dr': safe_decimal(inv.amount),
+                'cr': 0.0
+            })
+        for rec in Sellspayment.objects.filter(receipt_q, entry_date__date__gte=from_date, entry_date__date__lte=to_date).order_by('entry_date', 'id'):
+            combined.append({
+                'dt': rec.entry_date,
+                'id': rec.id or 0,
+                'priority': 2,
+                'desc': rec.description or "Customer Receipt",
+                'w': rec.weight,
+                'mr': '-',
+                'vr': rec.rate,
+                'dr': 0.0,
+                'cr': safe_decimal(rec.received_amount) or safe_decimal(rec.amount)
+            })
+        for pur in PurchaseReceiving.objects.filter(pur_q, date__date__gte=from_date, date__date__lte=to_date).order_by('date', 'id'):
+            combined.append({
+                'dt': pur.date,
+                'id': pur.id or 0,
+                'priority': 1,
+                'desc': f"Purchase Invoice #{pur.purchase_number}",
+                'w': pur.weight,
+                'mr': pur.market_rate,
+                'vr': pur.vendor_rate,
+                'dr': 0.0,
+                'cr': safe_decimal(pur.amount)
+            })
+        for vp in PurchasePayments.objects.filter(vp_q, date__date__gte=from_date, date__date__lte=to_date).order_by('date', 'id'):
+            combined.append({
+                'dt': vp.date,
+                'id': vp.id or 0,
+                'priority': 2,
+                'desc': vp.remarks or "Vendor Payment",
+                'w': '-',
+                'mr': '-',
+                'vr': '-',
+                'dr': safe_decimal(vp.amount),
+                'cr': 0.0
+            })
 
-        combined.sort(key=lambda x: (x['dt'] or from_dt, x['priority']))
+        # Voucher transactions within period (CPV, CRV, BPV, BRV, JV)
+        period_vouchers = VoucherDetail.objects.filter(
+            voucher_filter, voucher__date__gte=from_date, voucher__date__lte=to_date
+        ).select_related('voucher').order_by('voucher__date', 'voucher__id', 'id')
+        for v in period_vouchers:
+            if v.voucher.created_at:
+                v_created = timezone.localtime(v.voucher.created_at) if hasattr(v.voucher.created_at, 'tzinfo') and v.voucher.created_at.tzinfo else v.voucher.created_at
+                v_dt = datetime.combine(v.voucher.date, v_created.time())
+            else:
+                v_dt = datetime.combine(v.voucher.date, time.min)
+
+            v_remarks = (v.narration or v.voucher.remarks or '').strip()
+            desc = f"{v.voucher.voucher_no} ({v.voucher.voucher_type})"
+            if v_remarks:
+                desc += f" - {v_remarks}"
+            combined.append({
+                'dt': v_dt,
+                'id': v.voucher.id or 0,
+                'line_id': v.id or 0,
+                'priority': 2,
+                'desc': desc,
+                'w': '-',
+                'mr': '-',
+                'vr': '-',
+                'dr': safe_decimal(v.debit),
+                'cr': safe_decimal(v.credit)
+            })
+
+        def _get_sort_key(item):
+            d = item.get('dt')
+            if not d:
+                d_date = from_date
+                d_time = time.min
+            elif hasattr(d, 'hour'):
+                if hasattr(d, 'tzinfo') and d.tzinfo is not None:
+                    try:
+                        d = timezone.localtime(d).replace(tzinfo=None)
+                    except Exception:
+                        d = d.replace(tzinfo=None)
+                d_date = d.date()
+                d_time = d.time()
+            elif isinstance(d, date):
+                d_date = d
+                d_time = time.min
+            else:
+                d_date = from_date
+                d_time = time.min
+
+            return (d_date, d_time, item.get('id', 0), item.get('line_id', 0), item.get('priority', 1))
+
+        combined.sort(key=_get_sort_key)
 
         # 3. PDF GENERATION (ReportLab)
         if output_format == 'pdf':
@@ -214,21 +348,113 @@ def export_ledger_pdf(request):
     old_purchases = PurchaseReceiving.objects.filter(vendor_name__iexact=target_name, date__lt=from_dt)
     old_vendor_pays = PurchasePayments.objects.filter(part_name__iexact=target_name, date__lt=from_dt)
 
-    op_dr = sum(safe_decimal(s.amount) for s in old_sales) + sum(safe_decimal(vp.amount) for vp in old_vendor_pays)
-    op_cr = sum(safe_decimal(r.received_amount) or safe_decimal(r.amount) for r in old_receipts) + sum(safe_decimal(p.amount) for p in old_purchases)
-    opening_balance = op_dr - op_cr
+    party_q = Q(party=party) | Q(account__party=party)
+    if target_name:
+        party_q |= Q(account__name__iexact=target_name)
+
+    past_vouchers = VoucherDetail.objects.filter(party_q, voucher__date__lt=from_date).exclude(voucher__voucher_no__startswith='PUR-').exclude(voucher__voucher_no__startswith='SLS-')
+    past_v_dr = sum(safe_decimal(v.debit) for v in past_vouchers)
+    past_v_cr = sum(safe_decimal(v.credit) for v in past_vouchers)
+
+    party_acc = ChartOfAccount.objects.filter(party=party, level=4).first()
+    if not party_acc and party.code:
+        party_acc = ChartOfAccount.objects.filter(code=party.code, level=4).first()
+    base_opening = safe_decimal(party_acc.opening_balance) if party_acc else 0.0
+
+    op_dr = sum(safe_decimal(s.amount) for s in old_sales) + sum(safe_decimal(vp.amount) for vp in old_vendor_pays) + past_v_dr
+    op_cr = sum(safe_decimal(r.received_amount) or safe_decimal(r.amount) for r in old_receipts) + sum(safe_decimal(p.amount) for p in old_purchases) + past_v_cr
+    opening_balance = base_opening + op_dr - op_cr
 
     combined = []
-    for inv in SellsInvoice.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]):
-        combined.append({'date': inv.entry_date.date(), 'sort_dt': inv.entry_date, 'priority': 1, 'code': inv.sells_no or f"SI-{inv.id}", 'desc': f"Sale Invoice #{inv.sells_no}", 'dr': safe_decimal(inv.amount), 'cr': 0.0})
-    for rec in Sellspayment.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]):
-        combined.append({'date': rec.entry_date.date(), 'sort_dt': rec.entry_date, 'priority': 2, 'code': rec.sell_no or f"REC-{rec.id}", 'desc': rec.description or "Customer Receipt", 'dr': 0.0, 'cr': safe_decimal(rec.received_amount) or safe_decimal(rec.amount)})
-    for pur in PurchaseReceiving.objects.filter(vendor_name__iexact=target_name, date__range=[from_dt, to_dt]):
-        combined.append({'date': pur.date.date(), 'sort_dt': pur.date, 'priority': 1, 'code': pur.purchase_number or f"PI-{pur.id}", 'desc': f"Purchase Invoice #{pur.purchase_number}", 'dr': 0.0, 'cr': safe_decimal(pur.amount)})
-    for vp in PurchasePayments.objects.filter(part_name__iexact=target_name, date__range=[from_dt, to_dt]):
-        combined.append({'date': vp.date.date(), 'sort_dt': vp.date, 'priority': 2, 'code': vp.purchase_number or f"PAY-{vp.id}", 'desc': vp.remarks or "Vendor Payment", 'dr': safe_decimal(vp.amount), 'cr': 0.0})
+    for inv in SellsInvoice.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]).order_by('entry_date', 'id'):
+        combined.append({
+            'date': inv.entry_date.date(),
+            'sort_dt': inv.entry_date,
+            'id': inv.id or 0,
+            'priority': 1,
+            'code': inv.sells_no or f"SI-{inv.id}",
+            'desc': f"Sale Invoice #{inv.sells_no}",
+            'dr': safe_decimal(inv.amount),
+            'cr': 0.0
+        })
+    for rec in Sellspayment.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]).order_by('entry_date', 'id'):
+        combined.append({
+            'date': rec.entry_date.date(),
+            'sort_dt': rec.entry_date,
+            'id': rec.id or 0,
+            'priority': 2,
+            'code': rec.sell_no or f"REC-{rec.id}",
+            'desc': rec.description or "Customer Receipt",
+            'dr': 0.0,
+            'cr': safe_decimal(rec.received_amount) or safe_decimal(rec.amount)
+        })
+    for pur in PurchaseReceiving.objects.filter(vendor_name__iexact=target_name, date__range=[from_dt, to_dt]).order_by('date', 'id'):
+        combined.append({
+            'date': pur.date.date(),
+            'sort_dt': pur.date,
+            'id': pur.id or 0,
+            'priority': 1,
+            'code': pur.purchase_number or f"PI-{pur.id}",
+            'desc': f"Purchase Invoice #{pur.purchase_number}",
+            'dr': 0.0,
+            'cr': safe_decimal(pur.amount)
+        })
+    for vp in PurchasePayments.objects.filter(part_name__iexact=target_name, date__range=[from_dt, to_dt]).order_by('date', 'id'):
+        combined.append({
+            'date': vp.date.date(),
+            'sort_dt': vp.date,
+            'id': vp.id or 0,
+            'priority': 2,
+            'code': vp.purchase_number or f"PAY-{vp.id}",
+            'desc': vp.remarks or "Vendor Payment",
+            'dr': safe_decimal(vp.amount),
+            'cr': 0.0
+        })
 
-    combined.sort(key=lambda x: (x['sort_dt'], x['priority']))
+    period_vouchers = VoucherDetail.objects.filter(
+        party_q, voucher__date__range=[from_date, to_date]
+    ).exclude(voucher__voucher_no__startswith='PUR-').exclude(voucher__voucher_no__startswith='SLS-').select_related('voucher').order_by('voucher__date', 'voucher__id', 'id')
+    for v in period_vouchers:
+        if v.voucher.created_at:
+            v_created = timezone.localtime(v.voucher.created_at) if hasattr(v.voucher.created_at, 'tzinfo') and v.voucher.created_at.tzinfo else v.voucher.created_at
+            v_dt = datetime.combine(v.voucher.date, v_created.time())
+        else:
+            v_dt = datetime.combine(v.voucher.date, time.min)
+
+        v_remarks = (v.narration or v.voucher.remarks or '').strip()
+        v_desc = f"{v.voucher.voucher_no} ({v.voucher.voucher_type})"
+        if v_remarks:
+            v_desc += f" - {v_remarks}"
+        combined.append({
+            'date': v.voucher.date,
+            'sort_dt': v_dt,
+            'id': v.voucher.id or 0,
+            'line_id': v.id or 0,
+            'priority': 2,
+            'code': v.voucher.voucher_no,
+            'desc': v_desc,
+            'dr': safe_decimal(v.debit),
+            'cr': safe_decimal(v.credit)
+        })
+
+    def _normalize_pdf_sort_key(x):
+        dt = x.get('sort_dt')
+        if not dt:
+            d_date, d_time = from_date, time.min
+        elif hasattr(dt, 'hour'):
+            if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+                try:
+                    dt = timezone.localtime(dt).replace(tzinfo=None)
+                except Exception:
+                    dt = dt.replace(tzinfo=None)
+            d_date, d_time = dt.date(), dt.time()
+        elif isinstance(dt, date):
+            d_date, d_time = dt, time.min
+        else:
+            d_date, d_time = from_date, time.min
+        return (d_date, d_time, x.get('id', 0), x.get('line_id', 0), x.get('priority', 1))
+
+    combined.sort(key=_normalize_pdf_sort_key)
     # [End of calculation logic]
 
     # PDF Setup
@@ -348,15 +574,12 @@ def purchase_report(request):
     if not request.session.get('user_id'):
         return redirect('login')
 
-    today = timezone.localdate().strftime('%Y-%m-%d')
-
     party_name = request.GET.get('party_name', '').strip()
-    from_date = request.GET.get('from_date') or today
-    to_date = request.GET.get('to_date') or today
+    from_date = request.GET.get('from_date', '').strip()
+    to_date = request.GET.get('to_date', '').strip()
 
     parties = (
         Parties.objects
-        .filter(Q(party_type__iexact='vendor') | Q(party_type__iexact='trader'))
         .exclude(company_name__isnull=True)
         .exclude(company_name='')
         .order_by('company_name')
@@ -365,7 +588,16 @@ def purchase_report(request):
     records = PurchaseReceivingView.objects.all()
 
     if party_name:
-        records = records.filter(vendor_name=party_name)
+        party_obj = Parties.objects.filter(company_name=party_name).first() or Parties.objects.filter(owner_name=party_name).first()
+        if party_obj:
+            p_filter = Q(vendor_name__iexact=party_name)
+            if party_obj.company_name:
+                p_filter |= Q(vendor_name__iexact=party_obj.company_name.strip())
+            if party_obj.owner_name:
+                p_filter |= Q(vendor_name__iexact=party_obj.owner_name.strip())
+            records = records.filter(p_filter)
+        else:
+            records = records.filter(vendor_name__iexact=party_name)
 
     if from_date:
         records = records.filter(date__date__gte=from_date)
@@ -373,13 +605,28 @@ def purchase_report(request):
     if to_date:
         records = records.filter(date__date__lte=to_date)
 
-    records = records.order_by('-date', '-id')
+    records = records.order_by('date', 'id')
+
+    def num(value):
+        try:
+            return Decimal(str(value or '0').replace(',', '').strip())
+        except (InvalidOperation, ValueError, TypeError):
+            return Decimal('0')
 
     # Totals
-    total_weight = sum((r.weight or 0) for r in records)
-    total_amount = sum((r.amount or 0) for r in records)
-    total_paid = sum((r.payed_amount or 0) for r in records)
-    total_remaining = sum((r.remaining_amount or 0) for r in records)
+    total_weight = Decimal('0')
+    total_amount = Decimal('0')
+    total_paid = Decimal('0')
+    total_remaining = Decimal('0')
+    for r in records:
+        w = num(r.weight)
+        amt = num(r.amount)
+        paid = num(r.payed_amount)
+        rem = num(r.remaining_amount) if r.remaining_amount is not None else (amt - paid)
+        total_weight += w
+        total_amount += amt
+        total_paid += paid
+        total_remaining += rem
 
     return render(request, 'Reports/purchase_report.html', {
         'parties': parties,
@@ -401,16 +648,23 @@ def purchase_report_print(request):
     if not request.session.get('user_id'):
         return redirect('login')
 
-    today = timezone.localdate().strftime('%Y-%m-%d')
-
     party_name = request.GET.get('party_name', '').strip()
-    from_date = request.GET.get('from_date') or today
-    to_date = request.GET.get('to_date') or today
+    from_date = request.GET.get('from_date', '').strip()
+    to_date = request.GET.get('to_date', '').strip()
 
     records = PurchaseReceivingView.objects.all()
 
     if party_name:
-        records = records.filter(vendor_name=party_name)
+        party_obj = Parties.objects.filter(company_name=party_name).first() or Parties.objects.filter(owner_name=party_name).first()
+        if party_obj:
+            p_filter = Q(vendor_name__iexact=party_name)
+            if party_obj.company_name:
+                p_filter |= Q(vendor_name__iexact=party_obj.company_name.strip())
+            if party_obj.owner_name:
+                p_filter |= Q(vendor_name__iexact=party_obj.owner_name.strip())
+            records = records.filter(p_filter)
+        else:
+            records = records.filter(vendor_name__iexact=party_name)
 
     if from_date:
         records = records.filter(date__date__gte=from_date)
@@ -457,11 +711,18 @@ def purchase_report_print(request):
     ]
 
     party_text = party_name if party_name else 'All Vendors / Traders'
+    if from_date and to_date:
+        date_text = f'From: {from_date} &nbsp;&nbsp; | &nbsp;&nbsp; To: {to_date}'
+    elif from_date:
+        date_text = f'From: {from_date}'
+    elif to_date:
+        date_text = f'To: {to_date}'
+    else:
+        date_text = 'All Purchases'
 
     elements.append(
         Paragraph(
-            f'Party: {party_text} &nbsp;&nbsp; | &nbsp;&nbsp; '
-            f'From: {from_date} &nbsp;&nbsp; | &nbsp;&nbsp; To: {to_date}',
+            f'Party: {party_text} &nbsp;&nbsp; | &nbsp;&nbsp; {date_text}',
             info_style
         )
     )
@@ -578,22 +839,40 @@ def sells_report(request):
     if not request.session.get('user_id'):
         return redirect('login')
 
-    today = timezone.localdate().strftime('%Y-%m-%d')
     party = (request.GET.get('party_name') or '').strip()
-    from_date = request.GET.get('from_date') or today
-    to_date = request.GET.get('to_date') or today
+    from_date = (request.GET.get('from_date') or '').strip()
+    to_date = (request.GET.get('to_date') or '').strip()
 
-    parties = Parties.objects.filter(
-        Q(party_type__iexact='customer') | Q(party_type__iexact='trader')
-    ).exclude(company_name__isnull=True).exclude(company_name='').order_by('company_name')
+    parties = (
+        Parties.objects
+        .exclude(company_name__isnull=True)
+        .exclude(company_name='')
+        .order_by('company_name')
+    )
 
     records = SellsInvoice.objects.all()
+
     if party:
-        records = records.filter(customer_name=party)
-    records = records.filter(
-        entry_date__date__gte=from_date,
-        entry_date__date__lte=to_date
-    ).order_by('-entry_date', '-id')
+        party_obj = Parties.objects.filter(company_name=party).first() or Parties.objects.filter(owner_name=party).first()
+        if party_obj:
+            p_filter = Q(customer_name__iexact=party) | Q(customer_code=party)
+            if party_obj.company_name:
+                p_filter |= Q(customer_name__iexact=party_obj.company_name.strip())
+            if party_obj.owner_name:
+                p_filter |= Q(customer_name__iexact=party_obj.owner_name.strip())
+            if party_obj.code:
+                p_filter |= Q(customer_code=party_obj.code.strip())
+            records = records.filter(p_filter)
+        else:
+            records = records.filter(Q(customer_name__iexact=party) | Q(customer_code=party))
+
+    if from_date:
+        records = records.filter(entry_date__date__gte=from_date)
+
+    if to_date:
+        records = records.filter(entry_date__date__lte=to_date)
+
+    records = records.order_by('entry_date', 'id')
 
     def num(value):
         try:
@@ -601,12 +880,21 @@ def sells_report(request):
         except (InvalidOperation, ValueError, TypeError):
             return Decimal('0')
 
-    total_weight = total_amount = total_received = total_remaining = Decimal('0')
+    total_weight = Decimal('0')
+    total_amount = Decimal('0')
+    total_received = Decimal('0')
+    total_remaining = Decimal('0')
+
     for row in records:
-        total_weight += num(row.weight)
-        total_amount += num(row.amount)
-        total_received += num(row.received_amount)
-        total_remaining += num(row.remaining_amount)
+        w = num(row.weight)
+        amt = num(row.amount)
+        rec = num(row.received_amount)
+        rem = num(row.remaining_amount) if (row.remaining_amount is not None and str(row.remaining_amount).strip() != '') else (amt - rec)
+        row.calc_remaining = rem
+        total_weight += w
+        total_amount += amt
+        total_received += rec
+        total_remaining += rem
 
     return render(request, 'Reports/sells_report.html', {
         'parties': parties,
@@ -625,23 +913,38 @@ def sells_report_print(request):
     if not request.session.get('user_id'):
         return redirect('login')
 
-    today = timezone.localdate().strftime('%Y-%m-%d')
     party = (request.GET.get('party_name') or '').strip()
-    from_date = request.GET.get('from_date') or today
-    to_date = request.GET.get('to_date') or today
+    from_date = (request.GET.get('from_date') or '').strip()
+    to_date = (request.GET.get('to_date') or '').strip()
 
     records = SellsInvoice.objects.all()
+
     if party:
-        records = records.filter(customer_name=party)
-    records = records.filter(
-        entry_date__date__gte=from_date,
-        entry_date__date__lte=to_date
-    ).order_by('entry_date', 'id')
+        party_obj = Parties.objects.filter(company_name=party).first() or Parties.objects.filter(owner_name=party).first()
+        if party_obj:
+            p_filter = Q(customer_name__iexact=party) | Q(customer_code=party)
+            if party_obj.company_name:
+                p_filter |= Q(customer_name__iexact=party_obj.company_name.strip())
+            if party_obj.owner_name:
+                p_filter |= Q(customer_name__iexact=party_obj.owner_name.strip())
+            if party_obj.code:
+                p_filter |= Q(customer_code=party_obj.code.strip())
+            records = records.filter(p_filter)
+        else:
+            records = records.filter(Q(customer_name__iexact=party) | Q(customer_code=party))
+
+    if from_date:
+        records = records.filter(entry_date__date__gte=from_date)
+
+    if to_date:
+        records = records.filter(entry_date__date__lte=to_date)
+
+    records = records.order_by('entry_date', 'id')
 
     def num(value):
         try:
             return Decimal(str(value or '0').replace(',', '').strip())
-        except:
+        except (InvalidOperation, ValueError, TypeError):
             return Decimal('0')
 
     def fmt(value):
@@ -656,7 +959,8 @@ def sells_report_print(request):
 
     for i, row in enumerate(records, 1):
         weight, amount = num(row.weight), num(row.amount)
-        received, remaining = num(row.received_amount), num(row.remaining_amount)
+        received = num(row.received_amount)
+        remaining = num(row.remaining_amount) if (row.remaining_amount is not None and str(row.remaining_amount).strip() != '') else (amount - received)
         tw += weight
         ta += amount
         tr += received
@@ -685,12 +989,14 @@ def sells_report_print(request):
     doc = SimpleDocTemplate(
         buffer, pagesize=landscape(A4),
         leftMargin=8*mm, rightMargin=8*mm,
-        topMargin=10*mm, bottomMargin=10*mm
+        topMargin=10*mm, bottomMargin=10*mm,
+        title='Sells Report'
     )
 
     styles = getSampleStyleSheet()
     title = ParagraphStyle(
         'title', parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
         fontSize=18, alignment=1, textColor=colors.HexColor('#1e293b')
     )
     info = ParagraphStyle(
@@ -717,13 +1023,23 @@ def sells_report_print(request):
         ('FONTSIZE', (0, 0), (-1, -1), 7.5),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#334155')),
     ]))
 
-    party_text = party or 'All Customers / Traders'
+    party_text = party if party else 'All Customers / Traders'
+    if from_date and to_date:
+        date_text = f'From: {from_date} &nbsp;&nbsp; | &nbsp;&nbsp; To: {to_date}'
+    elif from_date:
+        date_text = f'From: {from_date}'
+    elif to_date:
+        date_text = f'To: {to_date}'
+    else:
+        date_text = 'All Sales Records'
+
     doc.build([
         Paragraph('SELLS REPORT', title),
         Spacer(1, 2*mm),
-        Paragraph(f'Party: {party_text} | From: {from_date} | To: {to_date}', info),
+        Paragraph(f'Party: {party_text} &nbsp;&nbsp; | &nbsp;&nbsp; {date_text}', info),
         Spacer(1, 5*mm),
         table
     ])
@@ -1145,11 +1461,11 @@ def cash_ledger(request):
             discription__icontains='opening'
         ).order_by('date', 'id').first()
 
-    # Fallback: if still not found, check the very first record ever if it is on from_date
+    # Fallback: check any opening balance record
     if not prior_cash:
-        first_rec = CashRecord.objects.order_by('date', 'id').first()
-        if first_rec and first_rec.date and first_rec.date.date() == from_date_obj:
-            prior_cash = first_rec
+        prior_cash = CashRecord.objects.filter(discription__icontains='opening').order_by('date', 'id').first()
+    if not prior_cash:
+        prior_cash = CashRecord.objects.order_by('date', 'id').first()
 
     if prior_cash:
         op_cash_in_hand = safe_decimal(prior_cash.cash_in_hand or 0)
@@ -1164,7 +1480,10 @@ def cash_ledger(request):
     transactions = []
 
     # A) Purchase Payments -> Cash Out (Cr)
-    purchases = PurchasePayments.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    purchases = PurchasePayments.objects.filter(
+        date__date__gte=from_date_obj, date__date__lte=to_date_obj
+    ).exclude(purchase_number__startswith='OPEN').exclude(payment_mood__icontains='opening').order_by('date', 'id')
+
     for p in purchases:
         p_name = (p.part_name or "").strip()
         p_code = (p.party_code or "").strip()
@@ -1179,6 +1498,8 @@ def cash_ledger(request):
 
         transactions.append({
             'date': p.date or datetime.combine(from_date_obj, time.min),
+            'tx_id': p.id or 0,
+            'line_id': 0,
             'account': account_name,
             'description': (p.remarks or "").strip() or "-",
             'dr': 0.0,
@@ -1187,7 +1508,10 @@ def cash_ledger(request):
         })
 
     # B) Sales Payments -> Cash In (Dr)
-    sells = Sellspayment.objects.filter(entry_date__date__gte=from_date_obj, entry_date__date__lte=to_date_obj)
+    sells = Sellspayment.objects.filter(
+        entry_date__date__gte=from_date_obj, entry_date__date__lte=to_date_obj
+    ).exclude(sell_no__startswith='OPEN').exclude(vehicle_no='OPENING').exclude(payment_method__icontains='opening').order_by('entry_date', 'id')
+
     for s in sells:
         c_name = (s.customer_name or "").strip()
         c_code = (s.customer_code or "").strip()
@@ -1206,6 +1530,8 @@ def cash_ledger(request):
 
         transactions.append({
             'date': s.entry_date or datetime.combine(from_date_obj, time.min),
+            'tx_id': s.id or 0,
+            'line_id': 0,
             'account': account_name,
             'description': (s.description or "").strip() or "-",
             'dr': amt,
@@ -1219,6 +1545,8 @@ def cash_ledger(request):
     if total_expenses > 0:
         transactions.append({
             'date': datetime.combine(to_date_obj, time.max),
+            'tx_id': 999999999,
+            'line_id': 0,
             'account': "All Expenses",
             'description': "",
             'dr': 0.0,
@@ -1226,18 +1554,78 @@ def cash_ledger(request):
             'type': 'expense',
         })
 
-    def _normalize_dt(dt_val):
+    # D) Vouchers (CPV, CRV, BPV, BRV, JV)
+    vouchers_period = Voucher.objects.filter(
+        date__gte=from_date_obj, date__lte=to_date_obj
+    ).prefetch_related('details__account', 'details__party').order_by('date', 'id')
+
+    for v in vouchers_period:
+        if v.created_at:
+            v_created = timezone.localtime(v.created_at) if hasattr(v.created_at, 'tzinfo') and v.created_at.tzinfo else v.created_at
+            v_dt = datetime.combine(v.date, v_created.time())
+        else:
+            v_dt = datetime.combine(v.date, time.min)
+
+        for line in v.details.all():
+            code = str(line.account.code)
+            name_lower = line.account.name.lower()
+            is_cash_bank = (code in ['010101001', '1110001'] or code.startswith('010101') or code.startswith('1110') or 'cash in hand' in name_lower or 'bank' in name_lower)
+            if is_cash_bank:
+                opposing = v.details.exclude(id=line.id).first()
+                if opposing:
+                    acc_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
+                else:
+                    acc_name = line.party.company_name if line.party else line.account.name
+
+                desc = f"[{v.voucher_type}] #{v.voucher_no}"
+                if v.remarks:
+                    desc += f" - {v.remarks}"
+                elif line.narration:
+                    desc += f" - {line.narration}"
+
+                if line.debit > 0:
+                    transactions.append({
+                        'date': v_dt,
+                        'tx_id': v.id or 0,
+                        'line_id': line.id or 0,
+                        'account': acc_name,
+                        'description': desc,
+                        'dr': float(line.debit),
+                        'cr': 0.0,
+                        'type': 'voucher_in',
+                    })
+                elif line.credit > 0:
+                    transactions.append({
+                        'date': v_dt,
+                        'tx_id': v.id or 0,
+                        'line_id': line.id or 0,
+                        'account': acc_name,
+                        'description': desc,
+                        'dr': 0.0,
+                        'cr': float(line.credit),
+                        'type': 'voucher_out',
+                    })
+
+    def _normalize_dt(tx):
+        dt_val = tx.get('date')
         if not dt_val:
-            return datetime.min
-        if hasattr(dt_val, 'tzinfo') and dt_val.tzinfo is not None:
+            d_date, d_time = from_date_obj, time.min
+        elif hasattr(dt_val, 'tzinfo') and dt_val.tzinfo is not None:
             try:
-                return timezone.localtime(dt_val).replace(tzinfo=None)
+                dt_obj = timezone.localtime(dt_val).replace(tzinfo=None)
             except Exception:
-                return dt_val.replace(tzinfo=None)
-        return dt_val
+                dt_obj = dt_val.replace(tzinfo=None)
+            d_date, d_time = dt_obj.date(), dt_obj.time()
+        elif isinstance(dt_val, datetime):
+            d_date, d_time = dt_val.date(), dt_val.time()
+        elif isinstance(dt_val, date):
+            d_date, d_time = dt_val, time.min
+        else:
+            d_date, d_time = from_date_obj, time.min
+        return (d_date, d_time, tx.get('tx_id', 0) or 0, tx.get('line_id', 0) or 0)
 
     # Sort transactions chronologically
-    transactions.sort(key=lambda x: _normalize_dt(x.get('date')))
+    transactions.sort(key=_normalize_dt)
 
     # 3. Build Ledger Rows starting with Opening Balance
     ledger_rows = []
@@ -1329,11 +1717,11 @@ def cash_ledger_print(request):
             discription__icontains='opening'
         ).order_by('date', 'id').first()
 
-    # Fallback: if still not found, check the very first record ever if it is on from_date
+    # Fallback: check any opening balance record
     if not prior_cash:
-        first_rec = CashRecord.objects.order_by('date', 'id').first()
-        if first_rec and first_rec.date and first_rec.date.date() == from_date_obj:
-            prior_cash = first_rec
+        prior_cash = CashRecord.objects.filter(discription__icontains='opening').order_by('date', 'id').first()
+    if not prior_cash:
+        prior_cash = CashRecord.objects.order_by('date', 'id').first()
 
     if prior_cash:
         op_cash_in_hand = safe_decimal(prior_cash.cash_in_hand or 0)
@@ -1347,7 +1735,10 @@ def cash_ledger_print(request):
     # 2. Period Transactions
     transactions = []
 
-    purchases = PurchasePayments.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    purchases = PurchasePayments.objects.filter(
+        date__date__gte=from_date_obj, date__date__lte=to_date_obj
+    ).exclude(purchase_number__startswith='OPEN').exclude(payment_mood__icontains='opening').order_by('date', 'id')
+
     for p in purchases:
         p_name = (p.part_name or "").strip()
         p_code = (p.party_code or "").strip()
@@ -1362,13 +1753,18 @@ def cash_ledger_print(request):
 
         transactions.append({
             'date': p.date or datetime.combine(from_date_obj, time.min),
+            'tx_id': p.id or 0,
+            'line_id': 0,
             'account': account_name,
             'description': (p.remarks or "").strip() or "-",
             'dr': 0.0,
             'cr': safe_decimal(p.amount),
         })
 
-    sells = Sellspayment.objects.filter(entry_date__date__gte=from_date_obj, entry_date__date__lte=to_date_obj)
+    sells = Sellspayment.objects.filter(
+        entry_date__date__gte=from_date_obj, entry_date__date__lte=to_date_obj
+    ).exclude(sell_no__startswith='OPEN').exclude(vehicle_no='OPENING').exclude(payment_method__icontains='opening').order_by('entry_date', 'id')
+
     for s in sells:
         c_name = (s.customer_name or "").strip()
         c_code = (s.customer_code or "").strip()
@@ -1384,6 +1780,8 @@ def cash_ledger_print(request):
         amt = safe_decimal(s.received_amount) or safe_decimal(s.amount)
         transactions.append({
             'date': s.entry_date or datetime.combine(from_date_obj, time.min),
+            'tx_id': s.id or 0,
+            'line_id': 0,
             'account': account_name,
             'description': (s.description or "").strip() or "-",
             'dr': amt,
@@ -1395,23 +1793,82 @@ def cash_ledger_print(request):
     if total_expenses > 0:
         transactions.append({
             'date': datetime.combine(to_date_obj, time.max),
+            'tx_id': 999999999,
+            'line_id': 0,
             'account': "All Expenses",
             'description': "",
             'dr': 0.0,
             'cr': total_expenses,
         })
 
-    def _normalize_dt(dt_val):
-        if not dt_val:
-            return datetime.min
-        if hasattr(dt_val, 'tzinfo') and dt_val.tzinfo is not None:
-            try:
-                return timezone.localtime(dt_val).replace(tzinfo=None)
-            except Exception:
-                return dt_val.replace(tzinfo=None)
-        return dt_val
+    vouchers_period = Voucher.objects.filter(
+        date__gte=from_date_obj, date__lte=to_date_obj
+    ).prefetch_related('details__account', 'details__party').order_by('date', 'id')
 
-    transactions.sort(key=lambda x: _normalize_dt(x.get('date')))
+    for v in vouchers_period:
+        if v.created_at:
+            v_created = timezone.localtime(v.created_at) if hasattr(v.created_at, 'tzinfo') and v.created_at.tzinfo else v.created_at
+            v_dt = datetime.combine(v.date, v_created.time())
+        else:
+            v_dt = datetime.combine(v.date, time.min)
+
+        for line in v.details.all():
+            code = str(line.account.code)
+            name_lower = line.account.name.lower()
+            is_cash_bank = (code in ['010101001', '1110001'] or code.startswith('010101') or code.startswith('1110') or 'cash in hand' in name_lower or 'bank' in name_lower)
+            if is_cash_bank:
+                opposing = v.details.exclude(id=line.id).first()
+                if opposing:
+                    acc_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
+                else:
+                    acc_name = line.party.company_name if line.party else line.account.name
+
+                desc = f"[{v.voucher_type}] #{v.voucher_no}"
+                if v.remarks:
+                    desc += f" - {v.remarks}"
+                elif line.narration:
+                    desc += f" - {line.narration}"
+
+                if line.debit > 0:
+                    transactions.append({
+                        'date': v_dt,
+                        'tx_id': v.id or 0,
+                        'line_id': line.id or 0,
+                        'account': acc_name,
+                        'description': desc,
+                        'dr': float(line.debit),
+                        'cr': 0.0,
+                    })
+                elif line.credit > 0:
+                    transactions.append({
+                        'date': v_dt,
+                        'tx_id': v.id or 0,
+                        'line_id': line.id or 0,
+                        'account': acc_name,
+                        'description': desc,
+                        'dr': 0.0,
+                        'cr': float(line.credit),
+                    })
+
+    def _normalize_dt(tx):
+        dt_val = tx.get('date')
+        if not dt_val:
+            d_date, d_time = from_date_obj, time.min
+        elif hasattr(dt_val, 'tzinfo') and dt_val.tzinfo is not None:
+            try:
+                dt_obj = timezone.localtime(dt_val).replace(tzinfo=None)
+            except Exception:
+                dt_obj = dt_val.replace(tzinfo=None)
+            d_date, d_time = dt_obj.date(), dt_obj.time()
+        elif isinstance(dt_val, datetime):
+            d_date, d_time = dt_val.date(), dt_val.time()
+        elif isinstance(dt_val, date):
+            d_date, d_time = dt_val, time.min
+        else:
+            d_date, d_time = from_date_obj, time.min
+        return (d_date, d_time, tx.get('tx_id', 0) or 0, tx.get('line_id', 0) or 0)
+
+    transactions.sort(key=_normalize_dt)
 
     ledger_rows = []
     ledger_rows.append({
@@ -1623,7 +2080,9 @@ def broiler_report(request):
 
     # 1. Left Table: SellsInvoice (Sales)
     # Party Name, Qty (Weight), Rate, Amount
-    sales_qs = SellsInvoice.objects.filter(entry_date__date=selected_date_obj).order_by('id')
+    sales_qs = SellsInvoice.objects.filter(
+        entry_date__date=selected_date_obj
+    ).order_by('entry_date', 'id')
     sales_list = []
     total_sales_qty = 0.0
     total_sales_amount = 0.0
@@ -1661,7 +2120,9 @@ def broiler_report(request):
 
     # 2. Right Table: PurchaseReceiving (Purchases)
     # Party Name, Qty (Weight), Rate, Amount
-    purchases_qs = PurchaseReceiving.objects.filter(date__date=selected_date_obj).order_by('id')
+    purchases_qs = PurchaseReceiving.objects.filter(
+        date__date=selected_date_obj
+    ).order_by('date', 'id')
     purchases_list = []
     total_purchase_qty = 0.0
     total_purchase_amount = 0.0
@@ -2052,12 +2513,14 @@ def _get_cash_report_data(request):
 
     selected_date_display = selected_date_obj.strftime('%d-%m-%Y')
 
-    # 1. Left Side: Sellspayment (Customer Name & Received Amount)
-    sells_qs = Sellspayment.objects.filter(entry_date__date=selected_date_obj).order_by('id')
-    sells_list = []
+    # 1. Left Side: Sellspayment & Voucher Receipts (CRV, BRV - Money In)
+    sells_qs = Sellspayment.objects.filter(
+        entry_date__date=selected_date_obj
+    ).exclude(sell_no__startswith='OPEN').exclude(vehicle_no='OPENING').exclude(payment_method__icontains='opening').order_by('entry_date', 'id')
+    raw_sells = []
     total_sells_amount = 0.0
 
-    for idx, s in enumerate(sells_qs, 1):
+    for s in sells_qs:
         c_name = (s.customer_name or "").strip()
         c_code = (s.customer_code or "").strip()
         if c_name and c_code:
@@ -2074,14 +2537,72 @@ def _get_cash_report_data(request):
             amt = safe_decimal(s.amount)
 
         total_sells_amount += amt
-        sells_list.append({
-            'sr': idx,
+        s_dt = s.entry_date or datetime.combine(selected_date_obj, time.min)
+        raw_sells.append({
+            'sort_dt': s_dt,
+            'sort_id': s.id or 0,
             'customer_name': party_name,
             'amount': amt,
             'payment_method': s.payment_method or "-",
             'sell_no': s.sell_no or "-",
             'vehicle_no': s.vehicle_no or "-",
         })
+
+    # Add CRV & BRV Vouchers (Cash & Bank Receipts)
+    vouchers_in = Voucher.objects.filter(
+        date=selected_date_obj,
+        voucher_type__in=['CRV', 'BRV', 'Receipt Voucher']
+    ).prefetch_related('details__account', 'details__party').order_by('date', 'id')
+
+    for v in vouchers_in:
+        amt = float(v.total_amount)
+        total_sells_amount += amt
+        # Get opposing party or account
+        opposing = v.details.exclude(account__code__in=['010101001', '1110001']).exclude(account__code__startswith='010101').exclude(account__code__startswith='1110').first()
+        if opposing:
+            party_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
+        else:
+            party_name = "Cash / Bank Receipt"
+
+        if v.created_at:
+            v_created = timezone.localtime(v.created_at) if hasattr(v.created_at, 'tzinfo') and v.created_at.tzinfo else v.created_at
+            v_dt = datetime.combine(v.date, v_created.time())
+        else:
+            v_dt = datetime.combine(v.date, time.min)
+
+        raw_sells.append({
+            'sort_dt': v_dt,
+            'sort_id': v.id or 0,
+            'customer_name': f"[{v.voucher_type}] {party_name}",
+            'amount': amt,
+            'payment_method': v.voucher_type,
+            'sell_no': v.voucher_no,
+            'vehicle_no': v.reference_no or "-",
+        })
+
+    def _sort_dt_key(item):
+        d = item.get('sort_dt')
+        if not d:
+            d_dt = datetime.combine(selected_date_obj, time.min)
+        elif hasattr(d, 'tzinfo') and d.tzinfo is not None:
+            try:
+                d_dt = timezone.localtime(d).replace(tzinfo=None)
+            except Exception:
+                d_dt = d.replace(tzinfo=None)
+        elif isinstance(d, datetime):
+            d_dt = d
+        elif isinstance(d, date):
+            d_dt = datetime.combine(d, time.min)
+        else:
+            d_dt = datetime.combine(selected_date_obj, time.min)
+        return (d_dt, item.get('sort_id', 0))
+
+    raw_sells.sort(key=_sort_dt_key)
+
+    sells_list = []
+    for idx, item in enumerate(raw_sells, 1):
+        item['sr'] = idx
+        sells_list.append(item)
 
     # 2. Previous Day Closing Balance from Cash Ledger (CashRecord)
     prior_cash = CashRecord.objects.filter(
@@ -2095,9 +2616,9 @@ def _get_cash_report_data(request):
         ).order_by('date', 'id').first()
 
     if not prior_cash:
-        first_rec = CashRecord.objects.order_by('date', 'id').first()
-        if first_rec and first_rec.date and first_rec.date.date() == selected_date_obj:
-            prior_cash = first_rec
+        prior_cash = CashRecord.objects.filter(discription__icontains='opening').order_by('date', 'id').first()
+    if not prior_cash:
+        prior_cash = CashRecord.objects.order_by('date', 'id').first()
 
     if prior_cash:
         prev_hand = safe_decimal(prior_cash.cash_in_hand or 0)
@@ -2109,12 +2630,14 @@ def _get_cash_report_data(request):
     prev_closing_balance = prev_hand + prev_bank
     total_left = total_sells_amount + prev_closing_balance
 
-    # 3. Right Side: PurchasePayments (Party Name & Amount)
-    purchases_qs = PurchasePayments.objects.filter(date__date=selected_date_obj).order_by('id')
-    purchases_list = []
+    # 3. Right Side: PurchasePayments & Voucher Payments (CPV, BPV - Money Out)
+    purchases_qs = PurchasePayments.objects.filter(
+        date__date=selected_date_obj
+    ).exclude(purchase_number__startswith='OPEN').exclude(payment_mood__icontains='opening').order_by('date', 'id')
+    raw_purchases = []
     total_purchase_amount = 0.0
 
-    for idx, p in enumerate(purchases_qs, 1):
+    for p in purchases_qs:
         p_name = (p.part_name or "").strip()
         p_code = (p.party_code or "").strip()
         if p_name and p_code:
@@ -2128,14 +2651,55 @@ def _get_cash_report_data(request):
 
         amt = safe_decimal(p.amount)
         total_purchase_amount += amt
-        purchases_list.append({
-            'sr': idx,
+        p_dt = p.date or datetime.combine(selected_date_obj, time.min)
+        raw_purchases.append({
+            'sort_dt': p_dt,
+            'sort_id': p.id or 0,
             'party_name': party_name,
             'amount': amt,
             'payment_mood': p.payment_mood or "-",
             'purchase_number': p.purchase_number or "-",
             'remarks': p.remarks or "-",
         })
+
+    # Add CPV & BPV Vouchers (Cash & Bank Payments)
+    vouchers_out = Voucher.objects.filter(
+        date=selected_date_obj,
+        voucher_type__in=['CPV', 'BPV', 'Payment Voucher']
+    ).prefetch_related('details__account', 'details__party').order_by('date', 'id')
+
+    for v in vouchers_out:
+        amt = float(v.total_amount)
+        total_purchase_amount += amt
+        # Get opposing party or account
+        opposing = v.details.exclude(account__code__in=['010101001', '1110001']).exclude(account__code__startswith='010101').exclude(account__code__startswith='1110').first()
+        if opposing:
+            party_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
+        else:
+            party_name = "Cash / Bank Payment"
+
+        if v.created_at:
+            v_created = timezone.localtime(v.created_at) if hasattr(v.created_at, 'tzinfo') and v.created_at.tzinfo else v.created_at
+            v_dt = datetime.combine(v.date, v_created.time())
+        else:
+            v_dt = datetime.combine(v.date, time.min)
+
+        raw_purchases.append({
+            'sort_dt': v_dt,
+            'sort_id': v.id or 0,
+            'party_name': f"[{v.voucher_type}] {party_name}",
+            'amount': amt,
+            'payment_mood': v.voucher_type,
+            'purchase_number': v.voucher_no,
+            'remarks': v.remarks or opposing.narration if opposing else "-",
+        })
+
+    raw_purchases.sort(key=_sort_dt_key)
+
+    purchases_list = []
+    for idx, item in enumerate(raw_purchases, 1):
+        item['sr'] = idx
+        purchases_list.append(item)
 
     # 4. Expenses for that date from Expensedetail
     expenses_qs = Expensedetail.objects.filter(date__date=selected_date_obj)
@@ -2224,9 +2788,9 @@ def cash_report_print(request):
     kpi_data = [
         [
             Paragraph(
-                f"<font size=7 color='#64748b'>TOTAL SELLS (وصولیاں)</font><br/>"
+                f"<font size=7 color='#64748b'>TOTAL CASH RECEIPTS (کل وصولیاں)</font><br/>"
                 f"<font color='#15803d' size=9.5><b>PKR {data['total_sells_amount']:,.2f}</b></font><br/>"
-                f"<font size=6.5 color='#64748b'>{len(data['sells_list'])} Receipts</font>",
+                f"<font size=6.5 color='#64748b'>{len(data['sells_list'])} Cash Receipts</font>",
                 normal_style
             ),
             Paragraph(
@@ -2236,9 +2800,9 @@ def cash_report_print(request):
                 normal_style
             ),
             Paragraph(
-                f"<font size=7 color='#64748b'>PURCHASES & EXPENSES (ادائیگیاں)</font><br/>"
+                f"<font size=7 color='#64748b'>PAYMENTS & EXPENSES (ادائیگیاں)</font><br/>"
                 f"<font color='#b91c1c' size=9.5><b>PKR {data['total_right']:,.2f}</b></font><br/>"
-                f"<font size=6.5 color='#64748b'>Pur: {data['total_purchase_amount']:,.2f} | Exp: {data['total_expense_amount']:,.2f}</font>",
+                f"<font size=6.5 color='#64748b'>Paid: {data['total_purchase_amount']:,.2f} | Exp: {data['total_expense_amount']:,.2f}</font>",
                 normal_style
             ),
             Paragraph(
@@ -2262,14 +2826,14 @@ def cash_report_print(request):
     elements.append(kpi_table)
     elements.append(Spacer(1, 3 * mm))
 
-    # 3. Side-by-Side Tables: Left (Sales / Receipts) & Right (Purchases / Expenses)
+    # 3. Side-by-Side Tables: Left (Cash Receipts) & Right (Cash Payments & Expenses)
     # --- Left Table (Receipts & Previous Day Balance) ---
     s_table_data = [
         [
-            Paragraph("<font color='white'><b>RECEIPTS / SALES (وصولیاں)</b></font>", normal_style),
+            Paragraph("<font color='white'><b>CASH RECEIPTS / COLLECTIONS (کیش وصولیاں)</b></font>", normal_style),
             "", ""
         ],
-        ["#", "Customer / Party Name", "Amount (PKR)"]
+        ["#", "Party / Source Name", "Amount (PKR)"]
     ]
 
     if data['sells_list']:
@@ -2282,27 +2846,27 @@ def cash_report_print(request):
     else:
         s_table_data.append([
             "-",
-            Paragraph("<font color='#94a3b8'>No sales receipt recorded for this date</font>", normal_style),
+            Paragraph("<font color='#94a3b8'>No cash receipt recorded for this date</font>", normal_style),
             "-"
         ])
 
     # Sells Subtotal Row
     s_table_data.append([
-        "Total Sales Receipts",
+        "Total Cash Receipts (کل وصولیاں)",
         "",
         f"PKR {data['total_sells_amount']:,.2f}"
     ])
 
     # Previous Day Closing Row
     s_table_data.append([
-        "Previous Day Closing Balance (سابقہ بیلنس)",
+        "Previous Day Closing Balance (سابقہ کیش)",
         "",
         f"PKR {data['prev_closing_balance']:,.2f}"
     ])
 
     # Left Grand Total Row: Sells + Previous Day
     s_table_data.append([
-        "Total Available (Sells + Prev Day)",
+        "Total Available Cash (کل دستیاب کیش)",
         "",
         f"PKR {data['total_left']:,.2f}"
     ])
@@ -2351,10 +2915,10 @@ def cash_report_print(request):
     # --- Right Table (Payments, Purchases & Expense) ---
     p_table_data = [
         [
-            Paragraph("<font color='white'><b>PAYMENTS / PURCHASES (ادائیگیاں)</b></font>", normal_style),
+            Paragraph("<font color='white'><b>CASH PAYMENTS & EXPENSES (کیش ادائیگیاں)</b></font>", normal_style),
             "", ""
         ],
-        ["#", "Party / Vendor Name", "Amount (PKR)"]
+        ["#", "Party / Account Name", "Amount (PKR)"]
     ]
 
     if data['purchases_list']:
@@ -2367,13 +2931,13 @@ def cash_report_print(request):
     else:
         p_table_data.append([
             "-",
-            Paragraph("<font color='#94a3b8'>No purchase payment recorded for this date</font>", normal_style),
+            Paragraph("<font color='#94a3b8'>No cash payment recorded for this date</font>", normal_style),
             "-"
         ])
 
     # Purchase Subtotal Row
     p_table_data.append([
-        "Total Purchase Payments",
+        "Total Cash Payments (پارٹی ادائیگیاں)",
         "",
         f"PKR {data['total_purchase_amount']:,.2f}"
     ])
@@ -2387,7 +2951,7 @@ def cash_report_print(request):
 
     # Right Grand Total Row: Purchases + Expenses
     p_table_data.append([
-        "Total Paid (Purchase + Expense)",
+        "Total Cash Outflow (کل ادائیگیاں و اخراجات)",
         "",
         f"PKR {data['total_right']:,.2f}"
     ])
@@ -2563,6 +3127,25 @@ def get_net_position_data(to_date=None):
         if name:
             pur_map[name] += safe_decimal(p['amount'])
 
+    # Voucher transactions (CPV, CRV, BPV, BRV, JV)
+    vouchers_qs = VoucherDetail.objects.all().select_related('party', 'account', 'voucher')
+    if to_date:
+        vouchers_qs = vouchers_qs.filter(voucher__date__lte=to_date)
+
+    v_dr_party = defaultdict(float)
+    v_cr_party = defaultdict(float)
+    for vd in vouchers_qs:
+        dr_val = safe_decimal(vd.debit)
+        cr_val = safe_decimal(vd.credit)
+        p_id = vd.party_id or (vd.account.party_id if vd.account and vd.account.party_id else None)
+        if p_id:
+            v_dr_party[p_id] += dr_val
+            v_cr_party[p_id] += cr_val
+        elif vd.account and vd.account.name:
+            aname = vd.account.name.strip().lower()
+            v_dr_party[aname] += dr_val
+            v_cr_party[aname] += cr_val
+
     debit_parties = []
     credit_parties = []
     total_debit = 0.0
@@ -2582,8 +3165,8 @@ def get_net_position_data(to_date=None):
             keys.add(party.owner_name.strip().lower())
         matched_keys.update(keys)
 
-        dr = sum(sales_map.get(k, 0.0) + vp_map.get(k, 0.0) for k in keys)
-        cr = sum(rec_map.get(k, 0.0) + pur_map.get(k, 0.0) for k in keys)
+        dr = sum(sales_map.get(k, 0.0) + vp_map.get(k, 0.0) for k in keys) + v_dr_party.get(party.id, 0.0) + sum(v_dr_party.get(k, 0.0) for k in keys)
+        cr = sum(rec_map.get(k, 0.0) + pur_map.get(k, 0.0) for k in keys) + v_cr_party.get(party.id, 0.0) + sum(v_cr_party.get(k, 0.0) for k in keys)
         bal = round(dr - cr, 2)
 
         party_type = (party.party_type or '').strip()

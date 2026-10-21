@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Opening Stock - Politory{% endblock %}
+{% block title %}پارٹی اوپننگ انٹری (Party Opening Management) - Politory{% endblock %}
 
 {% block content %}
 <!-- Select2 CSS -->
@@ -8,43 +8,315 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
 
 <style>
-    .compact-row .form-control,
-    .compact-row .form-select,
-    .select2-selection {
-        font-size: 0.85rem !important;
-        min-height: 38px !important;
+    :root {
+        --primary-navy: #0b2b3c;
+        --secondary-teal: #155e75;
+        --accent-emerald: #10b981;
+        --accent-rose: #ef4444;
+        --accent-amber: #f59e0b;
+        --accent-indigo: #6366f1;
+        --slate-bg: #f8fafc;
+        --card-border: #e2e8f0;
     }
-    .table-responsive { font-size: 0.9rem; }
 
-    .btn-action {
-        width: 30px;
-        height: 30px;
-        padding: 0;
-        display: inline-flex;
+    .opening-wrapper {
+        padding: 1.25rem 0.5rem;
+        max-width: 1280px;
+        margin: 0 auto;
+    }
+
+    /* Top KPI Summary Cards */
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .summary-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 1.1rem 1.25rem;
+        border: 1px solid var(--card-border);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    }
+    .summary-card.card-pur { border-left: 5px solid #3b82f6; }
+    .summary-card.card-sls { border-left: 5px solid #f59e0b; }
+    .summary-card.card-pay { border-left: 5px solid #ef4444; }
+    .summary-card.card-rec { border-left: 5px solid #10b981; }
+
+    .card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 6px;
+        font-size: 1.4rem;
+        flex-shrink: 0;
     }
-    .header-gradient {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        color: white;
-        padding: 14px 18px;
-        border-radius: 8px 8px 0 0;
-    }
-    .select2-container--bootstrap-5 .select2-selection { height: 38px; }
+    .icon-pur { background: #dbeafe; color: #1d4ed8; }
+    .icon-sls { background: #fef3c7; color: #b45309; }
+    .icon-pay { background: #fee2e2; color: #b91c1c; }
+    .icon-rec { background: #dcfce7; color: #15803d; }
 
-    .code-field {
-        background: #f0f4ff !important;
+    .card-label {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+    .card-amount {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    /* Main Form Card */
+    .opening-form-card {
+        background: #ffffff;
+        border-radius: 18px;
+        border: 1px solid var(--card-border);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+        margin-bottom: 1.75rem;
+    }
+    .opening-form-header {
+        background: linear-gradient(135deg, #0b2b3c 0%, #1e4963 100%);
+        color: white;
+        padding: 1.1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .opening-form-header h5 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .opening-form-body {
+        padding: 1.5rem;
+    }
+
+    /* Opening Type Select Dropdown */
+    .opening-type-select {
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0.62rem 0.85rem;
+        border-radius: 10px;
+        background-color: #f0f9ff;
+        border: 2px solid #0284c7;
+        color: #0b2b3c;
+        transition: all 0.2s ease;
+    }
+    .opening-type-select:focus {
+        border-color: #0369a1;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
+
+    /* Dynamic Guidance Alert Box */
+    .guidance-box {
+        border-radius: 12px;
+        padding: 0.9rem 1.2rem;
+        margin-bottom: 1.4rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        border: 1px solid transparent;
+        transition: all 0.3s ease;
+    }
+    .guide-pur { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+    .guide-sls { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .guide-pay { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .guide-rec { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .guide-led { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+
+    /* Inputs & Form Elements */
+    .form-label-custom {
+        font-weight: 700;
+        font-size: 0.86rem;
+        color: #1e293b;
+        margin-bottom: 0.35rem;
+        display: block;
+    }
+    .form-control-custom, .form-select-custom {
+        width: 100%;
+        padding: 0.62rem 0.85rem;
+        font-size: 0.92rem;
+        background: #f8fafc;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 10px;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .form-control-custom:focus, .form-select-custom:focus {
+        border-color: #0284c7;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+    }
+    .code-display {
+        background: #f1f5f9;
+        font-weight: 700;
+        color: #0b2b3c;
+    }
+
+    .amount-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .amount-input-prefix {
+        position: absolute;
+        left: 0.85rem;
+        font-weight: 700;
+        color: #64748b;
+        pointer-events: none;
+    }
+    .amount-input-field {
+        width: 100%;
+        padding: 0.62rem 0.85rem 0.62rem 2.5rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+        background: #f8fafc;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 10px;
+        outline: none;
+        transition: all 0.2s;
+    }
+    .amount-input-field:focus {
+        border-color: #0284c7;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+    }
+
+    .btn-submit-main {
+        background: linear-gradient(135deg, #0b2b3c 0%, #155e75 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.72rem 1.4rem;
+        font-weight: 700;
+        font-size: 1rem;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .btn-submit-main:hover {
+        background: linear-gradient(135deg, #08212e 0%, #0e7490 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(11, 43, 60, 0.25);
+    }
+
+    /* History Table Card */
+    .history-card {
+        background: #ffffff;
+        border-radius: 18px;
+        border: 1px solid var(--card-border);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+    .history-card-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1rem 1.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    /* Badges */
+    .badge-purchase {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .badge-sale {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .badge-payment {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .badge-receipt {
+        background: #dcfce7;
+        color: #065f46;
+        border: 1px solid #86efac;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .btn-action-delete {
+        background: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.8rem;
         font-weight: 600;
-        color: #4b3f9e !important;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: all 0.15s;
     }
-    .amount-field {
-        background: linear-gradient(135deg, #667eea20, #764ba220) !important;
-        border: 1.5px solid #667eea !important;
-        color: #333 !important;
-        font-weight: 700 !important;
+    .btn-action-delete:hover {
+        background: #dc2626;
+        color: white;
     }
-    .amount-label { color: #667eea; font-weight: 700 !important; }
 
     /* Toast */
     .toast-container {
@@ -54,42 +326,35 @@
         z-index: 9999;
     }
     .custom-toast {
-        min-width: 300px;
-        max-width: 400px;
-        border-radius: 10px;
+        min-width: 320px;
+        max-width: 440px;
+        border-radius: 12px;
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
-        animation: slideIn 0.4s ease-out;
-        border: none;
-        overflow: hidden;
         background: #ffffff;
+        overflow: hidden;
+        margin-bottom: 0.75rem;
+        border-left: 5px solid #0b2b3c;
     }
-    .custom-toast.toast-success { border-left: 5px solid #28a745; }
-    .custom-toast.toast-error   { border-left: 5px solid #dc3545; }
-    .custom-toast.toast-info    { border-left: 5px solid #17a2b8; }
-    .custom-toast.toast-warning { border-left: 5px solid #ffc107; }
+    .custom-toast.toast-success { border-left-color: #10b981; }
+    .custom-toast.toast-error   { border-left-color: #ef4444; }
     .toast-body-custom {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 14px 18px;
-        font-size: 0.9rem;
+        padding: 12px 16px;
+        font-size: 0.88rem;
         font-weight: 600;
-        color: #333;
-    }
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to   { transform: translateX(0);    opacity: 1; }
+        color: #1e293b;
     }
 </style>
 
 <!-- TOAST NOTIFICATIONS -->
 <div class="toast-container">
     {% for message in messages %}
-    <div class="custom-toast toast-{{ message.tags }} mb-2">
+    <div class="custom-toast toast-{{ message.tags }}">
         <div class="toast-body-custom">
             {% if 'success' in message.tags %}✅
             {% elif 'error' in message.tags %}❌
-            {% elif 'warning' in message.tags %}⚠️
             {% else %}ℹ️{% endif %}
             <span>{{ message }}</span>
         </div>
@@ -97,153 +362,460 @@
     {% endfor %}
 </div>
 
-<div class="container-fluid mt-3 px-2 px-md-3">
+<div class="opening-wrapper">
 
-    <!-- ============ OPENING STOCK FORM ============ -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="header-gradient d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">
-                <i class="bi bi-box-seam me-2"></i>
-                {% if edit_obj %}Update{% else %}New{% endif %} Opening Stock
-            </h6>
-            {% if edit_obj %}
-            <span class="badge bg-white text-success fw-bold">Editing #{{ edit_obj.id }}</span>
-            {% endif %}
+    <!-- TOP KPI SUMMARY CARDS -->
+    <div class="summary-grid">
+        <!-- 1. Total Opening Purchases -->
+        <div class="summary-card card-pur">
+            <div class="card-icon icon-pur">
+                <i class="bi bi-cart-check-fill"></i>
+            </div>
+            <div>
+                <div class="card-label">اوپننگ خریداری (Purchases)</div>
+                <div class="card-amount text-primary">Rs. {{ total_purchases|floatformat:2 }}</div>
+            </div>
         </div>
 
-        <div class="card-body p-2 p-md-3">
-            <form method="POST" id="openingForm">
+        <!-- 2. Total Opening Sales -->
+        <div class="summary-card card-sls">
+            <div class="card-icon icon-sls">
+                <i class="bi bi-box-seam-fill"></i>
+            </div>
+            <div>
+                <div class="card-label">اوپننگ فروخت (Sales)</div>
+                <div class="card-amount text-warning">Rs. {{ total_sales|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        <!-- 3. Total Opening Payments -->
+        <div class="summary-card card-pay">
+            <div class="card-icon icon-pay">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div>
+                <div class="card-label">اوپننگ ادائیگیاں (Payments Out)</div>
+                <div class="card-amount text-danger">Rs. {{ total_payments|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        <!-- 4. Total Opening Receipts -->
+        <div class="summary-card card-rec">
+            <div class="card-icon icon-rec">
+                <i class="bi bi-wallet-fill"></i>
+            </div>
+            <div>
+                <div class="card-label">اوپننگ وصولیاں (Receipts In)</div>
+                <div class="card-amount text-success">Rs. {{ total_receipts|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN FORM CARD -->
+    <div class="opening-form-card">
+        <div class="opening-form-header">
+            <h5>
+                <i class="bi bi-plus-circle-dotted"></i>
+                پارٹی اوپننگ ٹرانزیکشن کا اندراج (New Opening Entry)
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'purchase_report' %}" class="btn btn-outline-light btn-sm" title="پرچیز رپورٹ">
+                    <i class="bi bi-file-earmark-text"></i> پرچیز رپورٹ
+                </a>
+                <a href="{% url 'sells_report' %}" class="btn btn-outline-light btn-sm" title="سیلز رپورٹ">
+                    <i class="bi bi-graph-up"></i> سیلز رپورٹ
+                </a>
+                <a href="{% url 'cash_ledger' %}" class="btn btn-outline-light btn-sm" title="کیش لیجر">
+                    <i class="bi bi-cash-coin"></i> کیش لیجر
+                </a>
+            </div>
+        </div>
+
+        <div class="opening-form-body">
+
+            <!-- MAIN INPUT FORM -->
+            <form method="POST" id="openingForm" action="{% url 'opening' %}">
                 {% csrf_token %}
-                <input type="hidden" name="record_id" value="{{ edit_obj.id|default:'' }}">
-                <input type="hidden" name="party_code" id="partyCodeHidden"
-                       value="{{ edit_obj.vendor_code|default:'' }}">
-                <input type="hidden" name="amount" id="amountHidden"
-                       value="{{ edit_obj.amount|default:'0' }}">
+                <input type="hidden" name="party_code" id="partyCodeHidden" value="">
 
-                <div class="row g-2 compact-row">
+                <div class="row g-3">
 
-                    <!-- Party (from Parties model) -->
-                    <div class="col-12 col-sm-6 col-lg-3">
-                        <label class="small fw-bold">Party Name <span class="text-danger">*</span></label>
-                        <select name="party_name" id="partySelect"
-                                class="form-select select2-search" required>
-                            <option value="">Search Party...</option>
+                    <!-- 1. Opening Type Dropdown (In-form dropdown with 4 main options) -->
+                    <div class="col-12 col-md-3">
+                        <label class="form-label-custom">
+                            انٹری کی قسم (Opening Type) <span class="text-danger">*</span>
+                        </label>
+                        <select name="opening_type" id="openingTypeSelect" class="form-select-custom opening-type-select" required>
+                            <option value="purchase" selected>🛒 خریداری (Purchase)</option>
+                            <option value="sale">📦 فروخت (Sale)</option>
+                            <option value="payment">💸 پیسے دیے (Payment)</option>
+                            <option value="receipt">💰 پیسے لیے (Receipt)</option>
+                        </select>
+                    </div>
+
+                    <!-- 2. Party Select -->
+                    <div class="col-12 col-md-4">
+                        <label class="form-label-custom">
+                            پارٹی کا نام (Select Party) <span class="text-danger">*</span>
+                        </label>
+                        <select name="party_name" id="partySelect" class="form-select select2-party" required>
+                            <option value="">پارٹی تلاش کریں...</option>
                             {% for party in all_parties %}
                             <option value="{{ party.company_name }}"
                                     data-code="{{ party.code|default:'' }}"
-                                    data-type="{{ party.party_type|default:'' }}"
-                                    {% if edit_obj.vendor_name == party.company_name %}selected{% endif %}>
-                                {% if party.party_type %}[{{ party.party_type }}] {% endif %}{{ party.code|default:'' }} - {{ party.company_name }}
+                                    data-type="{{ party.party_type|default:'' }}">
+                                {% if party.party_type %}[{{ party.party_type }}] {% endif %}{{ party.code|default:'' }} - {{ party.company_name }}{% if party.owner_name %} ({{ party.owner_name }}){% endif %}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
 
-                    <!-- Code (auto-filled) -->
-                    <div class="col-6 col-sm-3 col-lg-1">
-                        <label class="small fw-bold">Code</label>
-                        <input type="text" id="partyCodeDisplay"
-                               class="form-control code-field" readonly
-                               value="{{ edit_obj.vendor_code|default:'' }}"
-                               placeholder="Auto">
+                    <!-- 3. Party Code -->
+                    <div class="col-6 col-md-2">
+                        <label class="form-label-custom">کوڈ (Party Code)</label>
+                        <input type="text" id="partyCodeDisplay" class="form-control-custom code-display" readonly placeholder="Auto">
                     </div>
 
-                    <!-- Description -->
-                    <div class="col-12 col-sm-6 col-lg-2">
-                        <label class="small fw-bold">Description</label>
-                        <input type="text" name="description" class="form-control"
-                               value="{{ edit_obj.discription|default:'' }}"
-                               placeholder="Description">
+                    <!-- 4. Date -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label-custom">
+                            تاریخ (Date) <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" name="date" class="form-control-custom"
+                               value="{{ current_date|date:'Y-m-d' }}" required>
                     </div>
 
-                    <!-- Date -->
-                    <div class="col-6 col-sm-6 col-lg-2">
-                        <label class="small fw-bold">Date</label>
-                        <input type="date" name="date" id="dateField"
-                               class="form-control"
-                               value="{% if edit_obj %}{{ edit_obj.date|date:'Y-m-d' }}{% else %}{{ current_date|date:'Y-m-d' }}{% endif %}"
-                               required>
+                    <!-- 5. Vehicle Number (For Purchase & Sale) -->
+                    <div class="col-6 col-md-3" id="vehicleCol">
+                        <label class="form-label-custom">گاڑی نمبر (Vehicle No)</label>
+                        <input type="text" name="vehicle_no" id="vehicleInput" class="form-control-custom"
+                               value="OPENING" placeholder="مثلاً: OPENING یا LES-1234">
                     </div>
 
-                    <!-- Debit / Credit (label only, no sign stored) -->
-                    <div class="col-6 col-sm-3 col-lg-2">
-                        <label class="small fw-bold">Entry Type</label>
-                        <select name="entry_type" id="entryType" class="form-select">
-                            <option value="debit" selected>Debit</option>
-                            <option value="credit">Credit</option>
+                    <!-- 6. Weight (For Purchase & Sale) -->
+                    <div class="col-6 col-md-2" id="weightCol">
+                        <label class="form-label-custom">وزن (Weight kg)</label>
+                        <input type="number" step="0.01" min="0" name="weight" id="weightInput"
+                               class="form-control-custom" placeholder="0.00">
+                    </div>
+
+                    <!-- 7. Rate (For Purchase & Sale) -->
+                    <div class="col-6 col-md-2" id="rateCol">
+                        <label class="form-label-custom">ریٹ (Rate Rs/kg)</label>
+                        <input type="number" step="0.01" min="0" name="rate" id="rateInput"
+                               class="form-control-custom" placeholder="0.00">
+                    </div>
+
+                    <!-- 8. Payment / Receipt Mode & Account (Shown only for Payment / Receipt) -->
+                    <div class="col-12 col-md-4" id="paymentAccountCol" style="display: none;">
+                        <label class="form-label-custom">
+                            کھاتہ / ذریعہ (Cash / Bank Account) <span class="text-danger">*</span>
+                        </label>
+                        <select name="pay_account_id" id="payAccountSelect" class="form-select-custom">
+                            <option value="cash" selected>💵 کیش ان ہینڈ (Cash in Hand)</option>
+                            {% for bank in bank_accounts %}
+                            <option value="{{ bank.id }}">🏦 {{ bank.name }} ({{ bank.code }})</option>
+                            {% endfor %}
                         </select>
                     </div>
 
-                    <!-- Amount -->
-                    <div class="col-6 col-sm-3 col-lg-1">
-                        <label class="small amount-label">Amount</label>
-                        <input type="number" id="amountInput"
-                               class="form-control amount-field"
-                               step="0.01" min="0"
-                               value="{% if edit_obj %}{{ edit_obj.amount }}{% endif %}"
-                               placeholder="0" required>
+                    <!-- 9. Total Amount -->
+                    <div class="col-12 col-md-5" id="amountCol">
+                        <label class="form-label-custom">
+                            کل رقم (Total Amount) <span class="text-danger">*</span>
+                        </label>
+                        <div class="amount-input-wrapper">
+                            <span class="amount-input-prefix">Rs.</span>
+                            <input type="number" name="amount" id="amountInput"
+                                   class="amount-input-field"
+                                   step="0.01" min="0.01" placeholder="0.00" required>
+                        </div>
                     </div>
 
-                    <!-- Buttons -->
-                    <div class="col-12 col-lg-1 d-flex align-items-end gap-1">
-                        <button type="submit" class="btn btn-success btn-sm w-100 py-2">
-                            {% if edit_obj %}Update{% else %}Save{% endif %}
-                        </button>
-                        {% if edit_obj %}
-                        <a href="{% url 'opening' %}"
-                           class="btn btn-secondary btn-sm py-2" title="Cancel">✕</a>
-                        {% endif %}
+                    <!-- 10. Remarks / Description -->
+                    <div class="col-12 col-md-9">
+                        <label class="form-label-custom">تفصیل / ریمارکس (Optional Remarks)</label>
+                        <input type="text" name="description" id="descInput" class="form-control-custom"
+                               placeholder="مثلاً: سابقہ اوپننگ بل / نقد بقایا">
                     </div>
+
+                    <!-- 11. Submit Button -->
+                    <div class="col-12 col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn-submit-main" id="submitBtn">
+                            <i class="bi bi-check-circle-fill"></i>
+                            محفوظ کریں (Save Entry)
+                        </button>
+                    </div>
+
                 </div>
             </form>
+
+            <!-- DYNAMIC GUIDANCE BOX -->
+            <div id="guidanceBox" class="guidance-box guide-pur mt-3 mb-0">
+                <i class="bi bi-info-circle-fill fs-4 flex-shrink-0" id="guideIcon"></i>
+                <div id="guideText">
+                    <strong>اوپننگ خریداری (Purchase Opening):</strong>
+                    یہ انٹری منتخب پارٹی کے نام پر <strong>خریداری بل</strong> درج کرے گی۔ یہ <strong>پرچیز رپورٹ (Purchase Report)</strong> اور <strong>پارٹی لیجر (Party Ledger)</strong> میں ظاہر ہوگی۔ <strong>کیش لیجر اور کیش رپورٹ</strong> میں یہ شامل نہیں ہوگی کیونکہ نقد رقم کی منتقلی نہیں ہوئی۔
+                </div>
+            </div>
+
         </div>
     </div>
 
-   
+    <!-- HISTORY TABLE CARD -->
+    <div class="history-card">
+        <div class="history-card-header">
+            <div>
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-clock-history me-1 text-primary"></i>
+                    اوپننگ کھاتہ جات اور ٹرانزیکشنز کا ریکارڈ (Opening Records History)
+                </h6>
+                <small class="text-muted">
+                    کل {{ opening_history|length }} اوپننگ اندراجات موجود ہیں (پرچیز، سیلز، کیش ادائیگیاں، وصولیاں)
+                </small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <input type="text" id="tableSearch" class="form-control form-control-sm"
+                       placeholder="Filter by Party, Code, Ref, Type..." style="min-width: 250px;">
+                <a href="{% url 'party_ledger' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-journal-text me-1"></i> پارٹی لیجر
+                </a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="openingTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 45px;">#</th>
+                        <th>Ref / بل نمبر</th>
+                        <th>تاریخ (Date)</th>
+                        <th>پارٹی کا نام (Party)</th>
+                        <th class="text-center">انٹری کی قسم (Type)</th>
+                        <th class="text-center">رپورٹس اثر (Reports Impact)</th>
+                        <th class="text-center">وزن و ریٹ (Wt & Rate)</th>
+                        <th class="text-end">کل رقم (Amount Rs.)</th>
+                        <th>تفصیل (Description)</th>
+                        <th class="text-center" style="width: 80px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in opening_history %}
+                    <tr>
+                        <td class="text-muted small">{{ forloop.counter }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border fw-bold">{{ item.ref_no }}</span>
+                        </td>
+                        <td class="small">{{ item.date|date:"d-M-Y" }}</td>
+                        <td>
+                            <strong class="text-dark">{{ item.party_name }}</strong>
+                            {% if item.party_code %}
+                            <span class="badge bg-secondary-subtle text-secondary small ms-1">{{ item.party_code }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="{{ item.badge_class }}">
+                                {% if item.type_key == 'purchase' %}<i class="bi bi-cart-check"></i>
+                                {% elif item.type_key == 'sale' %}<i class="bi bi-box-seam"></i>
+                                {% elif item.type_key == 'payment' %}<i class="bi bi-arrow-up-right"></i>
+                                {% elif item.type_key == 'receipt' %}<i class="bi bi-arrow-down-left"></i>
+                                {% else %}<i class="bi bi-journal-check"></i>{% endif %}
+                                {{ item.type_label }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {{ item.reports_badge_class }} small">
+                                {{ item.reports_label }}
+                            </span>
+                        </td>
+                        <td class="text-center small">
+                            {% if item.weight and item.weight != '-' %}
+                                <span class="fw-bold">{{ item.weight }} kg</span>
+                                {% if item.rate and item.rate != '-' %}
+                                <br><span class="text-muted">@ Rs. {{ item.rate }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <span class="fw-bold fs-6 {% if item.type_key == 'payment' %}text-danger{% elif item.type_key == 'receipt' %}text-success{% elif item.type_key == 'purchase' %}text-primary{% else %}text-dark{% endif %}">
+                                Rs. {{ item.amount|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td class="small text-muted">{{ item.description|default:"-" }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'opening' %}?delete_id={{ item.id }}&delete_type={{ item.source_type }}"
+                               class="btn-action-delete"
+                               onclick="return confirm('کیا آپ واقعی {{ item.party_name }} کی یہ انٹری ({{ item.ref_no }}) ڈیلیٹ کرنا چاہتے ہیں؟');"
+                               title="Delete">
+                                <i class="bi bi-trash"></i> ڈیلیٹ
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                                <h6>ابھی تک کوئی اوپننگ انٹری درج نہیں ہوئی</h6>
+                                <p class="small text-secondary mb-0">اوپر دیے گئے فارم سے خریداری، فروخت، نقد ادائیگی یا وصولی منتخب کر کے اندراج کریں۔</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
+<!-- Select2 & Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     $(document).ready(function () {
-
-        // Init Select2
-        $('.select2-search').select2({
+        // Init Select2 for party search
+        $('.select2-party').select2({
             theme: 'bootstrap-5',
             width: '100%',
-            placeholder: 'Search Party...',
+            placeholder: 'پارٹی کا نام یا کوڈ تلاش کریں...',
             allowClear: true
         });
 
-        // -------- Auto-fill party code --------
-        function syncPartyCode() {
+        // Auto-fill party code on change
+        function syncPartyDetails() {
             var $sel = $('#partySelect').find(':selected');
             var code = $sel.data('code') || '';
-            if (code) {
-                $('#partyCodeHidden').val(code);
-                $('#partyCodeDisplay').val(code);
-            } else {
-                $('#partyCodeHidden').val('');
-                $('#partyCodeDisplay').val('');
+            var type = ($sel.data('type') || '').toLowerCase();
+
+            $('#partyCodeHidden').val(code);
+            $('#partyCodeDisplay').val(code);
+
+            // Auto-suggestion for opening type if user hasn't explicitly clicked yet
+            if (type.includes('vendor') || type.includes('supplier')) {
+                // Keep purchase or payment
+            } else if (type.includes('customer')) {
+                // Keep sale or receipt
             }
         }
 
-        syncPartyCode();
-        $('#partySelect').on('change', syncPartyCode);
-        $('#partySelect').on('select2:select', syncPartyCode);
-        $('#partySelect').on('select2:clear', syncPartyCode);
+        $('#partySelect').on('change select2:select select2:clear', syncPartyDetails);
 
-        // -------- Keep hidden amount in sync --------
-        $('#amountInput').on('input', function () {
-            $('#amountHidden').val($(this).val() || '0');
+        // Dynamic Guidance and Field Visibility based on Selected Type (4 Options)
+        var guideConfig = {
+            'purchase': {
+                boxClass: 'guide-pur',
+                icon: 'bi-cart-plus-fill',
+                title: 'اوپننگ خریداری (Purchase Opening):',
+                text: 'یہ انٹری منتخب پارٹی کے نام پر <strong>خریداری بل</strong> درج کرے گی۔ یہ <strong>پرچیز رپورٹ (Purchase Report)</strong> اور <strong>پارٹی لیجر (Party Ledger)</strong> میں شامل ہوگی۔ <strong>کیش لیجر اور کیش رپورٹ</strong> میں یہ شامل نہیں ہوگی کیونکہ نقد رقم کی منتقلی نہیں ہوئی۔',
+                showWeightRate: true,
+                showVehicle: true,
+                showPaymentAcc: false
+            },
+            'sale': {
+                boxClass: 'guide-sls',
+                icon: 'bi-box-arrow-up-right',
+                title: 'اوپننگ فروخت (Sale Opening):',
+                text: 'یہ انٹری منتخب پارٹی کے نام پر <strong>فروخت کا بل</strong> درج کرے گی۔ یہ <strong>سیلز رپورٹ (Sells Report)</strong> اور <strong>پارٹی لیجر (Party Ledger)</strong> میں شامل ہوگی۔ <strong>کیش لیجر اور کیش رپورٹ</strong> میں یہ شامل نہیں ہوگی۔',
+                showWeightRate: true,
+                showVehicle: true,
+                showPaymentAcc: false
+            },
+            'payment': {
+                boxClass: 'guide-pay',
+                icon: 'bi-arrow-up-right-circle-fill',
+                title: 'اوپننگ ادائیگی / پیسے دیے (Cash/Bank Payment):',
+                text: 'یہ انٹری پارٹی کو <strong>نقد یا بینک کے ذریعے ادائیگی (CPV/BPV)</strong> درج کرے گی۔ یہ <strong>کیش لیجر (Cash Ledger)</strong>، <strong>ڈیلی کیش رپورٹ (Daily Cash Report)</strong>، اور <strong>پارٹی لیجر (Party Ledger)</strong> میں شامل ہوگی۔',
+                showWeightRate: false,
+                showVehicle: false,
+                showPaymentAcc: true
+            },
+            'receipt': {
+                boxClass: 'guide-rec',
+                icon: 'bi-arrow-down-left-circle-fill',
+                title: 'اوپننگ وصولی / پیسے لیے (Cash/Bank Receipt):',
+                text: 'یہ انٹری پارٹی سے <strong>نقد یا بینک کے ذریعے رقم وصولی (CRV/BRV)</strong> درج کرے گی۔ یہ <strong>کیش لیجر (Cash Ledger)</strong>، <strong>ڈیلی کیش رپورٹ (Daily Cash Report)</strong>، اور <strong>پارٹی لیجر (Party Ledger)</strong> میں شامل ہوگی۔',
+                showWeightRate: false,
+                showVehicle: false,
+                showPaymentAcc: true
+            }
+        };
+
+        function updateFormUI(type) {
+            var cfg = guideConfig[type] || guideConfig['purchase'];
+
+            // Update Guidance Box
+            $('#guidanceBox').attr('class', 'guidance-box mt-3 mb-0 ' + cfg.boxClass);
+            $('#guideIcon').attr('class', 'bi ' + cfg.icon + ' fs-4 flex-shrink-0');
+            $('#guideText').html('<strong>' + cfg.title + '</strong> ' + cfg.text);
+
+            // Toggle visibility of fields
+            if (cfg.showWeightRate) {
+                $('#weightCol').show();
+                $('#rateCol').show();
+                $('#amountCol').removeClass('col-md-8').addClass('col-md-5');
+            } else {
+                $('#weightCol').hide();
+                $('#rateCol').hide();
+                $('#weightInput').val('');
+                $('#rateInput').val('');
+                $('#amountCol').removeClass('col-md-5').addClass('col-md-8');
+            }
+
+            if (cfg.showVehicle) {
+                $('#vehicleCol').show();
+            } else {
+                $('#vehicleCol').hide();
+            }
+
+            if (cfg.showPaymentAcc) {
+                $('#paymentAccountCol').show();
+            } else {
+                $('#paymentAccountCol').hide();
+            }
+        }
+
+        // Handle Type Dropdown change
+        $('#openingTypeSelect').on('change', function () {
+            var selectedType = $(this).val();
+            updateFormUI(selectedType);
         });
 
-        // -------- Auto-hide toasts --------
+        // Auto-calculate Amount = Weight * Rate
+        function calcAmount() {
+            var selectedType = $('#openingTypeSelect').val();
+            if (selectedType === 'purchase' || selectedType === 'sale') {
+                var w = parseFloat($('#weightInput').val()) || 0;
+                var r = parseFloat($('#rateInput').val()) || 0;
+                if (w > 0 && r > 0) {
+                    var total = (w * r).toFixed(2);
+                    $('#amountInput').val(total);
+                }
+            }
+        }
+
+        $('#weightInput, #rateInput').on('input keyup change', calcAmount);
+
+        // Filter Table Search
+        $('#tableSearch').on('keyup', function () {
+            var term = $(this).val().toLowerCase();
+            $('#openingTable tbody tr').filter(function () {
+                var rowText = $(this).text().toLowerCase();
+                $(this).toggle(rowText.indexOf(term) > -1);
+            });
+        });
+
+        // Auto-hide toast messages
         setTimeout(function () {
             $('.custom-toast').fadeOut(400);
-        }, 3000);
+        }, 3500);
 
-        // -------- Ctrl+S shortcut to submit --------
+        // Initial setup
+        updateFormUI('purchase');
+
+        // Ctrl+S shortcut to save
         $(document).on('keydown', function (e) {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();

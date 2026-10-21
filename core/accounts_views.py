@@ -34,106 +34,165 @@ def _to_decimal(val):
 
 
 # ===================================================================
-# SEED DEFAULT 4-LEVEL CHART OF ACCOUNTS (If empty)
+# SEED DEFAULT 4-LEVEL CHART OF ACCOUNTS & PARTY SYNC
 # ===================================================================
 def seed_default_chart_of_accounts():
-    """Populates standard 4-level Chart of Accounts if not already created."""
-    if ChartOfAccount.objects.exists():
-        return
-
-    # Level 1: Main Classes
+    """Populates standard 4-level Chart of Accounts if not already created (idempotent)."""
+    # Level 1: Main Classes (2 digits: 01, 02, 03, 04, 05)
     l1_data = [
-        ('1000', 'Assets', 'Asset'),
-        ('2000', 'Liabilities', 'Liability'),
-        ('3000', 'Equity & Capital', 'Equity'),
-        ('4000', 'Revenue & Sales', 'Revenue'),
-        ('5000', 'Expenses', 'Expense'),
+        ('01', 'Assets', 'Asset'),
+        ('02', 'Liabilities', 'Liability'),
+        ('03', 'Equity & Capital', 'Equity'),
+        ('04', 'Revenue & Sales', 'Revenue'),
+        ('05', 'Expenses', 'Expense'),
     ]
     l1_map = {}
     for code, name, ac_type in l1_data:
-        acc = ChartOfAccount.objects.create(
-            code=code, name=name, level=1, parent=None, account_type=ac_type, is_active=True
+        acc, _ = ChartOfAccount.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'level': 1, 'parent': None, 'account_type': ac_type, 'is_active': True}
         )
         l1_map[code] = acc
 
-    # Level 2: Control Heads
+    # Level 2: Control Heads (4 digits: 0101, 0102, 0201...)
     l2_data = [
-        ('1100', 'Current Assets', l1_map['1000']),
-        ('1200', 'Fixed & Non-Current Assets', l1_map['1000']),
-        ('2100', 'Current Liabilities', l1_map['2000']),
-        ('2200', 'Long-term Liabilities', l1_map['2000']),
-        ('3100', "Owner's Equity & Capital", l1_map['3000']),
-        ('4100', 'Operating Revenue & Sales', l1_map['4000']),
-        ('5100', 'Direct Cost of Sales', l1_map['5000']),
-        ('5200', 'Operating & Administrative Expenses', l1_map['5000']),
+        ('0101', 'Current Assets', l1_map['01']),
+        ('0102', 'Fixed & Non-Current Assets', l1_map['01']),
+        ('0201', 'Current Liabilities', l1_map['02']),
+        ('0202', 'Long-term Liabilities', l1_map['02']),
+        ('0301', "Owner's Equity & Capital", l1_map['03']),
+        ('0401', 'Operating Revenue & Sales', l1_map['04']),
+        ('0501', 'Direct Cost of Sales', l1_map['05']),
+        ('0502', 'Operating & Administrative Expenses', l1_map['05']),
     ]
     l2_map = {}
     for code, name, parent in l2_data:
-        acc = ChartOfAccount.objects.create(
-            code=code, name=name, level=2, parent=parent, account_type=parent.account_type, is_active=True
+        acc, _ = ChartOfAccount.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'level': 2, 'parent': parent, 'account_type': parent.account_type, 'is_active': True}
         )
         l2_map[code] = acc
 
-    # Level 3: Sub Control Heads
+    # Level 3: Sub Control Heads (6 digits: 010101, 010102...)
     l3_data = [
-        ('1110', 'Cash & Bank Balances', l2_map['1100']),
-        ('1120', 'Trade Receivables (Parties)', l2_map['1100']),
-        ('1130', 'Inventory & Stock', l2_map['1100']),
-        ('1210', 'Vehicles & Transport Assets', l2_map['1200']),
-        ('1220', 'Plant & Equipment', l2_map['1200']),
-        ('2110', 'Trade Payables (Parties)', l2_map['2100']),
-        ('2120', 'Short Term Borrowings', l2_map['2100']),
-        ('3110', 'Capital Account', l2_map['3100']),
-        ('4110', 'Poultry & Broiler Sales', l2_map['4100']),
-        ('4120', 'By-Product Sales', l2_map['4100']),
-        ('5110', 'Broiler Purchase Cost', l2_map['5100']),
-        ('5120', 'Mortality Loss', l2_map['5100']),
-        ('5210', 'Vehicle & Transport Expenses', l2_map['5200']),
-        ('5220', 'Utilities & Bills', l2_map['5200']),
-        ('5230', 'Salaries & Wages', l2_map['5200']),
-        ('5240', 'Office & General Expenses', l2_map['5200']),
+        ('010101', 'Cash & Bank Balances', l2_map['0101']),
+        ('010102', 'Trade Accounts (Parties)', l2_map['0101']),
+        ('010103', 'Inventory & Stock', l2_map['0101']),
+        ('010201', 'Vehicles & Transport Assets', l2_map['0102']),
+        ('010202', 'Plant & Equipment', l2_map['0102']),
+        ('020101', 'Trade Payables (Parties)', l2_map['0201']),
+        ('020102', 'Short Term Borrowings', l2_map['0201']),
+        ('030101', 'Capital Account', l2_map['0301']),
+        ('040101', 'Poultry & Broiler Sales', l2_map['0401']),
+        ('040102', 'By-Product Sales', l2_map['0401']),
+        ('050101', 'Broiler Purchase Cost', l2_map['0501']),
+        ('050102', 'Mortality Loss', l2_map['0501']),
+        ('050201', 'Vehicle & Transport Expenses', l2_map['0502']),
+        ('050202', 'Utilities & Bills', l2_map['0502']),
+        ('050203', 'Salaries & Wages', l2_map['0502']),
+        ('050204', 'Office & General Expenses', l2_map['0502']),
     ]
     l3_map = {}
     for code, name, parent in l3_data:
-        acc = ChartOfAccount.objects.create(
-            code=code, name=name, level=3, parent=parent, account_type=parent.account_type, is_active=True
+        acc, _ = ChartOfAccount.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'level': 3, 'parent': parent, 'account_type': parent.account_type, 'is_active': True}
         )
         l3_map[code] = acc
 
-    # Level 4: Transactional Accounts (Used in Vouchers)
+    # Level 4: Transactional Accounts (9 digits: 010101001, 010101002...)
     l4_data = [
-        ('1110001', 'Cash in Hand', l3_map['1110']),
-        ('1110002', 'Bank Al-Habib Main', l3_map['1110']),
-        ('1110003', 'Meezan Bank Account', l3_map['1110']),
-        ('1110004', 'MCB Bank Account', l3_map['1110']),
-        ('1120001', 'General Party Receivables', l3_map['1120']),
-        ('1130001', 'Live Broiler Stock', l3_map['1130']),
-        ('1210001', 'Delivery Vehicles', l3_map['1210']),
-        ('1220001', 'Cages & Weighing Scales', l3_map['1220']),
-        ('2110001', 'General Party Payables', l3_map['2110']),
-        ('2120001', 'Temporary Loans', l3_map['2120']),
-        ('3110001', 'Owner Capital', l3_map['3110']),
-        ('3110002', 'Owner Drawings', l3_map['3110']),
-        ('4110001', 'Broiler Sales', l3_map['4110']),
-        ('4120001', 'Fat Sales', l3_map['4120']),
-        ('4120002', 'Waste Sales', l3_map['4120']),
-        ('5110001', 'Broiler Purchases', l3_map['5110']),
-        ('5120001', 'Mortality Loss', l3_map['5120']),
-        ('5210001', 'Diesel & Fuel Expense', l3_map['5210']),
-        ('5210002', 'Vehicle Maintenance & Repair', l3_map['5210']),
-        ('5220001', 'Electricity Bill', l3_map['5220']),
-        ('5220002', 'Mobile & Internet Expense', l3_map['5220']),
-        ('5230001', 'Staff Monthly Salaries', l3_map['5230']),
-        ('5230002', 'Daily Labour Wages', l3_map['5230']),
-        ('5240001', 'Office Tea & Entertainment', l3_map['5240']),
-        ('5240002', 'Office Rent', l3_map['5240']),
-        ('5240003', 'Stationery & Printing', l3_map['5240']),
-        ('5240004', 'Miscellaneous Expense', l3_map['5240']),
+        ('010101001', 'Cash in Hand', l3_map['010101']),
+        ('010101002', 'Bank Al-Habib Main', l3_map['010101']),
+        ('010101003', 'Meezan Bank Account', l3_map['010101']),
+        ('010101004', 'MCB Bank Account', l3_map['010101']),
+        ('010103001', 'Live Broiler Stock', l3_map['010103']),
+        ('010201001', 'Delivery Vehicles', l3_map['010201']),
+        ('010202001', 'Cages & Weighing Scales', l3_map['010202']),
+        ('020101001', 'General Party Payables', l3_map['020101']),
+        ('020102001', 'Temporary Loans', l3_map['020102']),
+        ('030101001', 'Owner Capital', l3_map['030101']),
+        ('030101002', 'Owner Drawings', l3_map['030101']),
+        ('040101001', 'Broiler Sales', l3_map['040101']),
+        ('040102001', 'Fat Sales', l3_map['040102']),
+        ('040102002', 'Waste Sales', l3_map['040102']),
+        ('050101001', 'Broiler Purchases', l3_map['050101']),
+        ('050102001', 'Mortality Loss', l3_map['050102']),
+        ('050201001', 'Diesel & Fuel Expense', l3_map['050201']),
+        ('050201002', 'Vehicle Maintenance & Repair', l3_map['050201']),
+        ('050202001', 'Electricity Bill', l3_map['050202']),
+        ('050202002', 'Mobile & Internet Expense', l3_map['050202']),
+        ('050203001', 'Staff Monthly Salaries', l3_map['050203']),
+        ('050203002', 'Daily Labour Wages', l3_map['050203']),
+        ('050204001', 'Office Tea & Entertainment', l3_map['050204']),
+        ('050204002', 'Office Rent', l3_map['050204']),
+        ('050204003', 'Stationery & Printing', l3_map['050204']),
+        ('050204004', 'Miscellaneous Expense', l3_map['050204']),
     ]
     for code, name, parent in l4_data:
-        ChartOfAccount.objects.create(
-            code=code, name=name, level=4, parent=parent, account_type=parent.account_type, is_active=True
+        ChartOfAccount.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'level': 4, 'parent': parent, 'account_type': parent.account_type, 'is_active': True}
         )
+
+
+def sync_single_party_to_coa(party):
+    """Sync single party to Level 4 Chart of Account under 010102"""
+    if not party:
+        return None
+    parent_l3 = ChartOfAccount.objects.filter(code='010102', level=3).first()
+    if not parent_l3:
+        parent_l3 = ChartOfAccount.objects.filter(code='1120', level=3).first()
+    if not parent_l3:
+        seed_default_chart_of_accounts()
+        parent_l3 = ChartOfAccount.objects.filter(code='010102', level=3).first()
+
+    p_name = (party.company_name or party.owner_name or f"Party {party.id}").strip()
+    acc = ChartOfAccount.objects.filter(party=party).first()
+
+    if acc:
+        if acc.name != p_name:
+            acc.name = p_name
+            acc.save(update_fields=['name'])
+        return acc
+
+    # Calculate unique code
+    raw_num = ''.join(c for c in str(party.code or party.id) if c.isdigit())
+    base_suffix = raw_num[-3:].zfill(3) if raw_num else str(party.id).zfill(3)
+    acc_code = f"010102{base_suffix}"
+
+    # Guard against code collision with another party
+    if ChartOfAccount.objects.filter(code=acc_code).exists():
+        last_acc = ChartOfAccount.objects.filter(parent=parent_l3, level=4).order_by('-code').first()
+        if last_acc and last_acc.code.startswith('010102'):
+            try:
+                sfx = int(last_acc.code.replace('010102', ''))
+                acc_code = f"010102{sfx + 1:03d}"
+            except ValueError:
+                acc_code = f"010102{party.id:03d}"
+        else:
+            acc_code = f"010102{party.id:03d}"
+
+    acc = ChartOfAccount.objects.create(
+        code=acc_code,
+        name=p_name,
+        level=4,
+        parent=parent_l3,
+        account_type='Asset',
+        party=party,
+        opening_balance=Decimal('0'),
+        current_balance=Decimal('0'),
+        is_active=True,
+        description=f"Level 4 Party Account: {p_name} ({party.party_type or 'General'})"
+    )
+    return acc
+
+
+def sync_all_parties_to_coa():
+    """Sync all parties to Level 4 Chart of Account"""
+    seed_default_chart_of_accounts()
+    for party in Parties.objects.all():
+        sync_single_party_to_coa(party)
 
 
 # ===================================================================
@@ -156,9 +215,9 @@ def chart_of_accounts(request):
         if level == 1:
             last = ChartOfAccount.objects.filter(level=1).order_by('-code').first()
             if last and last.code.isdigit():
-                next_code = str(int(last.code) + 1000)
+                next_code = f"{int(last.code) + 1:02d}"
             else:
-                next_code = '1000'
+                next_code = '01'
         else:
             if not parent_id:
                 return JsonResponse({'success': False, 'message': 'Parent is required'})
@@ -166,13 +225,17 @@ def chart_of_accounts(request):
             children = ChartOfAccount.objects.filter(parent=parent).order_by('-code')
             last_child = children.first()
 
-            if last_child and last_child.code.isdigit():
-                next_code = str(int(last_child.code) + 1)
+            if last_child and last_child.code.startswith(parent.code):
+                prefix = parent.code
+                suffix_str = last_child.code[len(prefix):]
+                suffix_num = int(suffix_str) if suffix_str.isdigit() else 0
+                if level in [2, 3]:
+                    next_code = f"{prefix}{suffix_num + 1:02d}"
+                else:  # level 4
+                    next_code = f"{prefix}{suffix_num + 1:03d}"
             else:
-                if level == 2:
-                    next_code = f"{parent.code[:1]}100"
-                elif level == 3:
-                    next_code = f"{parent.code[:2]}10"
+                if level in [2, 3]:
+                    next_code = f"{parent.code}01"
                 else:  # level 4
                     next_code = f"{parent.code}001"
 
@@ -314,13 +377,21 @@ def chart_of_accounts(request):
 # ===================================================================
 # 2. VOUCHER ENTRY VIEW
 # ===================================================================
+# ===================================================================
+# 2. VOUCHER ENTRY VIEW (CPV, CRV, BPV, BRV, JV)
+# ===================================================================
 def generate_voucher_no(voucher_type):
     prefix_map = {
-        'Payment Voucher': 'PV',
-        'Receipt Voucher': 'RV',
+        'CPV': 'CPV',
+        'CRV': 'CRV',
+        'BPV': 'BPV',
+        'BRV': 'BRV',
+        'JV': 'JV',
+        'Payment Voucher': 'CPV',
+        'Receipt Voucher': 'CRV',
         'Transfer Voucher': 'JV',
     }
-    prefix = prefix_map.get(voucher_type, 'VR')
+    prefix = prefix_map.get(voucher_type, 'CPV')
     year = date.today().year
 
     last_v = Voucher.objects.filter(voucher_no__startswith=f"{prefix}-{year}").order_by('-id').first()
@@ -355,11 +426,12 @@ def voucher_entry(request):
         return redirect('login')
 
     seed_default_chart_of_accounts()
+    sync_all_parties_to_coa()
     action = request.GET.get('action') or request.POST.get('action')
 
     # ------------ AJAX: GET NEXT VOUCHER NUMBER ------------
     if request.method == 'GET' and action == 'next_voucher_no':
-        v_type = request.GET.get('voucher_type', 'Payment Voucher')
+        v_type = request.GET.get('voucher_type', 'CPV')
         return JsonResponse({'success': True, 'voucher_no': generate_voucher_no(v_type)})
 
     # ------------ AJAX: GET LEVEL 4 ACCOUNTS ------------
@@ -371,6 +443,7 @@ def voucher_entry(request):
             'name': a.name,
             'type': a.account_type,
             'balance': str(a.current_balance),
+            'party_id': a.party_id,
         } for a in accounts]
         return JsonResponse({'success': True, 'accounts': data})
 
@@ -378,7 +451,16 @@ def voucher_entry(request):
     if request.method == 'POST' and action == 'save_voucher':
         try:
             data = json.loads(request.body)
-            v_type = (data.get('voucher_type') or 'Payment Voucher').strip()
+            raw_type = (data.get('voucher_type') or 'CPV').strip()
+            type_map = {
+                'Payment Voucher': 'CPV',
+                'Receipt Voucher': 'CRV',
+                'Transfer Voucher': 'JV',
+            }
+            v_type = type_map.get(raw_type, raw_type)
+            if v_type not in ['CPV', 'CRV', 'BPV', 'BRV', 'JV']:
+                v_type = 'CPV'
+
             date_str = (data.get('date') or '').strip()
             reference_no = (data.get('reference_no') or '').strip()
             remarks = (data.get('remarks') or '').strip()
@@ -394,7 +476,13 @@ def voucher_entry(request):
 
             entries = []
 
-            # QUICK MODE: Payment, Receipt, or Transfer
+            # Cash in hand account
+            cash_acc = ChartOfAccount.objects.filter(code='010101001', level=4).first() or ChartOfAccount.objects.filter(code='1110001', level=4).first()
+            if not cash_acc:
+                seed_default_chart_of_accounts()
+                cash_acc = ChartOfAccount.objects.filter(code='010101001', level=4).first()
+
+            # QUICK MODE: CPV, CRV, BPV, BRV, JV
             if mode == 'quick':
                 amount = _to_decimal(data.get('amount'))
                 if amount <= 0:
@@ -404,27 +492,86 @@ def voucher_entry(request):
                 cr_acc_id = data.get('credit_account_id')
                 party_id = data.get('party_id') or None
 
+                # AUTO-CONFIGURE BASED ON VOUCHER TYPE:
+                if v_type == 'CPV':
+                    # Cash Payment: Cash in Hand is CREDIT
+                    if not cr_acc_id and cash_acc:
+                        cr_acc_id = cash_acc.id
+                elif v_type == 'CRV':
+                    # Cash Receipt: Cash in Hand is DEBIT
+                    if not dr_acc_id and cash_acc:
+                        dr_acc_id = cash_acc.id
+
                 if not dr_acc_id or not cr_acc_id:
-                    return JsonResponse({'success': False, 'message': 'Both Debit and Credit accounts must be selected'})
-                if dr_acc_id == cr_acc_id:
+                    return JsonResponse({'success': False, 'message': 'Both Debit and Credit accounts must be specified'})
+                if str(dr_acc_id) == str(cr_acc_id):
                     return JsonResponse({'success': False, 'message': 'Debit and Credit accounts cannot be the same'})
 
                 dr_acc = get_object_or_404(ChartOfAccount, id=dr_acc_id, level=4)
                 cr_acc = get_object_or_404(ChartOfAccount, id=cr_acc_id, level=4)
+
+                # =============================================================
+                # 🛑 INSUFFICIENT BALANCE CHECK FOR CASH & BANK PAYMENTS
+                # =============================================================
+                cr_code = str(cr_acc.code)
+                cr_name_lower = cr_acc.name.lower()
+                is_cash_hand_cr = (cr_code in ['010101001', '1110001'] or 'cash in hand' in cr_name_lower)
+                is_bank_cr = ((cr_code.startswith('010101') or cr_code.startswith('1110')) and not is_cash_hand_cr) or ('bank' in cr_name_lower and not is_cash_hand_cr)
+
+                if is_cash_hand_cr:
+                    available = cr_acc.current_balance
+                    if available < amount:
+                        return JsonResponse({
+                            'success': False,
+                            'message': (
+                                f"❌ Payment Rejection: Cash in Hand mein kafi raqam mojood nahi hai! "
+                                f"Mojooda Cash Balance: Rs. {available:,.2f}, jabkay Payment Amount: Rs. {amount:,.2f}. "
+                                f"Pehle Cash Receive karein (CRV) ya Opening Balance darj karein."
+                            )
+                        })
+
+                elif is_bank_cr:
+                    available = cr_acc.current_balance
+                    if available < amount:
+                        return JsonResponse({
+                            'success': False,
+                            'message': (
+                                f"❌ Payment Rejection: Bank Account '{cr_acc.name}' mein kafi raqam mojood nahi hai! "
+                                f"Mojooda Bank Balance: Rs. {available:,.2f}, jabkay Payment Amount: Rs. {amount:,.2f}. "
+                                f"Pehle Bank mein raqam transfer/receive karein."
+                            )
+                        })
+
+                dr_code = str(dr_acc.code)
+                dr_name_lower = dr_acc.name.lower()
+                is_cash_hand_dr = (dr_code in ['010101001', '1110001'] or 'cash in hand' in dr_name_lower)
+                is_bank_dr = ((dr_code.startswith('010101') or dr_code.startswith('1110')) and not is_cash_hand_dr) or ('bank' in dr_name_lower and not is_cash_hand_dr)
+
+                # Auto link party from selected account if not explicitly passed
+                # Assign party_id only to the party side, never to cash/bank
+                if v_type in ['CPV', 'BPV']:
+                    dr_party_id = dr_acc.party_id or party_id
+                    cr_party_id = None
+                elif v_type in ['CRV', 'BRV']:
+                    cr_party_id = cr_acc.party_id or party_id
+                    dr_party_id = None
+                else:
+                    dr_party_id = dr_acc.party_id or (party_id if not is_cash_hand_dr and not is_bank_dr else None)
+                    cr_party_id = cr_acc.party_id or (party_id if not is_cash_hand_cr and not is_bank_cr else None)
 
                 entries.append({
                     'account': dr_acc,
                     'debit': amount,
                     'credit': Decimal('0'),
                     'narration': remarks or f"{v_type}: Debit to {dr_acc.name}",
-                    'party_id': party_id,
+                    'party_id': dr_party_id,
                 })
                 entries.append({
                     'account': cr_acc,
                     'debit': Decimal('0'),
                     'credit': amount,
                     'narration': remarks or f"{v_type}: Credit from {cr_acc.name}",
-                    'party_id': party_id,
+                    'party_id': cr_party_id,
                 })
                 total_voucher_amt = amount
 
@@ -436,13 +583,15 @@ def voucher_entry(request):
 
                 total_dr = Decimal('0')
                 total_cr = Decimal('0')
+                from collections import defaultdict
+                credits_per_acc = defaultdict(Decimal)
 
                 for line in raw_entries:
                     acc_id = line.get('account_id')
                     dr = _to_decimal(line.get('debit', 0))
                     cr = _to_decimal(line.get('credit', 0))
                     line_narration = (line.get('narration') or remarks or '').strip()
-                    party_id = line.get('party_id') or None
+                    p_id = line.get('party_id') or None
 
                     if not acc_id:
                         return JsonResponse({'success': False, 'message': 'Account must be selected for all lines'})
@@ -450,15 +599,20 @@ def voucher_entry(request):
                         continue
 
                     acc = get_object_or_404(ChartOfAccount, id=acc_id, level=4)
+                    if not p_id and acc.party_id:
+                        p_id = acc.party_id
+
                     entries.append({
                         'account': acc,
                         'debit': dr,
                         'credit': cr,
                         'narration': line_narration,
-                        'party_id': party_id,
+                        'party_id': p_id,
                     })
                     total_dr += dr
                     total_cr += cr
+                    if cr > 0:
+                        credits_per_acc[acc] += cr
 
                 if total_dr <= 0 or total_cr <= 0:
                     return JsonResponse({'success': False, 'message': 'Voucher amounts must be greater than 0'})
@@ -467,6 +621,23 @@ def voucher_entry(request):
                         'success': False,
                         'message': f'Voucher is unbalanced! Total Debit (Rs. {total_dr:,}) != Total Credit (Rs. {total_cr:,})'
                     })
+
+                # Check credit balances for cash and bank in grid mode
+                for acc, cr_sum in credits_per_acc.items():
+                    a_code = str(acc.code)
+                    a_name_lower = acc.name.lower()
+                    is_cash_hand = (a_code in ['010101001', '1110001'] or 'cash in hand' in a_name_lower)
+                    is_bank = ((a_code.startswith('010101') or a_code.startswith('1110')) and not is_cash_hand) or ('bank' in a_name_lower and not is_cash_hand)
+                    if is_cash_hand or is_bank:
+                        if acc.current_balance < cr_sum:
+                            return JsonResponse({
+                                'success': False,
+                                'message': (
+                                    f"❌ Payment Rejection: '{acc.name}' mein kafi raqam mojood nahi hai! "
+                                    f"Mojooda Balance: Rs. {acc.current_balance:,.2f}, jabkay Draw/Credit Amount: Rs. {cr_sum:,.2f}."
+                                )
+                            })
+
                 total_voucher_amt = total_dr
 
             user_name = request.session.get('user_name', 'Admin')
@@ -477,14 +648,13 @@ def voucher_entry(request):
                     voucher_no=voucher_no,
                     voucher_type=v_type,
                     date=voucher_date,
-                    reference_no=reference_no,
+                    reference_no=reference_no or voucher_no,
                     total_amount=total_voucher_amt,
                     remarks=remarks,
                     created_by=user_name,
                 )
 
                 # CASH RECORD SYNC
-                # Check if Cash in Hand or Bank accounts are affected
                 net_cash_hand_change = Decimal('0')
                 net_cash_bank_change = Decimal('0')
 
@@ -501,17 +671,25 @@ def voucher_entry(request):
                     _update_account_balance(item['account'], item['debit'], item['credit'])
 
                     # Check for Cash in Hand / Bank
+                    acc_code = str(item['account'].code)
                     acc_name_lower = item['account'].name.lower()
-                    if 'cash in hand' in acc_name_lower or item['account'].code == '1110001':
+                    if acc_code in ['010101001', '1110001'] or 'cash in hand' in acc_name_lower:
                         net_cash_hand_change += (item['debit'] - item['credit'])
-                    elif 'bank' in acc_name_lower or item['account'].code.startswith('11100'):
+                    elif acc_code.startswith('010101') or acc_code.startswith('1110') or 'bank' in acc_name_lower:
                         net_cash_bank_change += (item['debit'] - item['credit'])
 
                 # If Cash Record is affected, update CashRecord table
                 if net_cash_hand_change != 0 or net_cash_bank_change != 0:
                     last_cash = CashRecord.objects.order_by('-id').first()
-                    prev_hand = int(last_cash.cash_in_hand or 0) if last_cash else 0
-                    prev_bank = int(last_cash.cash_in_bank or 0) if last_cash else 0
+                    if last_cash and last_cash.cash_in_hand is not None:
+                        prev_hand = int(last_cash.cash_in_hand)
+                    else:
+                        prev_hand = int((cash_acc.current_balance if cash_acc else Decimal('0')) - net_cash_hand_change)
+
+                    if last_cash and last_cash.cash_in_bank is not None:
+                        prev_bank = int(last_cash.cash_in_bank)
+                    else:
+                        prev_bank = 0
 
                     new_hand = prev_hand + int(net_cash_hand_change)
                     new_bank = prev_bank + int(net_cash_bank_change)
@@ -524,12 +702,12 @@ def voucher_entry(request):
                         cash_in_hand=new_hand,
                         cash_in_bank=new_bank,
                         date=datetime.combine(voucher_date, _get_pk_now().time()),
-                        discription=f"Voucher #{voucher_no}: {remarks[:400]}" if remarks else f"Voucher #{voucher_no}",
+                        discription=f"[{v_type}] #{voucher_no}: {remarks[:380]}" if remarks else f"[{v_type}] #{voucher_no}",
                     )
 
             return JsonResponse({
                 'success': True,
-                'message': f'Voucher {voucher_no} posted successfully! Total: Rs. {total_voucher_amt:,.2f}',
+                'message': f'{v_type} Voucher #{voucher_no} posted successfully! Total: Rs. {total_voucher_amt:,.2f}',
                 'voucher_no': voucher_no,
             })
 
@@ -546,7 +724,7 @@ def voucher_entry(request):
                 'account_code': line.account.code,
                 'account_name': line.account.name,
                 'account_type': line.account.account_type,
-                'party_name': line.party.company_name if line.party else '',
+                'party_name': line.party.company_name if line.party else (line.account.party.company_name if line.account.party else ''),
                 'debit': str(line.debit),
                 'credit': str(line.credit),
                 'narration': line.narration or '',
@@ -576,9 +754,36 @@ def voucher_entry(request):
 
             with transaction.atomic():
                 # Reverse account balances
+                net_cash_hand_rev = Decimal('0')
+                net_cash_bank_rev = Decimal('0')
+
                 for line in voucher.details.all():
                     # Reverse: debit becomes credit, credit becomes debit
                     _update_account_balance(line.account, line.credit, line.debit)
+
+                    acc_code = str(line.account.code)
+                    acc_name_lower = line.account.name.lower()
+                    # Reversal of (debit - credit) is (credit - debit)
+                    if acc_code in ['010101001', '1110001'] or 'cash in hand' in acc_name_lower:
+                        net_cash_hand_rev += (line.credit - line.debit)
+                    elif acc_code.startswith('010101') or acc_code.startswith('1110') or 'bank' in acc_name_lower:
+                        net_cash_bank_rev += (line.credit - line.debit)
+
+                if net_cash_hand_rev != 0 or net_cash_bank_rev != 0:
+                    last_cash = CashRecord.objects.order_by('-id').first()
+                    prev_hand = int(last_cash.cash_in_hand or 0) if last_cash else 0
+                    prev_bank = int(last_cash.cash_in_bank or 0) if last_cash else 0
+
+                    max_cash_id = CashRecord.objects.aggregate(Max('id'))['id__max']
+                    next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
+
+                    CashRecord.objects.create(
+                        id=next_cash_id,
+                        cash_in_hand=prev_hand + int(net_cash_hand_rev),
+                        cash_in_bank=prev_bank + int(net_cash_bank_rev),
+                        date=_get_pk_now(),
+                        discription=f"Reversal of Voucher #{voucher.voucher_no}",
+                    )
 
                 voucher_no = voucher.voucher_no
                 voucher.delete()
@@ -588,41 +793,48 @@ def voucher_entry(request):
             return JsonResponse({'success': False, 'message': str(e)})
 
     # ------------ DEFAULT PAGE DATA ------------
-    # Fetch Level 4 transactional accounts
     level4_accounts = ChartOfAccount.objects.filter(level=4, is_active=True).order_by('code')
 
-    # Cash and Bank accounts specifically for quick selection
-    cash_bank_accounts = ChartOfAccount.objects.filter(
-        level=4,
-        is_active=True,
-        parent__code='1110'
-    ).order_by('code')
+    # Cash in Hand account
+    cash_account = ChartOfAccount.objects.filter(level=4, code='010101001').first() or ChartOfAccount.objects.filter(level=4, code='1110001').first() or ChartOfAccount.objects.filter(level=4, name__icontains='Cash in Hand').first()
 
-    # Expense heads for payment vouchers
+    # Bank Accounts (Level 4 under 010101 or 1110 excluding cash in hand)
+    bank_accounts = ChartOfAccount.objects.filter(
+        level=4, is_active=True
+    ).filter(Q(parent__code__in=['010101', '1110']) | Q(name__icontains='bank')).exclude(code__in=['010101001', '1110001']).order_by('code')
+
+    # Party Accounts (Level 4 under 010102 or 1120 or with party linked)
+    party_accounts = ChartOfAccount.objects.filter(
+        level=4, is_active=True
+    ).filter(Q(parent__code__in=['010102', '1120']) | Q(party__isnull=False)).order_by('name')
+
+    # Expense heads
     expense_accounts = ChartOfAccount.objects.filter(
-        level=4,
-        is_active=True,
-        account_type='Expense'
+        level=4, is_active=True, account_type='Expense'
     ).order_by('code')
 
     # All parties (unified: customer, vendor, trader)
     parties = Parties.objects.all().order_by('company_name')
 
     # Recent Vouchers
-    recent_vouchers = Voucher.objects.all().prefetch_related('details__account').order_by('-id')[:25]
+    recent_vouchers = Voucher.objects.all().prefetch_related('details__account', 'details__party').order_by('-id')[:30]
 
     pk_now = _get_pk_now()
 
     context = {
         'level4_accounts': level4_accounts,
-        'cash_bank_accounts': cash_bank_accounts,
+        'cash_account': cash_account,
+        'bank_accounts': bank_accounts,
+        'party_accounts': party_accounts,
         'expense_accounts': expense_accounts,
         'parties': parties,
         'recent_vouchers': recent_vouchers,
         'today_date': pk_now.strftime('%Y-%m-%d'),
-        'next_pv': generate_voucher_no('Payment Voucher'),
-        'next_rv': generate_voucher_no('Receipt Voucher'),
-        'next_jv': generate_voucher_no('Transfer Voucher'),
+        'next_cpv': generate_voucher_no('CPV'),
+        'next_crv': generate_voucher_no('CRV'),
+        'next_bpv': generate_voucher_no('BPV'),
+        'next_brv': generate_voucher_no('BRV'),
+        'next_jv': generate_voucher_no('JV'),
     }
     return render(request, 'accounts/voucher_entry.html', context)
 
@@ -676,6 +888,8 @@ def account_ledger(request):
         acc_id = selected_account.id
 
     if selected_account:
+        is_asset_exp = selected_account.account_type in ['Asset', 'Expense']
+
         # Calculate Opening Balance before from_date
         # 1. Base opening balance configured on account
         op_bal = selected_account.opening_balance
@@ -688,7 +902,7 @@ def account_ledger(request):
         past_dr = past_lines.aggregate(s=Sum('debit'))['s'] or Decimal('0')
         past_cr = past_lines.aggregate(s=Sum('credit'))['s'] or Decimal('0')
 
-        if selected_account.account_type in ['Asset', 'Expense']:
+        if is_asset_exp:
             opening_balance = op_bal + (past_dr - past_cr)
         else:
             opening_balance = op_bal + (past_cr - past_dr)
@@ -698,7 +912,7 @@ def account_ledger(request):
             account=selected_account,
             voucher__date__gte=from_date,
             voucher__date__lte=to_date
-        ).select_related('voucher', 'party').order_by('voucher__date', 'voucher__id')
+        ).select_related('voucher', 'party').order_by('voucher__date', 'voucher__id', 'id')
 
         running_balance = opening_balance
         for line in lines:
@@ -707,10 +921,12 @@ def account_ledger(request):
             total_debit += dr
             total_credit += cr
 
-            if selected_account.account_type in ['Asset', 'Expense']:
+            if is_asset_exp:
                 running_balance += (dr - cr)
             else:
                 running_balance += (cr - dr)
+
+            bal_type = ('Dr' if running_balance >= 0 else 'Cr') if is_asset_exp else ('Cr' if running_balance >= 0 else 'Dr')
 
             ledger_entries.append({
                 'date': line.voucher.date,
@@ -722,9 +938,17 @@ def account_ledger(request):
                 'debit': dr,
                 'credit': cr,
                 'balance': running_balance,
+                'balance_abs': abs(running_balance),
+                'balance_type': bal_type,
             })
 
         closing_balance = running_balance
+
+        opening_balance_type = ('Dr' if opening_balance >= 0 else 'Cr') if is_asset_exp else ('Cr' if opening_balance >= 0 else 'Dr')
+        closing_balance_type = ('Dr' if closing_balance >= 0 else 'Cr') if is_asset_exp else ('Cr' if closing_balance >= 0 else 'Dr')
+    else:
+        opening_balance_type = 'Dr'
+        closing_balance_type = 'Dr'
 
     context = {
         'level4_accounts': level4_accounts,
@@ -732,9 +956,13 @@ def account_ledger(request):
         'from_date': from_date_str,
         'to_date': to_date_str,
         'opening_balance': opening_balance,
+        'opening_balance_abs': abs(opening_balance),
+        'opening_balance_type': opening_balance_type,
         'total_debit': total_debit,
         'total_credit': total_credit,
         'closing_balance': closing_balance,
+        'closing_balance_abs': abs(closing_balance),
+        'closing_balance_type': closing_balance_type,
         'ledger_entries': ledger_entries,
     }
     return render(request, 'accounts/account_ledger.html', context)

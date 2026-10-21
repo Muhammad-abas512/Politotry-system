@@ -43,13 +43,19 @@
     .mode-view { background: #e3f2fd; color: #1976d2; }
     .mode-edit { background: #fff3e0; color: #f57c00; }
 
-    /* Readonly code field styling */
+    /* Readonly code & category field styling */
     #partyCode {
         background: #f0f4ff !important;
         color: #667eea;
         font-weight: 700;
         font-family: monospace;
         letter-spacing: 1px;
+        cursor: not-allowed;
+    }
+    #partyType {
+        background: #f5f3ff !important;
+        color: #6b21a8 !important;
+        font-weight: 700;
         cursor: not-allowed;
     }
 
@@ -110,16 +116,14 @@
                 </div>
 
                 <div class="col-lg-6 col-md-6 col-12">
-                    <label class="form-label fw-semibold">Party Category <small class="text-muted">(Har party sy Buy & Sell dono ho sakti hain)</small></label>
+                    <label class="form-label fw-semibold">Party Category <small class="text-muted">(auto)</small></label>
                     <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-tag"></i></span>
-                        <select class="form-select" id="partyType">
-                            <option value="Party" selected>Party (All-in-One: Buy & Sell)</option>
-                            <option value="Vendor">Vendor</option>
-                            <option value="Customer">Customer</option>
-                            <option value="Trader">Trader</option>
-                        </select>
+                        <span class="input-group-text" style="background:#f5f3ff; color:#6b21a8;"><i class="bi bi-tag-fill"></i></span>
+                        <input type="text" class="form-control" id="partyType" value="All-in-One" readonly>
                     </div>
+                    <small class="text-muted d-block mt-1">
+                        <i class="bi bi-info-circle text-primary me-1"></i>All-in-One: Har party sy Buy aur Sell dono transactions ki ja sakti hain.
+                    </small>
                 </div>
 
                 <div class="col-12">
@@ -230,6 +234,7 @@
     function resetForm() {
         document.getElementById('partyForm').reset();
         document.getElementById('partyId').value = '';
+        document.getElementById('partyType').value = 'All-in-One';
         document.getElementById('modeBadge').innerHTML = '';
         document.getElementById('saveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Save Party';
         setFormReadonly(false);
@@ -240,7 +245,6 @@
         ['companyName', 'ownerName', 'number', 'address'].forEach(id => {
             document.getElementById(id).readOnly = readonly;
         });
-        document.getElementById('partyType').disabled = readonly;
         document.getElementById('saveBtn').style.display = readonly ? 'none' : '';
     }
 
@@ -252,7 +256,7 @@
             company_name: document.getElementById('companyName').value,
             owner_name: document.getElementById('ownerName').value,
             number: document.getElementById('number').value,
-            party_type: document.getElementById('partyType').value,
+            party_type: document.getElementById('partyType').value || 'All-in-One',
             address: document.getElementById('address').value,
         };
 
@@ -311,8 +315,9 @@
         };
 
         const getBadge = (type) => {
-            const cls = type === 'Vendor' ? 'type-vendor' : type === 'Supplier' ? 'type-supplier' : 'type-both';
-            return `<span class="type-badge ${cls}">${type || '-'}</span>`;
+            const val = type || 'All-in-One';
+            const cls = val === 'Vendor' ? 'type-vendor' : val === 'Customer' ? 'type-supplier' : 'type-both';
+            return `<span class="type-badge ${cls}"><i class="bi bi-check2-circle me-1"></i>${val}</span>`;
         };
 
         // Desktop table
@@ -378,7 +383,7 @@
                 document.getElementById('companyName').value = d.company_name;
                 document.getElementById('ownerName').value = d.owner_name;
                 document.getElementById('number').value = d.number;
-                document.getElementById('partyType').value = d.party_type;
+                document.getElementById('partyType').value = d.party_type || 'All-in-One';
                 document.getElementById('address').value = d.address;
 
                 const badge = document.getElementById('modeBadge');
