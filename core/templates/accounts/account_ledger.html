@@ -149,9 +149,9 @@
                     <button type="submit" class="btn btn-primary fw-bold w-100" title="Filter Ledger">
                         <i class="bi bi-funnel-fill"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-dark" onclick="window.print()" title="Print Ledger">
+                    <a href="{% url 'account_ledger_print' %}?account={{ selected_account.id|default:'' }}&from={{ from_date }}&to={{ to_date }}" target="_blank" class="btn btn-outline-dark" id="btnPrintLedger" title="Print Ledger (PDF)">
                         <i class="bi bi-printer"></i>
-                    </button>
+                    </a>
                 </div>
             </div>
         </form>
@@ -304,6 +304,19 @@
 <script>
     $(document).ready(function() {
         $('.select2-ledger').select2({ theme: 'bootstrap-5' });
+
+        $('#btnPrintLedger').on('click', function(e) {
+            e.preventDefault();
+            const acc = $('select[name="account"]').val();
+            const fromDate = $('input[name="from"]').val();
+            const toDate = $('input[name="to"]').val();
+            if (!acc) {
+                alert('Please select an account first.');
+                return;
+            }
+            const url = `{% url 'account_ledger_print' %}?account=${encodeURIComponent(acc)}&from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
+            window.open(url, '_blank');
+        });
     });
 </script>
 {% endblock %}

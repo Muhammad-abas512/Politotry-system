@@ -871,19 +871,12 @@ def voucher_entry(request):
 
 
 # ===================================================================
-# 3. GENERAL ACCOUNT LEDGER VIEW
+# 3. GENERAL ACCOUNT LEDGER VIEW & DATA HELPER
 # ===================================================================
-def account_ledger(request):
-    if not request.session.get('user_id'):
-        return redirect('login')
-
+def _get_account_ledger_context(acc_id, from_date_str, to_date_str):
     seed_default_chart_of_accounts()
 
-    acc_id = request.GET.get('account')
-    from_date_str = request.GET.get('from')
-    to_date_str = request.GET.get('to')
     pk_now = _get_pk_now()
-
     level4_accounts = ChartOfAccount.objects.filter(level=4).order_by('code')
 
     if not from_date_str:
@@ -981,11 +974,13 @@ def account_ledger(request):
         opening_balance_type = 'Dr'
         closing_balance_type = 'Dr'
 
-    context = {
+    return {
         'level4_accounts': level4_accounts,
         'selected_account': selected_account,
         'from_date': from_date_str,
         'to_date': to_date_str,
+        'from_date_obj': from_date,
+        'to_date_obj': to_date,
         'opening_balance': opening_balance,
         'opening_balance_abs': abs(opening_balance),
         'opening_balance_type': opening_balance_type,
@@ -996,4 +991,37 @@ def account_ledger(request):
         'closing_balance_type': closing_balance_type,
         'ledger_entries': ledger_entries,
     }
+
+
+def account_ledger(request):
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    acc_id = request.GET.get('account')
+    from_date_str = request.GET.get('from')
+    to_date_str = request.GET.get('to')
+
+    context = _get_account_ledger_context(acc_id, from_date_str, to_date_str)
     return render(request, 'accounts/account_ledger.html', context)
+
+
+# ===================================================================
+# 4. GENERAL ACCOUNT LEDGER PRINT VIEW (ReportLab PDF via reports.py)
+# ===================================================================
+def account_ledger_print(request):
+    """
+    Renders General Account Ledger PDF report using ReportLab defined in reports.py.
+    Opens in a new tab when called via target="_blank".
+    """
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    acc_id = request.GET.get('account')
+    from_date_str = request.GET.get('from')
+    to_date_str = request.GET.get('to')
+
+    context = _get_account_ledger_context(acc_id, from_date_str, to_date_str)
+
+    from .reports import generate_account_ledger_pdf
+    return generate_account_ledger_pdf(context)
+

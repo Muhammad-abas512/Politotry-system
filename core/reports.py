@@ -3569,6 +3569,289 @@ def net_position_print(request):
     return response
 
 
+# =========================================================
+# GENERAL ACCOUNT LEDGER REPORTLAB PDF GENERATOR
+# =========================================================
+def generate_account_ledger_pdf(context):
+    """
+    Generates a high-quality ReportLab PDF for General Account Ledger.
+    Matches the columns, balances, and summary cards in account_ledger.html.
+    """
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    selected_account = context.get('selected_account')
+    if not selected_account:
+        return HttpResponse("No account found to generate ledger.", content_type="text/plain", status=404)
+
+    from_date = context.get('from_date', '')
+    to_date = context.get('to_date', '')
+    opening_balance = context.get('opening_balance', 0)
+    opening_balance_abs = context.get('opening_balance_abs', abs(opening_balance))
+    opening_balance_type = context.get('opening_balance_type', 'Dr')
+    total_debit = context.get('total_debit', 0)
+    total_credit = context.get('total_credit', 0)
+    closing_balance = context.get('closing_balance', 0)
+    closing_balance_abs = context.get('closing_balance_abs', abs(closing_balance))
+    closing_balance_type = context.get('closing_balance_type', 'Dr')
+    ledger_entries = context.get('ledger_entries', [])
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm,
+        title=f"Account_Ledger_{selected_account.code}_{from_date}_to_{to_date}"
+    )
+
+    styles = getSampleStyleSheet()
+    normal_style = styles['Normal']
+    normal_style.fontSize = 8
+    normal_style.leading = 10
+
+    elements = []
+
+    # 1. Main Header Title Banner
+    banner_cell = Paragraph(
+        "<font color='white'><b>ACCOUNT GENERAL LEDGER STATEMENT</b></font>",
+        ParagraphStyle('ALBanner', fontName='Helvetica-Bold', fontSize=14, alignment=1, textColor=colors.white)
+    )
+    title_banner = Table([[banner_cell]], colWidths=[281 * mm])
+    title_banner.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0B2545')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    elements.append(title_banner)
+    elements.append(Spacer(1, 2.5 * mm))
+
+    # 2. Account Metadata Bar
+    category_name = selected_account.parent.name if selected_account.parent else '-'
+    acc_info_p = Paragraph(
+        f"<font size=11 color='#0B2545'><b>[{selected_account.code}] {selected_account.name}</b></font><br/>"
+        f"<font size=8 color='#64748B'>Account Type: <b>{selected_account.account_type}</b> &nbsp;|&nbsp; Category: <b>{category_name}</b></font>",
+        normal_style
+    )
+    period_info_p = Paragraph(
+        f"<div align='right'><font size=9.5 color='#0B2545'><b>Period: {from_date} &nbsp;to&nbsp; {to_date}</b></font><br/>"
+        f"<font size=7.5 color='#64748B'>MJ Poultries & Group Management System</font></div>",
+        normal_style
+    )
+
+    meta_table = Table([[acc_info_p, period_info_p]], colWidths=[170 * mm, 111 * mm])
+    meta_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elements.append(meta_table)
+    elements.append(Spacer(1, 2.5 * mm))
+
+    # 3. KPI Summary Row
+    op_color = '#2563EB' if opening_balance_type == 'Dr' else '#DC2626'
+    cl_color = '#2563EB' if closing_balance_type == 'Dr' else '#DC2626'
+
+    summary_data = [
+        [
+            Paragraph(
+                f"<font size=7 color='#64748B'>OPENING BALANCE</font><br/>"
+                f"<font size=9.5 color='#0B2545'><b>PKR {opening_balance_abs:,.2f}</b></font> "
+                f"<font size=7.5 color='{op_color}'><b>{opening_balance_type}</b></font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748B'>TOTAL DEBIT (+)</font><br/>"
+                f"<font size=9.5 color='#B91C1C'><b>PKR {total_debit:,.2f}</b></font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748B'>TOTAL CREDIT (-)</font><br/>"
+                f"<font size=9.5 color='#15803D'><b>PKR {total_credit:,.2f}</b></font>",
+                normal_style
+            ),
+            Paragraph(
+                f"<font size=7 color='#64748B'>CLOSING BALANCE</font><br/>"
+                f"<font size=9.5 color='#0B2545'><b>PKR {closing_balance_abs:,.2f}</b></font> "
+                f"<font size=7.5 color='{cl_color}'><b>{closing_balance_type}</b></font>",
+                normal_style
+            ),
+        ]
+    ]
+    summary_table = Table(summary_data, colWidths=[70.25 * mm, 70.25 * mm, 70.25 * mm, 70.25 * mm])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 3 * mm))
+
+    # 4. Main Ledger Table
+    table_data = [
+        ["Sr#", "Date", "Voucher #", "Type", "Party", "Narration / Remarks", "Debit (PKR)", "Credit (PKR)", "Balance (PKR)"]
+    ]
+
+    # Opening balance row
+    table_data.append([
+        "-",
+        from_date,
+        "OPENING BALANCE B/F",
+        "-",
+        "-",
+        "Balance brought forward from prior period",
+        "-",
+        "-",
+        f"PKR {opening_balance_abs:,.2f} {opening_balance_type}"
+    ])
+
+    # Transaction rows
+    for i, row in enumerate(ledger_entries, 1):
+        d_val = row.get('date')
+        date_str = d_val.strftime('%d-%b-%Y') if hasattr(d_val, 'strftime') else str(d_val)[:10]
+
+        party_p = Paragraph(f"<font size=7.5>{row.get('party') or '-'}</font>", normal_style)
+        narr_p = Paragraph(f"<font size=7.5>{row.get('narration') or '-'}</font>", normal_style)
+
+        dr_num = row.get('debit', 0)
+        cr_num = row.get('credit', 0)
+        dr_str = f"{dr_num:,.2f}" if dr_num > 0 else "-"
+        cr_str = f"{cr_num:,.2f}" if cr_num > 0 else "-"
+
+        bal_str = f"{row.get('balance_abs', 0):,.2f} {row.get('balance_type', '')}"
+
+        table_data.append([
+            str(i),
+            date_str,
+            str(row.get('voucher_no') or '-'),
+            str(row.get('voucher_type') or '-'),
+            party_p,
+            narr_p,
+            dr_str,
+            cr_str,
+            bal_str
+        ])
+
+    # Period Totals Row
+    table_data.append([
+        "PERIOD TOTALS",
+        "",
+        "",
+        "",
+        "",
+        "",
+        f"PKR {total_debit:,.2f}",
+        f"PKR {total_credit:,.2f}",
+        f"PKR {closing_balance_abs:,.2f} {closing_balance_type}"
+    ])
+
+    col_widths = [10*mm, 22*mm, 32*mm, 15*mm, 42*mm, 68*mm, 30*mm, 30*mm, 32*mm]
+    ledger_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+
+    t_style = [
+        # Table Header
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0B2545')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 8),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,0), 5),
+        ('BOTTOMPADDING', (0,0), (-1,0), 5),
+
+        # Opening balance row styling
+        ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#FEF3C7')),  # subtle warm light amber
+        ('FONTNAME', (0,1), (-1,1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,1), (-1,1), 7.5),
+        ('ALIGN', (0,1), (0,1), 'CENTER'),
+        ('ALIGN', (1,1), (1,1), 'CENTER'),
+        ('ALIGN', (2,1), (2,1), 'LEFT'),
+        ('ALIGN', (3,1), (3,1), 'CENTER'),
+        ('ALIGN', (4,1), (5,1), 'LEFT'),
+        ('ALIGN', (6,1), (8,1), 'RIGHT'),
+
+        # Body alignment default
+        ('ALIGN', (0,2), (0,-2), 'CENTER'),
+        ('ALIGN', (1,2), (1,-2), 'CENTER'),
+        ('ALIGN', (2,2), (2,-2), 'CENTER'),
+        ('ALIGN', (3,2), (3,-2), 'CENTER'),
+        ('ALIGN', (4,2), (5,-2), 'LEFT'),
+        ('ALIGN', (6,2), (8,-2), 'RIGHT'),
+        ('FONTSIZE', (0,2), (-1,-2), 7.5),
+        ('TOPPADDING', (0,1), (-1,-2), 3),
+        ('BOTTOMPADDING', (0,1), (-1,-2), 3),
+        ('GRID', (0,0), (-1,-2), 0.4, colors.HexColor('#CBD5E1')),
+
+        # Debit text color
+        ('TEXTCOLOR', (6,1), (6,-2), colors.HexColor('#B91C1C')),
+        # Credit text color
+        ('TEXTCOLOR', (7,1), (7,-2), colors.HexColor('#15803D')),
+        # Balance text bold
+        ('FONTNAME', (8,1), (8,-2), 'Helvetica-Bold'),
+
+        # Footer row (Totals)
+        ('SPAN', (0,-1), (5,-1)),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#0B2545')),
+        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,-1), (-1,-1), 8),
+        ('ALIGN', (0,-1), (0,-1), 'CENTER'),
+        ('TEXTCOLOR', (0,-1), (0,-1), colors.white),
+        ('ALIGN', (6,-1), (8,-1), 'RIGHT'),
+        ('TEXTCOLOR', (6,-1), (6,-1), colors.HexColor('#F87171')),  # Light red for Dr
+        ('TEXTCOLOR', (7,-1), (7,-1), colors.HexColor('#4ADE80')),  # Light green for Cr
+        ('TEXTCOLOR', (8,-1), (8,-1), colors.HexColor('#FDE047')),  # Bright yellow/gold for Closing
+        ('TOPPADDING', (0,-1), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,-1), (-1,-1), 5),
+    ]
+
+    # Alternating row background for transaction rows (rows 2 to len - 2)
+    for r_idx in range(2, len(table_data) - 1):
+        bg = colors.HexColor('#F8FAFC') if r_idx % 2 == 0 else colors.white
+        t_style.append(('BACKGROUND', (0, r_idx), (-1, r_idx), bg))
+
+    ledger_table.setStyle(TableStyle(t_style))
+    elements.append(ledger_table)
+
+    def print_al_footer(canvas, d):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(colors.HexColor('#64748B'))
+        canvas.drawString(8 * mm, 4 * mm, f"Printed: {timezone.now().strftime('%d-%m-%Y %H:%M')} | MJ Poultries Management System")
+        canvas.drawRightString(289 * mm, 4 * mm, f"Page {d.page}")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=print_al_footer, onLaterPages=print_al_footer)
+
+    clean_code = str(selected_account.code).replace('/', '_').replace('\\', '_')
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Account_Ledger_{clean_code}_{from_date}_to_{to_date}.pdf"'
+    buffer.close()
+    return response
+
+
+def account_ledger_print(request):
+    """View function wrapper in reports.py for General Account Ledger Print."""
+    from .accounts_views import account_ledger_print as _alp
+    return _alp(request)
+
+
+
 
 
 

@@ -310,27 +310,52 @@ def purchase_receiving(request):
         if record_id:
             purchase = PurchaseReceiving.objects.filter(id=record_id).first()
             if purchase:
-                # Check if any sale or mortality has occurred
-                has_sales = SellsInvoice.objects.filter(purchase_number=purchase.purchase_number).exists()
+                # 1. Mortality check: if mortality is entered, purchase cannot be edited
                 has_mortality = Mortality.objects.filter(purchase_no=purchase.purchase_number).exists()
-                rem = sell_decimal(purchase.remaining_weight)
-                orig_w = sell_decimal(purchase.weight)
-                if has_sales or has_mortality or rem < orig_w:
+                if has_mortality:
                     messages.error(
                         request,
-                        f"❌ Purchase #{purchase.purchase_number} edit nahi ho sakti kyunke isme se sale ya deduction ho chuki hai! (Purchase Locked)"
+                        f"❌ Purchase #{purchase.purchase_number} edit nahi ho sakti kyunke iski mortality dali ja chuki hai!"
                     )
                     return redirect('purchase_receiving')
 
-                old_amount = int(float(purchase.amount or 0))
+                # 2. Remaining stock check: if remaining stock <= 0 (e.g. 500/500 sold), cannot edit
+                curr_rem = sell_decimal(purchase.remaining_weight)
+                if curr_rem <= 0:
+                    messages.error(
+                        request,
+                        f"❌ Purchase #{purchase.purchase_number} edit nahi ho sakti kyunke iska stock mukammal sell ho chuka hai (Remaining: {curr_rem} kg)!"
+                    )
+                    return redirect('purchase_receiving')
 
-                # delete old history row for this purchase
+                # 3. Calculate already sold weight from sales invoices
+                sales_qs = SellsInvoice.objects.filter(purchase_number=purchase.purchase_number)
+                sold_weight = sum(sell_decimal(s.weight) for s in sales_qs)
+
+                # 4. Check if new weight entered is greater than already sold weight
+                if sold_weight > 0 and weight <= sold_weight:
+                    messages.error(
+                        request,
+                        f"❌ Purchase weight ({sell_number(weight)} kg) pehle se sold weight ({sell_number(sold_weight)} kg) se zyada hona zaroori hai!"
+                    )
+                    return redirect(f"{request.path}?edit_id={purchase.id}")
+
+                new_remaining = weight - sold_weight
+                new_status = 'Active' if new_remaining > 0 else 'Done'
+
+                old_amount = int(float(purchase.amount or 0))
+                old_vendor_name = purchase.vendor_name
+                old_vendor_code = purchase.vendor_code
+                old_vehicle = purchase.vehicle_number
+                old_date = purchase.date
+
+                # Delete old history row
                 PurchasePaymentHistory.objects.filter(
-                    party_code=party_code,
-                    totall_amount=old_amount
+                    Q(remarks__icontains=purchase.purchase_number) |
+                    Q(party_code=old_vendor_code or party_code, totall_amount=old_amount)
                 ).delete()
 
-                # previous balance BEFORE this purchase
+                # Previous balance BEFORE this purchase
                 last_entry = PurchasePaymentHistory.objects.filter(
                     party_code=party_code
                 ).order_by('-id').first()
@@ -353,35 +378,55 @@ def purchase_receiving(request):
                     new_adv = 0
                     new_due = prev_due + total_amt
 
-                # update receiving row (remaining_weight updated to new weight!)
+                # Update purchase record
                 purchase.vendor_name      = vendor_name
                 purchase.vendor_code      = party_code or purchase.vendor_code
                 purchase.date             = final_datetime
                 purchase.vendor_rate      = vendor_rate
                 purchase.market_rate      = market_rate
                 purchase.weight           = weight
-                purchase.remaining_weight = sell_number(weight)   # 👈 Updated to new weight!
+                purchase.remaining_weight = sell_number(new_remaining)
                 purchase.vehicle_number   = vehicle_number
-                purchase.status           = status
+                purchase.status           = new_status
                 purchase.amount           = str(amount)
                 purchase.payed_amount     = str(payed_for_receiving)
                 purchase.discription      = description
                 purchase.save()
+
+                # Re-sync double entry purchase voucher
                 sync_purchase_voucher(purchase)
 
-                # history row — payed_amount stays 0
+                # Re-sync associated sales if date or vehicle changed
+                if sales_qs.exists():
+                    if old_date and final_datetime.date() != old_date.date():
+                        for s in sales_qs:
+                            s_time = s.entry_date.time() if s.entry_date else final_datetime.time()
+                            s.entry_date = datetime.combine(final_datetime.date(), s_time)
+                            s.save(update_fields=['entry_date'])
+                            sync_sell_voucher(s)
+
+                    if vehicle_number and vehicle_number != old_vehicle:
+                        sales_qs.filter(
+                            Q(vehicle_no=old_vehicle) | Q(vehicle_no__isnull=True) | Q(vehicle_no='')
+                        ).update(vehicle_no=vehicle_number)
+
+                # Re-create history row
                 PurchasePaymentHistory.objects.create(
                     party_code    = party_code,
                     party_name    = vendor_name,
                     date          = final_datetime,
                     totall_amount = total_amt,
-                    payed_amount  = 0,                # 👈 always 0
+                    payed_amount  = 0,
                     due           = new_due,
                     advanced      = new_adv,
-                    remarks       = description[:500],
+                    remarks       = f"Purchase #{purchase.purchase_number}: {description[:400]}" if description else f"Purchase #{purchase.purchase_number}",
                 )
 
-                messages.success(request, f"Purchase #{purchase.purchase_number} updated successfully! Weight: {sell_number(weight)} kg")
+                messages.success(
+                    request,
+                    f"✅ Purchase #{purchase.purchase_number} updated successfully! "
+                    f"New Weight: {sell_number(weight)} kg | Sold: {sell_number(sold_weight)} kg | Remaining: {sell_number(new_remaining)} kg | Rate: Rs. {vendor_rate}"
+                )
 
         # ==========================================================
         # CREATE
@@ -473,20 +518,30 @@ def purchase_receiving(request):
     # Edit Object
     # ------------------------------------------------------------------
     edit_obj = None
+    edit_sold_weight = Decimal('0')
     edit_id = request.GET.get('edit_id')
     if edit_id:
         edit_obj = PurchaseReceiving.objects.filter(id=edit_id).first()
         if edit_obj:
-            has_sales = SellsInvoice.objects.filter(purchase_number=edit_obj.purchase_number).exists()
             has_mortality = Mortality.objects.filter(purchase_no=edit_obj.purchase_number).exists()
             rem = sell_decimal(edit_obj.remaining_weight)
-            orig_w = sell_decimal(edit_obj.weight)
-            if has_sales or has_mortality or rem < orig_w:
+
+            if has_mortality:
                 messages.error(
                     request,
-                    f"❌ Purchase #{edit_obj.purchase_number} edit nahi ho sakti kyunke isme se sale ya deduction ho chuki hai! (Purchase Locked)"
+                    f"❌ Purchase #{edit_obj.purchase_number} edit nahi ho sakti kyunke iski mortality dali ja chuki hai!"
                 )
                 return redirect('purchase_receiving')
+
+            if rem <= 0:
+                messages.error(
+                    request,
+                    f"❌ Purchase #{edit_obj.purchase_number} edit nahi ho sakti kyunke iska stock mukammal (500/500 ya zyada) sell ho chuka hai (Remaining: {rem} kg)!"
+                )
+                return redirect('purchase_receiving')
+
+            sales_qs = SellsInvoice.objects.filter(purchase_number=edit_obj.purchase_number)
+            edit_sold_weight = sum(sell_decimal(s.weight) for s in sales_qs)
 
     # Active purchase
     active_purchase = None
@@ -510,11 +565,16 @@ def purchase_receiving(request):
     vendor_list = Parties.objects.all().order_by('company_name')
 
     history = PurchaseReceiving.objects.all().order_by('-id')
-    sold_pur_numbers = set(
-        SellsInvoice.objects.values_list('purchase_number', flat=True).distinct()
-    ) | set(
+    mortality_pur_numbers = set(
         Mortality.objects.values_list('purchase_no', flat=True).distinct()
     )
+
+    # Pre-calculate sales weight per purchase number
+    sales_qs = SellsInvoice.objects.exclude(purchase_number__isnull=True).exclude(purchase_number='').values('purchase_number', 'weight')
+    sales_by_pur = {}
+    for s in sales_qs:
+        p_no = (s['purchase_number'] or '').strip()
+        sales_by_pur[p_no] = sales_by_pur.get(p_no, Decimal('0')) + sell_decimal(s['weight'])
 
     for item in history:
         try:
@@ -522,9 +582,24 @@ def purchase_receiving(request):
             rem = Decimal(str(item.remaining_weight or '0'))
         except Exception:
             w, rem = Decimal('0'), Decimal('0')
-        has_sold = (item.purchase_number in sold_pur_numbers) or (rem < w)
-        item.is_locked = bool(has_sold)
-        item.sold_weight = sell_number(max(Decimal('0'), w - rem)) if has_sold else '0'
+
+        p_no = (item.purchase_number or '').strip()
+        sold_w = sales_by_pur.get(p_no, max(Decimal('0'), w - rem))
+        has_mort = (p_no in mortality_pur_numbers)
+
+        item.has_mortality = has_mort
+        item.sold_weight = sell_number(sold_w)
+        item.sold_weight_num = sold_w
+
+        # User rules:
+        # 1. Mortality entered -> cannot edit
+        # 2. Remaining stock <= 0 (e.g. 500/500 sold) -> cannot edit
+        # 3. As long as remaining stock > 0 and no mortality -> CAN EDIT!
+        item.can_edit = (not has_mort) and (rem > 0)
+        item.is_locked = not item.can_edit
+
+        # Cannot delete if sales or mortality exist
+        item.can_delete = (not has_mort) and (sold_w == 0) and (rem >= w)
 
     next_purchase_number = generate_purchase_number()
 
@@ -540,6 +615,7 @@ def purchase_receiving(request):
 
     context = {
         'edit_obj':             edit_obj,
+        'edit_sold_weight':     sell_number(edit_sold_weight),
         'active_purchase':      active_purchase,
         'vendor_list':          vendor_list,
         'history':              history,
@@ -576,9 +652,25 @@ def sells(request):
             active_purchase = PurchaseReceiving.objects.filter(id=selected_pur_id).first()
 
     if not active_purchase:
+        # First preference: Latest active purchase with remaining_weight > 0
+        all_candidates = PurchaseReceiving.objects.order_by('-date', '-id')
+        for c in all_candidates:
+            if sell_decimal(c.remaining_weight) > 0 and c.status == 'Active':
+                active_purchase = c
+                break
+
+    if not active_purchase:
+        # Second preference: Any purchase with remaining_weight > 0
+        all_candidates = PurchaseReceiving.objects.order_by('-date', '-id')
+        for c in all_candidates:
+            if sell_decimal(c.remaining_weight) > 0:
+                active_purchase = c
+                break
+
+    if not active_purchase:
         active_purchase = (
             PurchaseReceiving.objects
-            .order_by('-id')
+            .order_by('-date', '-id')
             .first()
         )
 
@@ -997,7 +1089,10 @@ def sells(request):
             amount = sell_decimal(item.weight) * sell_decimal(item.rate)
         item.total_display = sell_number(amount)
 
-    active_purchases_list = PurchaseReceiving.objects.filter(status='Active').order_by('-date', '-id')[:15]
+    all_active = PurchaseReceiving.objects.filter(Q(status='Active') | Q(status__isnull=True)).order_by('-date', '-id')[:25]
+    active_purchases_list = [p for p in all_active if sell_decimal(p.remaining_weight) > 0]
+    if not active_purchases_list:
+        active_purchases_list = list(PurchaseReceiving.objects.order_by('-date', '-id')[:10])
 
     if active_purchase:
         current_remaining = sell_decimal(active_purchase.remaining_weight)
@@ -1010,7 +1105,7 @@ def sells(request):
 
         auto_vehicle          = active_purchase.vehicle_number or ''
         stock_negative        = (current_remaining < 0)
-        stock_zero            = (current_remaining == 0)
+        stock_zero            = (current_remaining <= 0)
         purchase_date_str     = active_purchase.date.strftime('%Y-%m-%d') if active_purchase.date else ''
         purchase_date_display = active_purchase.date.strftime('%d-%m-%Y') if active_purchase.date else ''
     else:
