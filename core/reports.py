@@ -22,6 +22,16 @@ def safe_decimal(val):
     except (ValueError, TypeError):
         return 0.0
 
+import io
+from datetime import datetime, date, time
+from django.utils import timezone
+from django.db.models import Q
+from django.http import JsonResponse, HttpResponse # HttpResponse add kiya gaya hai
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
 def get_party_ledger(request):
     if not request.session.get('user_id'):
         return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
@@ -71,7 +81,7 @@ def get_party_ledger(request):
         old_purchases = PurchaseReceiving.objects.filter(pur_q, date__date__lt=from_date)
         old_vendor_pays = PurchasePayments.objects.filter(vp_q, date__date__lt=from_date)
 
-        # Voucher lines before from_date for this party (excluding PUR- and SLS- vouchers to prevent double counting with invoices)
+        # Voucher lines before from_date for this party
         party_q = Q(party=party) | Q(account__party=party)
         if target_name:
             party_q |= Q(account__name__iexact=target_name)
@@ -143,7 +153,6 @@ def get_party_ledger(request):
                 'cr': 0.0
             })
 
-        # Voucher transactions within period (CPV, CRV, BPV, BRV, JV)
         period_vouchers = VoucherDetail.objects.filter(
             voucher_filter, voucher__date__gte=from_date, voucher__date__lte=to_date
         ).select_related('voucher').order_by('voucher__date', 'voucher__id', 'id')
@@ -215,7 +224,6 @@ def get_party_ledger(request):
             elements.append(Spacer(1, 15))
 
             # --- Table Data ---
-            # Column headers matches your request: M-Rate, Weight, Rate
             data = [["Sr#", "Date", "Description", "M-Rate", "Weight", "Rate", "Debit", "Credit", "Balance"]]
             
             # Opening Balance Row
@@ -237,7 +245,6 @@ def get_party_ledger(request):
                 ])
 
             # --- Table Styling ---
-            # Column widths adjusted for A4 Portrait (Total wide ~535 points)
             table = Table(data, colWidths=[25, 65, 140, 45, 45, 45, 55, 55, 60])
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.navy),
@@ -268,8 +275,14 @@ def get_party_ledger(request):
             # Build PDF
             doc.build(elements, onFirstPage=add_footer, onLaterPages=add_footer)
             
-            buffer.seek(0)
-            return FileResponse(buffer, as_attachment=False, filename=f"Ledger_{target_name}.pdf")
+            # --- YAHAN MAIN FIX KIYA GAYA HAI ---
+            pdf_bytes = buffer.getvalue()  # Bytes nikal liye
+            buffer.close()                 # Buffer close kar diya (Memory free)
+
+            # FileResponse ki jagah HttpResponse use karein
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="Ledger_{target_name}.pdf"'
+            return response
 
         # 4. JSON RESPONSE (For Table View)
         final_list = []
@@ -307,8 +320,6 @@ def get_party_ledger(request):
 
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
-
-
 
 def party_ledger(request):
     if not request.session.get('user_id'):
@@ -1425,6 +1436,26 @@ def profit_loss_report_print(request):
     return response
 
 
+def _is_expense_voucher_line(voucher, opposing_line=None):
+    """
+    Checks if a voucher or its opposing line represents an operating expense.
+    """
+    if not voucher:
+        return False
+    if voucher.reference_no and str(voucher.reference_no).upper().startswith('EXP-'):
+        return True
+    if voucher.remarks and str(voucher.remarks).upper().startswith('EXPENSE #'):
+        return True
+    if opposing_line and opposing_line.account:
+        acc = opposing_line.account
+        acc_type = (getattr(acc, 'account_type', '') or '').strip().lower()
+        acc_code = str(getattr(acc, 'code', '') or '').strip()
+        acc_name = (getattr(acc, 'name', '') or '').strip().lower()
+        if acc_type == 'expense' or acc_code.startswith('05') or 'expense' in acc_name or 'expenc' in acc_name:
+            return True
+    return False
+
+
 # =========================================================
 # CASH LEDGER REPORT
 # =========================================================
@@ -1539,22 +1570,12 @@ def cash_ledger(request):
             'type': 'sales',
         })
 
-    # C) Expenses -> Consolidated 1 Record (Cash Out / Cr)
-    expenses = Expensedetail.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
-    total_expenses = sum(safe_decimal(e.amount) for e in expenses)
-    if total_expenses > 0:
-        transactions.append({
-            'date': datetime.combine(to_date_obj, time.max),
-            'tx_id': 999999999,
-            'line_id': 0,
-            'account': "All Expenses",
-            'description': "",
-            'dr': 0.0,
-            'cr': total_expenses,
-            'type': 'expense',
-        })
+    # C) Vouchers (CPV, CRV, BPV, BRV, JV) - All transactions including Expenses shown one by one
+    expenses_qs = Expensedetail.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    exp_voucher_nos = set(
+        expenses_qs.exclude(voucher_no__isnull=True).exclude(voucher_no='').values_list('voucher_no', flat=True)
+    )
 
-    # D) Vouchers (CPV, CRV, BPV, BRV, JV)
     vouchers_period = Voucher.objects.filter(
         date__gte=from_date_obj, date__lte=to_date_obj
     ).prefetch_related('details__account', 'details__party').order_by('date', 'id')
@@ -1572,6 +1593,8 @@ def cash_ledger(request):
             is_cash_bank = (code in ['010101001', '1110001'] or code.startswith('010101') or code.startswith('1110') or 'cash in hand' in name_lower or 'bank' in name_lower)
             if is_cash_bank:
                 opposing = v.details.exclude(id=line.id).first()
+                is_exp = _is_expense_voucher_line(v, opposing) or (v.voucher_no in exp_voucher_nos)
+
                 if opposing:
                     acc_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
                 else:
@@ -1593,6 +1616,7 @@ def cash_ledger(request):
                         'dr': float(line.debit),
                         'cr': 0.0,
                         'type': 'voucher_in',
+                        'is_expense': False,
                     })
                 elif line.credit > 0:
                     transactions.append({
@@ -1604,7 +1628,25 @@ def cash_ledger(request):
                         'dr': 0.0,
                         'cr': float(line.credit),
                         'type': 'voucher_out',
+                        'is_expense': is_exp,
                     })
+
+    # Include any Expensedetail records without an associated voucher so nothing is missed
+    voucher_nos_in_period = set(vouchers_period.values_list('voucher_no', flat=True))
+    orphan_expenses = expenses_qs.exclude(voucher_no__in=voucher_nos_in_period)
+    for exp in orphan_expenses:
+        exp_dt = exp.date or datetime.combine(from_date_obj, time.min)
+        transactions.append({
+            'date': exp_dt,
+            'tx_id': exp.id or 0,
+            'line_id': 0,
+            'account': exp.head_name or "Expense",
+            'description': exp.remarks or "-",
+            'dr': 0.0,
+            'cr': safe_decimal(exp.amount),
+            'type': 'expense',
+            'is_expense': True,
+        })
 
     def _normalize_dt(tx):
         dt_val = tx.get('date')
@@ -1637,6 +1679,7 @@ def cash_ledger(request):
         'cr': 0.0,
         'balance': opening_balance,
         'is_opening': True,
+        'is_expense': False,
     })
 
     running_bal = opening_balance
@@ -1656,6 +1699,7 @@ def cash_ledger(request):
             'cr': tx['cr'],
             'balance': running_bal,
             'is_opening': False,
+            'is_expense': tx.get('is_expense', False),
         })
 
     total_dr = period_in
@@ -1788,18 +1832,11 @@ def cash_ledger_print(request):
             'cr': 0.0,
         })
 
-    expenses = Expensedetail.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
-    total_expenses = sum(safe_decimal(e.amount) for e in expenses)
-    if total_expenses > 0:
-        transactions.append({
-            'date': datetime.combine(to_date_obj, time.max),
-            'tx_id': 999999999,
-            'line_id': 0,
-            'account': "All Expenses",
-            'description': "",
-            'dr': 0.0,
-            'cr': total_expenses,
-        })
+    # C) Vouchers (CPV, CRV, BPV, BRV, JV) - All transactions including Expenses shown one by one
+    expenses_qs = Expensedetail.objects.filter(date__date__gte=from_date_obj, date__date__lte=to_date_obj)
+    exp_voucher_nos = set(
+        expenses_qs.exclude(voucher_no__isnull=True).exclude(voucher_no='').values_list('voucher_no', flat=True)
+    )
 
     vouchers_period = Voucher.objects.filter(
         date__gte=from_date_obj, date__lte=to_date_obj
@@ -1818,6 +1855,8 @@ def cash_ledger_print(request):
             is_cash_bank = (code in ['010101001', '1110001'] or code.startswith('010101') or code.startswith('1110') or 'cash in hand' in name_lower or 'bank' in name_lower)
             if is_cash_bank:
                 opposing = v.details.exclude(id=line.id).first()
+                is_exp = _is_expense_voucher_line(v, opposing) or (v.voucher_no in exp_voucher_nos)
+
                 if opposing:
                     acc_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
                 else:
@@ -1850,6 +1889,21 @@ def cash_ledger_print(request):
                         'cr': float(line.credit),
                     })
 
+    # Include any Expensedetail records without an associated voucher so nothing is missed
+    voucher_nos_in_period = set(vouchers_period.values_list('voucher_no', flat=True))
+    orphan_expenses = expenses_qs.exclude(voucher_no__in=voucher_nos_in_period)
+    for exp in orphan_expenses:
+        exp_dt = exp.date or datetime.combine(from_date_obj, time.min)
+        transactions.append({
+            'date': exp_dt,
+            'tx_id': exp.id or 0,
+            'line_id': 0,
+            'account': exp.head_name or "Expense",
+            'description': exp.remarks or "-",
+            'dr': 0.0,
+            'cr': safe_decimal(exp.amount),
+        })
+
     def _normalize_dt(tx):
         dt_val = tx.get('date')
         if not dt_val:
@@ -1878,11 +1932,17 @@ def cash_ledger_print(request):
         'dr': 0.0,
         'cr': 0.0,
         'balance': opening_balance,
+        'is_opening': True,
+        'is_expense': False,
     })
 
     running_bal = opening_balance
+    period_in = 0.0
+    period_out = 0.0
     for tx in transactions:
         running_bal = running_bal + tx['dr'] - tx['cr']
+        period_in += tx['dr']
+        period_out += tx['cr']
         d = tx['date']
         date_str = d.strftime('%d-%m-%Y') if hasattr(d, 'strftime') else str(d)[:10]
         ledger_rows.append({
@@ -1892,10 +1952,12 @@ def cash_ledger_print(request):
             'dr': tx['dr'],
             'cr': tx['cr'],
             'balance': running_bal,
+            'is_opening': False,
+            'is_expense': False,
         })
 
-    total_dr = sum(tx['dr'] for tx in transactions)
-    total_cr = sum(tx['cr'] for tx in transactions)
+    total_dr = period_in
+    total_cr = period_out
     closing_balance = running_bal
 
     # ReportLab Generation
@@ -2669,10 +2731,14 @@ def _get_cash_report_data(request):
     ).prefetch_related('details__account', 'details__party').order_by('date', 'id')
 
     for v in vouchers_out:
-        amt = float(v.total_amount)
-        total_purchase_amount += amt
         # Get opposing party or account
         opposing = v.details.exclude(account__code__in=['010101001', '1110001']).exclude(account__code__startswith='010101').exclude(account__code__startswith='1110').first()
+        if _is_expense_voucher_line(v, opposing):
+            # Exclude operating expense vouchers here; they are accounted for under Expenses
+            continue
+
+        amt = float(v.total_amount)
+        total_purchase_amount += amt
         if opposing:
             party_name = opposing.party.company_name if opposing.party else (opposing.account.party.company_name if opposing.account.party else opposing.account.name)
         else:
@@ -3070,180 +3136,165 @@ def cash_report_print(request):
 # BUSINESS NET POSITION CALCULATION & REPORT
 # =========================================================
 
-def get_net_position_data(to_date=None):
+def calculate_single_party_closing(party, to_date=None):
     """
-    Calculates balance for every party using the exact same logic as party ledger:
-    - Debit (Dr): Sales Invoices (amount) + Vendor Payments (amount)
-    - Credit (Cr): Customer Receipts (received_amount or amount) + Purchase Invoices (amount)
-    - Balance = Total Dr - Total Cr
-      If Balance > 0: Party goes to Debit (Dr) list (Left Table - Receivables)
-      If Balance < 0: Party goes to Credit (Cr) list (Right Table - Payables)
-
-    Cash Record:
-    - Latest entry from CashRecord table (order_by('-id'))
-    - Cash in Hand + Cash in Bank = Total Cash
-
-    Net Position Formula:
-    - Net Position = Total Debit + Total Cash - Total Credit
+    Calculates the exact closing balance of a single party, 100% identical to Party Ledger (get_party_ledger):
+    - Base opening balance from Level 4 Chart of Account for this party
+    - Sales Invoices (amount) as Debit (Dr)
+    - Customer Receipts (received_amount or amount) as Credit (Cr)
+    - Purchase Invoices (amount) as Credit (Cr)
+    - Vendor Payments (amount) as Debit (Dr)
+    - Voucher lines (debit / credit), excluding PUR- and SLS- vouchers to prevent double counting with invoices
+    - Net Balance = base_opening + total_dr - total_cr
+    Returns:
+        dict with net_bal, closing_amount, closing_type ('Dr' or 'Cr'), dr, cr, base_opening, target_name
     """
-    from collections import defaultdict
+    target_name = (party.company_name if party.company_name else party.owner_name or '').strip()
 
-    sales_qs = SellsInvoice.objects.all()
-    rec_qs = Sellspayment.objects.all()
-    pur_qs = PurchaseReceiving.objects.all()
-    vp_qs = PurchasePayments.objects.all()
-    cash_qs = CashRecord.objects.all()
+    sales_q = Q(customer_name__iexact=target_name)
+    pur_q = Q(vendor_name__iexact=target_name)
+    if party.code:
+        sales_q |= Q(customer_code=party.code)
+        pur_q |= Q(vendor_code=party.code)
+    if party.company_name:
+        sales_q |= Q(customer_name__iexact=party.company_name.strip())
+        pur_q |= Q(vendor_name__iexact=party.company_name.strip())
+    if party.owner_name:
+        sales_q |= Q(customer_name__iexact=party.owner_name.strip())
+        pur_q |= Q(vendor_name__iexact=party.owner_name.strip())
+
+    receipt_q = sales_q | (Q(customer_code=party.code) if party.code else Q())
+    vp_q = Q(part_name__iexact=target_name)
+    if party.code:
+        vp_q |= Q(party_code=party.code)
+    if party.company_name:
+        vp_q |= Q(part_name__iexact=party.company_name.strip())
+    if party.owner_name:
+        vp_q |= Q(part_name__iexact=party.owner_name.strip())
+
+    party_q = Q(party=party) | Q(account__party=party)
+    if target_name:
+        party_q |= Q(account__name__iexact=target_name)
+
+    voucher_filter = party_q & ~Q(voucher__voucher_no__startswith='PUR-') & ~Q(voucher__voucher_no__startswith='SLS-')
 
     if to_date:
         to_dt = datetime.combine(to_date, time.max)
-        sales_qs = sales_qs.filter(entry_date__lte=to_dt)
-        rec_qs = rec_qs.filter(entry_date__lte=to_dt)
-        pur_qs = pur_qs.filter(date__lte=to_dt)
-        vp_qs = vp_qs.filter(date__lte=to_dt)
-        cash_qs = cash_qs.filter(date__lte=to_dt)
+        sales_qs = SellsInvoice.objects.filter(sales_q, entry_date__lte=to_dt)
+        rec_qs = Sellspayment.objects.filter(receipt_q, entry_date__lte=to_dt)
+        pur_qs = PurchaseReceiving.objects.filter(pur_q, date__lte=to_dt)
+        vp_qs = PurchasePayments.objects.filter(vp_q, date__lte=to_dt)
+        vouchers_qs = VoucherDetail.objects.filter(voucher_filter, voucher__date__lte=to_date)
+    else:
+        sales_qs = SellsInvoice.objects.filter(sales_q)
+        rec_qs = Sellspayment.objects.filter(receipt_q)
+        pur_qs = PurchaseReceiving.objects.filter(pur_q)
+        vp_qs = PurchasePayments.objects.filter(vp_q)
+        vouchers_qs = VoucherDetail.objects.filter(voucher_filter)
 
-    sales_map = defaultdict(float)
-    vp_map = defaultdict(float)
-    rec_map = defaultdict(float)
-    pur_map = defaultdict(float)
+    party_acc = ChartOfAccount.objects.filter(party=party, level=4).first()
+    if not party_acc and party.code:
+        party_acc = ChartOfAccount.objects.filter(code=party.code, level=4).first()
+    base_opening = safe_decimal(party_acc.opening_balance) if party_acc else 0.0
 
-    for s in sales_qs.values('customer_name', 'amount'):
-        name = (s['customer_name'] or '').strip().lower()
-        if name:
-            sales_map[name] += safe_decimal(s['amount'])
+    dr = (
+        sum(safe_decimal(s.amount) for s in sales_qs) +
+        sum(safe_decimal(vp.amount) for vp in vp_qs) +
+        sum(safe_decimal(v.debit) for v in vouchers_qs)
+    )
+    cr = (
+        sum(safe_decimal(r.received_amount) or safe_decimal(r.amount) for r in rec_qs) +
+        sum(safe_decimal(p.amount) for p in pur_qs) +
+        sum(safe_decimal(v.credit) for v in vouchers_qs)
+    )
 
-    for vp in vp_qs.values('part_name', 'amount'):
-        name = (vp['part_name'] or '').strip().lower()
-        if name:
-            vp_map[name] += safe_decimal(vp['amount'])
+    net_bal = base_opening + dr - cr
+    closing_amount = round(abs(net_bal), 2)
+    closing_type = 'Dr' if net_bal >= 0 else 'Cr'
 
-    for r in rec_qs.values('customer_name', 'received_amount', 'amount'):
-        name = (r['customer_name'] or '').strip().lower()
-        if name:
-            rec_map[name] += (safe_decimal(r['received_amount']) or safe_decimal(r['amount']))
+    return {
+        'net_bal': net_bal,
+        'closing_amount': closing_amount,
+        'closing_type': closing_type,
+        'dr': dr,
+        'cr': cr,
+        'base_opening': base_opening,
+        'target_name': target_name,
+    }
 
-    for p in pur_qs.values('vendor_name', 'amount'):
-        name = (p['vendor_name'] or '').strip().lower()
-        if name:
-            pur_map[name] += safe_decimal(p['amount'])
 
-    # Voucher transactions (CPV, CRV, BPV, BRV, JV)
-    vouchers_qs = VoucherDetail.objects.all().select_related('party', 'account', 'voucher')
-    if to_date:
-        vouchers_qs = vouchers_qs.filter(voucher__date__lte=to_date)
-
-    v_dr_party = defaultdict(float)
-    v_cr_party = defaultdict(float)
-    for vd in vouchers_qs:
-        dr_val = safe_decimal(vd.debit)
-        cr_val = safe_decimal(vd.credit)
-        p_id = vd.party_id or (vd.account.party_id if vd.account and vd.account.party_id else None)
-        if p_id:
-            v_dr_party[p_id] += dr_val
-            v_cr_party[p_id] += cr_val
-        elif vd.account and vd.account.name:
-            aname = vd.account.name.strip().lower()
-            v_dr_party[aname] += dr_val
-            v_cr_party[aname] += cr_val
+def get_net_position_data(to_date=None):
+    """
+    Calculates balance for every party using the exact same logic as party ledger:
+    - Each party's closing balance is calculated identically to Party Ledger.
+    - If Party Closing is Debit (Dr > 0): Listed in Debit Table (Receivables).
+    - If Party Closing is Credit (Cr > 0): Listed in Credit Table (Payables).
+    - Total Debit = Sum of all Debit parties' closing balances
+    - Total Credit = Sum of all Credit parties' closing balances
+    - Cash in Hand & Cash in Bank from latest CashRecord (or COA)
+    - Total Cash = Cash in Hand + Cash in Bank
+    - Net Position = (Total Debit + Cash in Hand + Cash in Bank) - Total Credit
+    """
+    parties = Parties.objects.all().order_by('company_name', 'owner_name')
 
     debit_parties = []
     credit_parties = []
     total_debit = 0.0
     total_credit = 0.0
 
-    matched_keys = set()
-    for party in Parties.objects.all().order_by('company_name', 'owner_name'):
-        target_name = (party.company_name if party.company_name else party.owner_name or '').strip()
-        if not target_name:
+    for party in parties:
+        res = calculate_single_party_closing(party, to_date=to_date)
+        closing_amount = res['closing_amount']
+        closing_type = res['closing_type']
+
+        if closing_amount <= 0.009:
             continue
-
-        keys = set()
-        keys.add(target_name.lower())
-        if party.company_name and party.company_name.strip():
-            keys.add(party.company_name.strip().lower())
-        if party.owner_name and party.owner_name.strip():
-            keys.add(party.owner_name.strip().lower())
-        matched_keys.update(keys)
-
-        dr = sum(sales_map.get(k, 0.0) + vp_map.get(k, 0.0) for k in keys) + v_dr_party.get(party.id, 0.0) + sum(v_dr_party.get(k, 0.0) for k in keys)
-        cr = sum(rec_map.get(k, 0.0) + pur_map.get(k, 0.0) for k in keys) + v_cr_party.get(party.id, 0.0) + sum(v_cr_party.get(k, 0.0) for k in keys)
-        bal = round(dr - cr, 2)
 
         party_type = (party.party_type or '').strip()
         if not party_type:
-            party_type = 'Customer' if dr >= cr else 'Vendor'
+            party_type = 'Customer' if closing_type == 'Dr' else 'Vendor'
 
-        if bal > 0.009:
-            debit_parties.append({
-                'id': party.id,
-                'party_code': party.code or '',
-                'party_name': target_name,
-                'party_type': party_type,
-                'dr': dr,
-                'cr': cr,
-                'amount': bal,
-                'formatted_amount': f"{bal:,.2f}"
-            })
-            total_debit += bal
-        elif bal < -0.009:
-            abs_bal = abs(bal)
-            credit_parties.append({
-                'id': party.id,
-                'party_code': party.code or '',
-                'party_name': target_name,
-                'party_type': party_type,
-                'dr': dr,
-                'cr': cr,
-                'amount': abs_bal,
-                'formatted_amount': f"{abs_bal:,.2f}"
-            })
-            total_credit += abs_bal
+        party_info = {
+            'id': party.id,
+            'party_code': party.code or '',
+            'party_name': res['target_name'],
+            'party_type': party_type,
+            'dr': res['dr'],
+            'cr': res['cr'],
+            'amount': closing_amount,
+            'formatted_amount': f"{closing_amount:,.2f}"
+        }
 
-    # Unmapped keys from transactions if any
-    all_trans_keys = set(sales_map.keys()) | set(vp_map.keys()) | set(rec_map.keys()) | set(pur_map.keys())
-    unmapped_keys = all_trans_keys - matched_keys
-    for k in sorted(unmapped_keys):
-        dr = sales_map.get(k, 0.0) + vp_map.get(k, 0.0)
-        cr = rec_map.get(k, 0.0) + pur_map.get(k, 0.0)
-        bal = round(dr - cr, 2)
-        party_type = 'Customer' if dr >= cr else 'Vendor'
-        if bal > 0.009:
-            debit_parties.append({
-                'id': None,
-                'party_code': '-',
-                'party_name': k.title(),
-                'party_type': party_type,
-                'dr': dr,
-                'cr': cr,
-                'amount': bal,
-                'formatted_amount': f"{bal:,.2f}"
-            })
-            total_debit += bal
-        elif bal < -0.009:
-            abs_bal = abs(bal)
-            credit_parties.append({
-                'id': None,
-                'party_code': '-',
-                'party_name': k.title(),
-                'party_type': party_type,
-                'dr': dr,
-                'cr': cr,
-                'amount': abs_bal,
-                'formatted_amount': f"{abs_bal:,.2f}"
-            })
-            total_credit += abs_bal
+        if closing_type == 'Dr':
+            debit_parties.append(party_info)
+            total_debit += closing_amount
+        else:
+            credit_parties.append(party_info)
+            total_credit += closing_amount
 
     debit_parties.sort(key=lambda x: x['amount'], reverse=True)
     credit_parties.sort(key=lambda x: x['amount'], reverse=True)
 
-    # Cash Record: latest entry
+    cash_qs = CashRecord.objects.all()
     if to_date:
-        last_cash = cash_qs.order_by('-date', '-id').first()
+        to_dt = datetime.combine(to_date, time.max)
+        last_cash = cash_qs.filter(date__lte=to_dt).order_by('-date', '-id').first()
     else:
         last_cash = cash_qs.order_by('-id').first()
 
     cash_in_hand = safe_decimal(last_cash.cash_in_hand) if (last_cash and last_cash.cash_in_hand is not None) else 0.0
     cash_in_bank = safe_decimal(last_cash.cash_in_bank) if (last_cash and last_cash.cash_in_bank is not None) else 0.0
+
+    # Fallback to Level 4 Chart of Accounts if CashRecord is empty
+    if not last_cash or (cash_in_hand == 0.0 and cash_in_bank == 0.0):
+        cash_acc = ChartOfAccount.objects.filter(level=4, code__in=['010101001', '1110001']).first() or ChartOfAccount.objects.filter(level=4, name__icontains='Cash in Hand').first()
+        bank_accs = ChartOfAccount.objects.filter(level=4, is_active=True).filter(Q(parent__code__in=['010101', '1110']) | Q(name__icontains='bank')).exclude(code__in=['010101001', '1110001'])
+        if cash_acc and safe_decimal(cash_acc.current_balance) > 0:
+            cash_in_hand = safe_decimal(cash_acc.current_balance)
+        coa_bank_total = sum(safe_decimal(b.current_balance) for b in bank_accs)
+        if coa_bank_total > 0:
+            cash_in_bank = coa_bank_total
+
     total_cash = cash_in_hand + cash_in_bank
     cash_date = last_cash.date if last_cash else None
     cash_desc = (last_cash.discription if last_cash else '') or ''
@@ -3252,7 +3303,7 @@ def get_net_position_data(to_date=None):
     total_credit = round(total_credit, 2)
     total_cash = round(total_cash, 2)
 
-    net_position = round(total_debit + total_cash - total_credit, 2)
+    net_position = round((total_debit + total_cash) - total_credit, 2)
 
     return {
         'debit_parties': debit_parties,
@@ -3279,9 +3330,17 @@ def net_position_report(request):
     if request.GET.get('format') == 'pdf' or request.GET.get('print') in ['1', 'true', 'yes']:
         return net_position_print(request)
 
-    # Shuru se le kar current date tak sara cumulative data
-    data = get_net_position_data(to_date=None)
-    current_date = timezone.localdate().strftime('%d-%b-%Y')
+    to_date = None
+    to_date_str = request.GET.get('to') or request.GET.get('date')
+    if to_date_str:
+        try:
+            to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+        except Exception:
+            to_date = None
+
+    # Shuru se le kar specified ya current date tak sara cumulative data
+    data = get_net_position_data(to_date=to_date)
+    current_date = to_date.strftime('%d-%b-%Y') if to_date else timezone.localdate().strftime('%d-%b-%Y')
 
     context = {
         **data,
@@ -3294,9 +3353,17 @@ def net_position_print(request):
     if not request.session.get('user_id'):
         return redirect('login')
 
-    # Shuru se le kar current date tak sara cumulative data
-    data = get_net_position_data(to_date=None)
-    today = timezone.localdate()
+    to_date = None
+    to_date_str = request.GET.get('to') or request.GET.get('date')
+    if to_date_str:
+        try:
+            to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+        except Exception:
+            to_date = None
+
+    # Shuru se le kar specified ya current date tak sara cumulative data
+    data = get_net_position_data(to_date=to_date)
+    today = to_date if to_date else timezone.localdate()
     today_display = today.strftime('%d-%b-%Y')
 
     buffer = BytesIO()

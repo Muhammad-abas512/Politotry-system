@@ -1077,13 +1077,191 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Q, Max
 from datetime import datetime
-from .models import ExpenseHead, Expensedetail
+from decimal import Decimal
+from .models import ExpenseHead, Expensedetail, ChartOfAccount, Voucher, VoucherDetail, CashRecord
+from .accounts_views import generate_voucher_no, _update_account_balance, _get_pk_now
+
+
+def _get_or_create_expense_account(head_code, head_name):
+    acc = ChartOfAccount.objects.filter(level=4, name__iexact=head_name).first()
+    if acc:
+        return acc
+    if head_code:
+        acc = ChartOfAccount.objects.filter(level=4, code=head_code).first()
+        if acc:
+            return acc
+    parent = ChartOfAccount.objects.filter(code='050204', level=3).first() or ChartOfAccount.objects.filter(level=3, account_type='Expense').first()
+    if parent:
+        last_child = ChartOfAccount.objects.filter(parent=parent, level=4).order_by('-code').first()
+        if last_child and last_child.code.isdigit():
+            next_code = str(int(last_child.code) + 1).zfill(len(last_child.code))
+        else:
+            next_code = f"{parent.code}001"
+        return ChartOfAccount.objects.create(
+            code=next_code,
+            name=head_name,
+            level=4,
+            parent=parent,
+            account_type='Expense',
+            opening_balance=Decimal('0'),
+            current_balance=Decimal('0'),
+        )
+    return ChartOfAccount.objects.filter(level=4, account_type='Expense').first()
+
+
+def _parse_date_safe(date_val):
+    if not date_val:
+        return timezone.now().date()
+    if isinstance(date_val, datetime):
+        return date_val.date()
+    from datetime import date as dt_date
+    if isinstance(date_val, dt_date):
+        return date_val
+    if isinstance(date_val, str):
+        date_str = date_val.strip()[:10]
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            try:
+                return datetime.strptime(date_str, '%d-%m-%Y').date()
+            except ValueError:
+                pass
+    return timezone.now().date()
+
+
+def _post_expense_voucher(expense, v_type='CPV', bank_id=None, user_name='Admin'):
+    amount = Decimal(str(expense.amount or '0'))
+    if amount <= Decimal('0'):
+        return None
+
+    v_type = 'BPV' if v_type == 'BPV' else 'CPV'
+    exp_date_obj = _parse_date_safe(expense.date)
+
+    expense_acc = _get_or_create_expense_account(expense.head_code, expense.head_name)
+
+    if v_type == 'BPV':
+        if not bank_id:
+            raise ValueError("Bank Account selection is required for BPV (Bank Payment)!")
+        cr_acc = ChartOfAccount.objects.get(id=int(bank_id), level=4)
+        if cr_acc.current_balance < amount:
+            raise ValueError(f"Insufficient Bank Balance! '{cr_acc.name}' has only Rs. {cr_acc.current_balance:,.2f}, required Rs. {amount:,.2f}")
+    else:
+        cr_acc = ChartOfAccount.objects.filter(level=4, code__in=['010101001', '1110001']).first() or ChartOfAccount.objects.filter(level=4, name__icontains='Cash in Hand').first()
+        if not cr_acc:
+            raise ValueError("Cash in Hand account not found in Chart of Accounts!")
+
+    voucher_no = generate_voucher_no(v_type)
+    desc = expense.remarks or f"Daily Expense: {expense.head_name}"
+
+    voucher = Voucher.objects.create(
+        voucher_no=voucher_no,
+        voucher_type=v_type,
+        date=exp_date_obj,
+        reference_no=f"EXP-{expense.id}",
+        total_amount=amount,
+        remarks=f"Expense #{expense.id} [{expense.head_name}]: {desc}",
+        created_by=user_name,
+    )
+
+    # 1. Debit Expense Account
+    VoucherDetail.objects.create(
+        voucher=voucher,
+        account=expense_acc,
+        debit=amount,
+        credit=Decimal('0'),
+        narration=f"Expense: {expense.head_name} - {desc}",
+        party_id=None,
+    )
+    _update_account_balance(expense_acc, amount, Decimal('0'))
+
+    # 2. Credit Cash or Bank Account
+    VoucherDetail.objects.create(
+        voucher=voucher,
+        account=cr_acc,
+        debit=Decimal('0'),
+        credit=amount,
+        narration=f"Paid from {cr_acc.name} for {expense.head_name}",
+        party_id=None,
+    )
+    _update_account_balance(cr_acc, Decimal('0'), amount)
+
+    # 3. CashRecord Sync
+    last_cash = CashRecord.objects.order_by('-id').first()
+    prev_hand = int(last_cash.cash_in_hand or 0) if last_cash else 0
+    prev_bank = int(last_cash.cash_in_bank or 0) if last_cash else 0
+
+    if v_type == 'CPV':
+        new_hand = prev_hand - int(amount)
+        new_bank = prev_bank
+    else:
+        new_hand = prev_hand
+        new_bank = prev_bank - int(amount)
+
+    max_cash_id = CashRecord.objects.aggregate(Max('id'))['id__max']
+    next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
+
+    aware_dt = timezone.make_aware(datetime.combine(exp_date_obj, _get_pk_now().time()))
+    CashRecord.objects.create(
+        id=next_cash_id,
+        cash_in_hand=new_hand,
+        cash_in_bank=new_bank,
+        date=aware_dt,
+        discription=f"[{v_type}] #{voucher_no}: Expense {expense.head_name} - {desc[:350]}",
+    )
+
+    expense.voucher_no = voucher_no
+    expense.save(update_fields=['voucher_no'])
+    return voucher
+
+
+def _delete_expense_voucher(expense):
+    voucher = None
+    if expense.voucher_no:
+        voucher = Voucher.objects.filter(voucher_no=expense.voucher_no).first()
+    if not voucher:
+        voucher = Voucher.objects.filter(reference_no=f"EXP-{expense.id}").first()
+
+    if voucher:
+        net_cash_hand_rev = Decimal('0')
+        net_cash_bank_rev = Decimal('0')
+
+        for line in voucher.details.all():
+            _update_account_balance(line.account, line.credit, line.debit)
+
+            acc_code = str(line.account.code)
+            acc_name_lower = line.account.name.lower()
+            if acc_code in ['010101001', '1110001'] or 'cash in hand' in acc_name_lower:
+                net_cash_hand_rev += (line.credit - line.debit)
+            elif acc_code.startswith('010101') or acc_code.startswith('1110') or 'bank' in acc_name_lower:
+                net_cash_bank_rev += (line.credit - line.debit)
+
+        if net_cash_hand_rev != 0 or net_cash_bank_rev != 0:
+            last_cash = CashRecord.objects.order_by('-id').first()
+            prev_hand = int(last_cash.cash_in_hand or 0) if last_cash else 0
+            prev_bank = int(last_cash.cash_in_bank or 0) if last_cash else 0
+
+            max_cash_id = CashRecord.objects.aggregate(Max('id'))['id__max']
+            next_cash_id = 1 if max_cash_id is None else max_cash_id + 1
+
+            CashRecord.objects.create(
+                id=next_cash_id,
+                cash_in_hand=prev_hand + int(net_cash_hand_rev),
+                cash_in_bank=prev_bank + int(net_cash_bank_rev),
+                date=timezone.now(),
+                discription=f"Reversal of Expense Voucher #{voucher.voucher_no}",
+            )
+
+        voucher.delete()
+
 
 def expenses(request):
     if not request.session.get('user_id'):
         return redirect('login')
+
+    user_name = request.session.get('user_name', 'Admin')
 
     # ============ HANDLE ALL ACTIONS ============
     
@@ -1092,8 +1270,10 @@ def expenses(request):
         try:
             expense_id = request.POST.get('expense_id')
             expense = get_object_or_404(Expensedetail, id=expense_id)
-            expense.delete()
-            messages.success(request, '🗑️ Expense deleted successfully!')
+            with transaction.atomic():
+                _delete_expense_voucher(expense)
+                expense.delete()
+            messages.success(request, '🗑️ Expense and linked voucher deleted successfully!')
         except Exception as e:
             messages.error(request, f'❌ Error deleting: {str(e)}')
         return redirect('expenses')
@@ -1102,21 +1282,42 @@ def expenses(request):
     if request.method == 'POST' and request.POST.get('action') == 'update':
         try:
             expense_id = request.POST.get('expense_id')
-            head_code = request.POST.get('head_code')
-            head_name = request.POST.get('head_name')
-            expense_date = request.POST.get('expense_date')
-            amount = request.POST.get('amount')
-            remarks = request.POST.get('remarks', '')
+            head_code = (request.POST.get('head_code') or '').strip()
+            head_name = (request.POST.get('head_name') or '').strip()
+            expense_date_str = (request.POST.get('expense_date') or '').strip()
+            amount_str = (request.POST.get('amount') or '').strip()
+            remarks = (request.POST.get('remarks') or '').strip()
+            voucher_type = (request.POST.get('voucher_type') or 'CPV').strip().upper()
+            bank_id = request.POST.get('bank_id')
+
+            if not head_code and head_name:
+                h = ExpenseHead.objects.filter(name__iexact=head_name).first()
+                head_code = h.code if h else 'EXP'
+            elif not head_name and head_code:
+                h = ExpenseHead.objects.filter(code__iexact=head_code).first()
+                head_name = h.name if h else head_code
+
+            if not amount_str:
+                messages.error(request, '⚠️ Please enter an amount!')
+                return redirect('expenses')
+
+            amount = Decimal(str(amount_str).replace(',', ''))
+            exp_date_obj = _parse_date_safe(expense_date_str)
+            aware_dt = timezone.make_aware(datetime.combine(exp_date_obj, _get_pk_now().time()))
 
             expense = get_object_or_404(Expensedetail, id=expense_id)
-            expense.head_code = head_code
-            expense.head_name = head_name
-            expense.date = expense_date if expense_date else timezone.now()
-            expense.amount = amount
-            expense.remarks = remarks
-            expense.save()
+
+            with transaction.atomic():
+                _delete_expense_voucher(expense)
+                expense.head_code = head_code
+                expense.head_name = head_name
+                expense.date = aware_dt
+                expense.amount = str(amount)
+                expense.remarks = remarks
+                expense.save()
+                _post_expense_voucher(expense, v_type=voucher_type, bank_id=bank_id, user_name=user_name)
             
-            messages.success(request, '✏️ Expense updated successfully!')
+            messages.success(request, f'✏️ Expense updated successfully! (Voucher: {expense.voucher_no})')
         except Exception as e:
             messages.error(request, f'❌ Error updating: {str(e)}')
         return redirect('expenses')
@@ -1124,25 +1325,48 @@ def expenses(request):
     # 3. SAVE NEW EXPENSE
     if request.method == 'POST':
         try:
-            head_code = request.POST.get('head_code')
-            head_name = request.POST.get('head_name')
-            expense_date = request.POST.get('expense_date')
-            amount = request.POST.get('amount')
-            remarks = request.POST.get('remarks', '')
+            head_code = (request.POST.get('head_code') or '').strip()
+            head_name = (request.POST.get('head_name') or '').strip()
+            expense_date_str = (request.POST.get('expense_date') or '').strip()
+            amount_str = (request.POST.get('amount') or '').strip()
+            remarks = (request.POST.get('remarks') or '').strip()
+            voucher_type = (request.POST.get('voucher_type') or 'CPV').strip().upper()
+            bank_id = request.POST.get('bank_id')
 
-            if not head_code or not amount:
-                messages.error(request, '⚠️ Head and Amount are required!')
+            if not head_code and head_name:
+                h = ExpenseHead.objects.filter(name__iexact=head_name).first()
+                head_code = h.code if h else 'EXP'
+            elif not head_name and head_code:
+                h = ExpenseHead.objects.filter(code__iexact=head_code).first()
+                head_name = h.name if h else head_code
+
+            if not head_code and not head_name:
+                messages.error(request, '⚠️ Please select or enter an Expense Head!')
                 return redirect('expenses')
 
-            Expensedetail.objects.create(
-                head_code=head_code,
-                head_name=head_name,
-                date=expense_date if expense_date else timezone.now(),
-                amount=amount,
-                remarks=remarks
-            )
+            if not amount_str:
+                messages.error(request, '⚠️ Please enter an amount!')
+                return redirect('expenses')
 
-            messages.success(request, '✅ Expense saved successfully!')
+            amount = Decimal(str(amount_str).replace(',', ''))
+            if amount <= Decimal('0'):
+                messages.error(request, '⚠️ Amount must be greater than 0!')
+                return redirect('expenses')
+
+            exp_date_obj = _parse_date_safe(expense_date_str)
+            aware_dt = timezone.make_aware(datetime.combine(exp_date_obj, _get_pk_now().time()))
+
+            with transaction.atomic():
+                expense = Expensedetail.objects.create(
+                    head_code=head_code,
+                    head_name=head_name,
+                    date=aware_dt,
+                    amount=str(amount),
+                    remarks=remarks
+                )
+                _post_expense_voucher(expense, v_type=voucher_type, bank_id=bank_id, user_name=user_name)
+
+            messages.success(request, f'✅ Expense saved successfully with Voucher #{expense.voucher_no}!')
         except Exception as e:
             messages.error(request, f'❌ Error saving: {str(e)}')
         return redirect('expenses')
@@ -1161,6 +1385,15 @@ def expenses(request):
     if action == 'get_expense' and edit_id:
         try:
             expense = get_object_or_404(Expensedetail, id=edit_id)
+            v_type = 'CPV'
+            bank_id = ''
+            if expense.voucher_no:
+                v = Voucher.objects.filter(voucher_no=expense.voucher_no).first()
+                if v:
+                    v_type = v.voucher_type
+                    cr_line = v.details.filter(credit__gt=0).first()
+                    if cr_line and v_type == 'BPV':
+                        bank_id = cr_line.account_id
             data = {
                 'success': True,
                 'id': expense.id,
@@ -1169,6 +1402,9 @@ def expenses(request):
                 'date': expense.date.strftime('%Y-%m-%d') if expense.date else '',
                 'amount': expense.amount or '0',
                 'remarks': expense.remarks or '',
+                'voucher_type': v_type,
+                'bank_id': bank_id,
+                'voucher_no': expense.voucher_no or '',
             }
             return JsonResponse(data)
         except Exception as e:
@@ -1176,37 +1412,39 @@ def expenses(request):
 
     # 5. GET FILTERED EXPENSES (AJAX)
     if action == 'get_expenses':
-        expenses = Expensedetail.objects.all()
+        expenses_qs = Expensedetail.objects.all()
 
         # Apply date filters
         if from_date:
             from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
-            expenses = expenses.filter(date__date__gte=from_date_obj)
+            expenses_qs = expenses_qs.filter(date__date__gte=from_date_obj)
         
         if to_date:
             to_date_obj = datetime.strptime(to_date, '%Y-%m-%d').date()
-            expenses = expenses.filter(date__date__lte=to_date_obj)
+            expenses_qs = expenses_qs.filter(date__date__lte=to_date_obj)
 
         # Apply head code filter
         if head_code:
-            expenses = expenses.filter(head_code__icontains=head_code)
+            expenses_qs = expenses_qs.filter(head_code__icontains=head_code)
 
         # Apply search filter
         if search:
-            expenses = expenses.filter(
+            expenses_qs = expenses_qs.filter(
                 Q(head_name__icontains=search) |
                 Q(head_code__icontains=search) |
-                Q(remarks__icontains=search)
+                Q(remarks__icontains=search) |
+                Q(voucher_no__icontains=search)
             )
 
-        expenses = expenses.order_by('-date')
+        expenses_qs = expenses_qs.order_by('-date')
 
         # Prepare JSON response
         data = []
         total = 0
-        for exp in expenses:
+        for exp in expenses_qs:
             amount_val = float(exp.amount or 0)
             total += amount_val
+            v_type = 'BPV' if (exp.voucher_no and 'BPV' in exp.voucher_no) else 'CPV'
             data.append({
                 'id': exp.id,
                 'date': exp.date.strftime('%d %b %Y') if exp.date else '-',
@@ -1216,6 +1454,8 @@ def expenses(request):
                 'remarks': exp.remarks or '',
                 'amount': amount_val,
                 'amount_formatted': f'Rs {amount_val:,.2f}',
+                'voucher_no': exp.voucher_no or '-',
+                'voucher_type': v_type,
             })
 
         return JsonResponse({
@@ -1227,19 +1467,14 @@ def expenses(request):
         })
 
     # 6. DEFAULT PAGE LOAD
-    # Fetch all expense heads for dropdown
     expense_heads = ExpenseHead.objects.all().order_by('name')
-    
-    # Get today's date
     today = timezone.now().date()
     today_str = today.strftime('%Y-%m-%d')
     
-    # Fetch expenses - by default current date
     expenses_list = Expensedetail.objects.filter(
         date__date=today
     ).order_by('-date')
     
-    # Calculate total
     total_amount = 0
     for exp in expenses_list:
         try:
@@ -1247,9 +1482,18 @@ def expenses(request):
         except:
             pass
 
+    bank_accounts = ChartOfAccount.objects.filter(level=4, is_active=True).filter(
+        Q(parent__code__in=['010101', '1110']) | Q(name__icontains='bank')
+    ).exclude(code__in=['010101001', '1110001']).order_by('code')
+
+    cash_acc = ChartOfAccount.objects.filter(level=4, code__in=['010101001', '1110001']).first() or ChartOfAccount.objects.filter(level=4, name__icontains='Cash in Hand').first()
+    cash_in_hand_bal = cash_acc.current_balance if cash_acc else Decimal('0')
+
     context = {
         'expense_heads': expense_heads,
         'expenses': expenses_list,
+        'bank_accounts': bank_accounts,
+        'cash_in_hand_bal': cash_in_hand_bal,
         'total_amount': total_amount,
         'today_date': today_str,
         'from_date': today_str,

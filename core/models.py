@@ -206,6 +206,7 @@ class Expensedetail(models.Model):
     date = models.DateTimeField(blank=True, null=True)
     amount = models.CharField(max_length=50, blank=True, null=True)
     remarks = models.CharField(max_length=50, blank=True, null=True)
+    voucher_no = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
         managed = True

@@ -452,17 +452,24 @@
         >
 
             <h6 class="mb-0 fw-bold">
-
-                <i class="bi bi-cart-check-fill me-1"></i>
-
-                New Sell Entry
-
+                {% if edit_sell %}
+                    <i class="bi bi-pencil-square me-1"></i>
+                    Update Sell Entry (#{{ edit_sell.sells_no }})
+                {% else %}
+                    <i class="bi bi-cart-check-fill me-1"></i>
+                    New Sell Entry
+                {% endif %}
             </h6>
 
+            {% if edit_sell %}
+                <span class="badge bg-warning text-dark fw-bold">
+                    <i class="bi bi-pencil-fill me-1"></i> Editing Sell #{{ edit_sell.sells_no }}
+                </span>
+            {% endif %}
 
             {% if active_purchase %}
 
-                <div class="d-flex gap-2 flex-wrap">
+                <div class="d-flex gap-2 flex-wrap align-items-center">
 
                     <div class="balance-pill">
 
@@ -472,7 +479,7 @@
                     </div>
 
 
-                    {% if not stock_zero and not stock_negative %}
+                    {% if not stock_zero and not stock_negative and not edit_sell %}
 
                         <button
                             type="button"
@@ -513,6 +520,9 @@
                     {% csrf_token %}
                     <input type="hidden" name="purchase_id" value="{{ active_purchase.id }}">
                     <input type="hidden" id="requiredPurchaseDate" value="{{ purchase_date_str }}">
+                    {% if edit_sell %}
+                    <input type="hidden" name="sell_id" value="{{ edit_sell.id }}">
+                    {% endif %}
 
                     <div class="row g-2 align-items-end">
 
@@ -559,12 +569,13 @@
 
 
                                 {% for customer in customer_list %}
-
+                                    {% with cname=customer.company_name|default:customer.owner_name %}
                                     <option
-                                        value="{{ customer.company_name|default:customer.owner_name }}"
+                                        value="{{ cname }}"
+                                        {% if edit_sell and edit_sell.customer_name == cname %}selected{% endif %}
                                     >
 
-                                        {{ customer.company_name|default:customer.owner_name }}
+                                        {{ cname }}
 
                                         {% if customer.party_type %}
 
@@ -573,7 +584,7 @@
                                         {% endif %}
 
                                     </option>
-
+                                    {% endwith %}
                                 {% endfor %}
 
                             </select>
@@ -596,7 +607,7 @@
                                 name="date"
                                 id="sellDate"
                                 class="form-control"
-                                value="{{ purchase_date_str }}"
+                                value="{% if edit_sell %}{{ edit_sell.entry_date|date:'Y-m-d' }}{% else %}{{ purchase_date_str }}{% endif %}"
                                 required
                             >
                             <small class="text-muted" style="font-size:0.68rem;">Purchase Date: <b>{{ purchase_date_display }}</b></small>
@@ -621,6 +632,7 @@
                                 step="0.01"
                                 min="0.01"
                                 placeholder="0"
+                                value="{% if edit_sell %}{{ edit_sell.weight|default:'' }}{% endif %}"
                                 required
                             >
 
@@ -645,6 +657,7 @@
                                 step="0.01"
                                 min="0.01"
                                 placeholder="0"
+                                value="{% if edit_sell %}{{ edit_sell.rate|default:'' }}{% endif %}"
                                 required
                             >
 
@@ -667,6 +680,7 @@
                                 id="amountDisplay"
                                 class="form-control amount-field"
                                 placeholder="Auto"
+                                value="{% if edit_sell %}Rs. {{ edit_sell.amount }}{% endif %}"
                                 readonly
                             >
 
@@ -686,7 +700,7 @@
                                 type="text"
                                 name="vehicle_no"
                                 class="form-control readonly-field"
-                                value="{{ auto_vehicle }}"
+                                value="{% if edit_sell %}{{ edit_sell.vehicle_no|default:auto_vehicle }}{% else %}{{ auto_vehicle }}{% endif %}"
                                 readonly
                             >
 
@@ -694,10 +708,26 @@
 
 
 
-                        <!-- SAVE -->
+                        <!-- SAVE / UPDATE -->
 
-                        <div class="col-6 col-md-3 col-xl-1 d-grid">
+                        <div class="col-6 col-md-3 col-xl-1 d-grid gap-1">
 
+                            {% if edit_sell %}
+                            <button
+                                type="submit"
+                                id="submitBtn"
+                                class="btn btn-warning text-white sell-button"
+                            >
+
+                                <i class="bi bi-check-circle me-1"></i>
+
+                                Update
+
+                            </button>
+                            <a href="{% url 'sells' %}" class="btn btn-secondary btn-sm text-center">
+                                Cancel
+                            </a>
+                            {% else %}
                             <button
                                 type="submit"
                                 id="submitBtn"
@@ -709,6 +739,7 @@
                                 Save
 
                             </button>
+                            {% endif %}
 
                         </div>
 
@@ -828,7 +859,7 @@
 
                         {% for row in history %}
 
-                            <tr>
+                            <tr {% if edit_sell and edit_sell.id == row.id %}class="table-warning"{% endif %}>
 
 
                                 <td>
@@ -904,17 +935,32 @@
 
                                 <td>
 
-                                    <a
-                                        href="?delete_id={{ row.id }}"
-                                        class="btn btn-danger btn-sm"
-                                        onclick="return confirm(
-                                            'Delete this sell and restore its weight to Purchase Receiving?'
-                                        );"
-                                    >
+                                    <div class="d-flex gap-1 justify-content-center">
 
-                                        <i class="bi bi-trash"></i>
+                                        <a
+                                            href="?edit_id={{ row.id }}"
+                                            class="btn btn-warning btn-sm text-white"
+                                            title="Edit Sell"
+                                        >
 
-                                    </a>
+                                            <i class="bi bi-pencil-square"></i>
+
+                                        </a>
+
+                                        <a
+                                            href="?delete_id={{ row.id }}"
+                                            class="btn btn-danger btn-sm"
+                                            onclick="return confirm(
+                                                'Delete this sell and restore its weight to Purchase Receiving?'
+                                            );"
+                                            title="Delete Sell"
+                                        >
+
+                                            <i class="bi bi-trash"></i>
+
+                                        </a>
+
+                                    </div>
 
                                 </td>
 
@@ -1183,6 +1229,9 @@ $(document).ready(function () {
         calculateAmount
     );
 
+    // Calculate on load (e.g. when editing)
+    calculateAmount();
+
 
 
     // ==================================================
@@ -1246,11 +1295,11 @@ $(document).ready(function () {
 
             }
 
-
+            const isEdit = $('#sellForm input[name="sell_id"]').length > 0;
             $('#submitBtn')
                 .prop('disabled', true)
                 .html(
-                    '<span class="spinner-border spinner-border-sm me-1"></span> Saving...'
+                    '<span class="spinner-border spinner-border-sm me-1"></span> ' + (isEdit ? 'Updating...' : 'Saving...')
                 );
 
         }

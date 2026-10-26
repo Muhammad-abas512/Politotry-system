@@ -5,12 +5,36 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
+from django.db import transaction
 import pytz
 from .models import (
     PurchaseReceiving, Parties, BroilerRate, PurchasePaymentHistory,
-    ChartOfAccount, Voucher, VoucherDetail, SellsInvoice
+    ChartOfAccount, Voucher, VoucherDetail, SellsInvoice,
+    Mortality, ReceiptHistory
 )
 from .accounts_views import sync_single_party_to_coa, _update_account_balance
+
+
+def sell_decimal(value):
+    try:
+        return Decimal(str(value or 0))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal('0')
+
+
+def sell_number(value):
+    try:
+        d = Decimal(str(value or 0))
+        if d == d.to_integral_value():
+            return str(int(d))
+        return str(d.normalize())
+    except Exception:
+        return '0'
+
+
+def get_pk_now():
+    PK_TZ = pytz.timezone('Asia/Karachi')
+    return timezone.now().astimezone(PK_TZ).replace(tzinfo=None)
 
 
 def sync_purchase_voucher(purchase, is_delete=False):
@@ -216,6 +240,17 @@ def purchase_receiving(request):
     if delete_id:
         purchase = PurchaseReceiving.objects.filter(id=delete_id).first()
         if purchase:
+            has_sales = SellsInvoice.objects.filter(purchase_number=purchase.purchase_number).exists()
+            has_mortality = Mortality.objects.filter(purchase_no=purchase.purchase_number).exists()
+            rem = sell_decimal(purchase.remaining_weight)
+            orig_w = sell_decimal(purchase.weight)
+            if has_sales or has_mortality or rem < orig_w:
+                messages.error(
+                    request,
+                    f"❌ Purchase #{purchase.purchase_number} delete nahi ho sakti kyunke isme se sale ya deduction ho chuki hai! (Purchase Locked)"
+                )
+                return redirect('purchase_receiving')
+
             old_amount = int(float(purchase.amount or 0))
             PurchasePaymentHistory.objects.filter(
                 party_name=purchase.vendor_name,
@@ -223,7 +258,7 @@ def purchase_receiving(request):
             ).delete()
             sync_purchase_voucher(purchase, is_delete=True)
             purchase.delete()
-            messages.success(request, "Purchase record deleted!")
+            messages.success(request, f"Purchase #{purchase.purchase_number} deleted successfully!")
         return redirect('purchase_receiving')
 
     # ------------------------------------------------------------------
@@ -275,6 +310,18 @@ def purchase_receiving(request):
         if record_id:
             purchase = PurchaseReceiving.objects.filter(id=record_id).first()
             if purchase:
+                # Check if any sale or mortality has occurred
+                has_sales = SellsInvoice.objects.filter(purchase_number=purchase.purchase_number).exists()
+                has_mortality = Mortality.objects.filter(purchase_no=purchase.purchase_number).exists()
+                rem = sell_decimal(purchase.remaining_weight)
+                orig_w = sell_decimal(purchase.weight)
+                if has_sales or has_mortality or rem < orig_w:
+                    messages.error(
+                        request,
+                        f"❌ Purchase #{purchase.purchase_number} edit nahi ho sakti kyunke isme se sale ya deduction ho chuki hai! (Purchase Locked)"
+                    )
+                    return redirect('purchase_receiving')
+
                 old_amount = int(float(purchase.amount or 0))
 
                 # delete old history row for this purchase
@@ -306,19 +353,18 @@ def purchase_receiving(request):
                     new_adv = 0
                     new_due = prev_due + total_amt
 
-                # update receiving row (only here payed is set)
+                # update receiving row (remaining_weight updated to new weight!)
                 purchase.vendor_name      = vendor_name
                 purchase.vendor_code      = party_code or purchase.vendor_code
                 purchase.date             = final_datetime
                 purchase.vendor_rate      = vendor_rate
                 purchase.market_rate      = market_rate
-                if not purchase.remaining_weight:
-                    purchase.remaining_weight = str(weight)
                 purchase.weight           = weight
+                purchase.remaining_weight = sell_number(weight)   # 👈 Updated to new weight!
                 purchase.vehicle_number   = vehicle_number
                 purchase.status           = status
                 purchase.amount           = str(amount)
-                purchase.payed_amount     = str(payed_for_receiving)   # 👈 only here
+                purchase.payed_amount     = str(payed_for_receiving)
                 purchase.discription      = description
                 purchase.save()
                 sync_purchase_voucher(purchase)
@@ -335,7 +381,7 @@ def purchase_receiving(request):
                     remarks       = description[:500],
                 )
 
-                messages.success(request, "Purchase record updated!")
+                messages.success(request, f"Purchase #{purchase.purchase_number} updated successfully! Weight: {sell_number(weight)} kg")
 
         # ==========================================================
         # CREATE
@@ -430,6 +476,17 @@ def purchase_receiving(request):
     edit_id = request.GET.get('edit_id')
     if edit_id:
         edit_obj = PurchaseReceiving.objects.filter(id=edit_id).first()
+        if edit_obj:
+            has_sales = SellsInvoice.objects.filter(purchase_number=edit_obj.purchase_number).exists()
+            has_mortality = Mortality.objects.filter(purchase_no=edit_obj.purchase_number).exists()
+            rem = sell_decimal(edit_obj.remaining_weight)
+            orig_w = sell_decimal(edit_obj.weight)
+            if has_sales or has_mortality or rem < orig_w:
+                messages.error(
+                    request,
+                    f"❌ Purchase #{edit_obj.purchase_number} edit nahi ho sakti kyunke isme se sale ya deduction ho chuki hai! (Purchase Locked)"
+                )
+                return redirect('purchase_receiving')
 
     # Active purchase
     active_purchase = None
@@ -453,6 +510,22 @@ def purchase_receiving(request):
     vendor_list = Parties.objects.all().order_by('company_name')
 
     history = PurchaseReceiving.objects.all().order_by('-id')
+    sold_pur_numbers = set(
+        SellsInvoice.objects.values_list('purchase_number', flat=True).distinct()
+    ) | set(
+        Mortality.objects.values_list('purchase_no', flat=True).distinct()
+    )
+
+    for item in history:
+        try:
+            w = Decimal(str(item.weight or '0'))
+            rem = Decimal(str(item.remaining_weight or '0'))
+        except Exception:
+            w, rem = Decimal('0'), Decimal('0')
+        has_sold = (item.purchase_number in sold_pur_numbers) or (rem < w)
+        item.is_locked = bool(has_sold)
+        item.sold_weight = sell_number(max(Decimal('0'), w - rem)) if has_sold else '0'
+
     next_purchase_number = generate_purchase_number()
 
     pk_tz = pytz.timezone('Asia/Karachi')
@@ -480,65 +553,34 @@ def purchase_receiving(request):
 # ============================================================
 # SELLS VIEW
 # ============================================================
-
-from decimal import Decimal, InvalidOperation
-from datetime import datetime
-from django.contrib import messages
-from django.db import transaction
-from django.db.models import Q
-from django.shortcuts import redirect, render
-from django.utils import timezone
-import pytz
-
-from .models import (
-    PurchaseReceiving,
-    Parties,
-    SellsInvoice,
-    Mortality,
-    ReceiptHistory,
-)
-
-
-# ------------------------------------------------------------------
-# HELPERS (adjust if your file already has them)
-# ------------------------------------------------------------------
-def sell_decimal(value):
-    try:
-        return Decimal(str(value or 0))
-    except (InvalidOperation, TypeError, ValueError):
-        return Decimal('0')
-
-
-def sell_number(value):
-    try:
-        d = Decimal(str(value or 0))
-        if d == d.to_integral_value():
-            return str(int(d))
-        return str(d.normalize())
-    except Exception:
-        return '0'
-
-
-def get_pk_now():
-    PK_TZ = pytz.timezone('Asia/Karachi')
-    return timezone.now().astimezone(PK_TZ).replace(tzinfo=None)
-
-
-# ============================================================
-# SELLS VIEW
-# ============================================================
 def sells(request):
 
     # 1. Login Check
     if not request.session.get('user_id'):
         return redirect('login')
 
-    # Latest PurchaseReceiving record
-    active_purchase = (
-        PurchaseReceiving.objects
-        .order_by('-id')
-        .first()
-    )
+    # Edit sell object if edit_id is passed in GET
+    edit_sell = None
+    edit_id = request.GET.get('edit_id')
+    if edit_id:
+        edit_sell = SellsInvoice.objects.filter(id=edit_id).first()
+
+    # Active purchase: default to the latest purchase, or the one associated with the sell being edited
+    active_purchase = None
+    if edit_sell and edit_sell.purchase_number:
+        active_purchase = PurchaseReceiving.objects.filter(purchase_number=edit_sell.purchase_number).first()
+
+    if not active_purchase:
+        selected_pur_id = request.GET.get('purchase_id')
+        if selected_pur_id:
+            active_purchase = PurchaseReceiving.objects.filter(id=selected_pur_id).first()
+
+    if not active_purchase:
+        active_purchase = (
+            PurchaseReceiving.objects
+            .order_by('-id')
+            .first()
+        )
 
     # ========================================================
     # 2. DELETE SELL
@@ -576,6 +618,15 @@ def sells(request):
                     purchase_obj.save(update_fields=['remaining_weight'])
 
                 sync_sell_voucher(sell_obj, is_delete=True)
+
+                if sell_obj.customer_code:
+                    old_amt = int(float(sell_obj.amount or 0))
+                    ReceiptHistory.objects.filter(
+                        part_code=sell_obj.customer_code,
+                        amount=old_amt,
+                        received_amount='0'
+                    ).delete()
+
                 sell_obj.delete()
 
             messages.success(request, 'Sell deleted and stock restored successfully.')
@@ -637,9 +688,10 @@ def sells(request):
         return redirect('sells')
 
     # ========================================================
-    # 4. NEW SELL POST
+    # 4. SELL POST (NEW OR EDIT)
     # ========================================================
     if request.method == 'POST':
+        sell_id          = request.POST.get('sell_id')
         customer_name    = (request.POST.get('customer_name') or '').strip()
         vehicle_no       = (request.POST.get('vehicle_no') or '').strip()
         sell_weight      = sell_decimal(request.POST.get('weight'))
@@ -659,6 +711,141 @@ def sells(request):
             messages.error(request, 'Rate must be greater than 0.')
             return redirect('sells')
 
+        # ----------------------------------------------------
+        # EDIT / UPDATE EXISTING SELL
+        # ----------------------------------------------------
+        if sell_id:
+            try:
+                with transaction.atomic():
+                    sell_obj = (
+                        SellsInvoice.objects
+                        .select_for_update()
+                        .filter(id=sell_id)
+                        .first()
+                    )
+                    if not sell_obj:
+                        raise ValueError('Sell record not found.')
+
+                    purchase_number = (sell_obj.purchase_number or '').strip()
+                    purchase_obj = (
+                        PurchaseReceiving.objects
+                        .select_for_update()
+                        .filter(purchase_number=purchase_number)
+                        .first()
+                    )
+                    if not purchase_obj:
+                        raise ValueError('Associated purchase record not found.')
+
+                    old_sell_weight   = sell_decimal(sell_obj.weight)
+                    old_sell_amount   = sell_decimal(sell_obj.amount)
+                    old_customer_code = sell_obj.customer_code
+
+                    # Date check: Sell date must match purchase date
+                    purchase_date = purchase_obj.date.date() if purchase_obj.date else None
+                    pk_now = get_pk_now()
+
+                    if date_input:
+                        try:
+                            sell_date = datetime.strptime(date_input, '%Y-%m-%d').date()
+                        except ValueError:
+                            sell_date = purchase_date or pk_now.date()
+                    else:
+                        sell_date = purchase_date or pk_now.date()
+
+                    if purchase_date and sell_date != purchase_date:
+                        raise ValueError(
+                            f"Ghalat Date! Jo purchase jis date ko purchase ho wo usi date me hi sell ho sakti hai! "
+                            f"Purchase #{purchase_obj.purchase_number} ki purchase date {purchase_date.strftime('%d-%m-%Y')} hai, "
+                            f"magar sell date {sell_date.strftime('%d-%m-%Y')} select ki gayi hai."
+                        )
+
+                    # Stock restoration + deduction
+                    current_remaining = sell_decimal(purchase_obj.remaining_weight)
+                    restored_stock    = current_remaining + old_sell_weight
+                    new_remaining     = restored_stock - sell_weight
+                    calculated_amount = sell_weight * sell_rate
+
+                    # Update purchase remaining stock
+                    purchase_obj.remaining_weight = sell_number(new_remaining)
+                    purchase_obj.save(update_fields=['remaining_weight'])
+
+                    # Resolve customer party
+                    party_obj = Parties.objects.filter(
+                        company_name=customer_name
+                    ).first()
+                    if not party_obj:
+                        party_obj = Parties.objects.filter(
+                            owner_name=customer_name
+                        ).first()
+                    party_code = party_obj.code if party_obj else ''
+
+                    final_sell_datetime = datetime.combine(purchase_date or sell_date, pk_now.time())
+
+                    # Update sell record
+                    sell_obj.customer_name    = customer_name
+                    sell_obj.customer_code    = party_code
+                    sell_obj.weight           = sell_number(sell_weight)
+                    sell_obj.rate             = sell_number(sell_rate)
+                    sell_obj.amount           = sell_number(calculated_amount)
+                    sell_obj.remaining_amount = sell_number(calculated_amount)
+                    sell_obj.vehicle_no       = (vehicle_no or purchase_obj.vehicle_number or '')
+                    sell_obj.entry_date       = final_sell_datetime
+                    sell_obj.save()
+
+                    # Re-sync double entry voucher
+                    sync_sell_voucher(sell_obj)
+
+                    # Update ReceiptHistory
+                    if old_customer_code:
+                        ReceiptHistory.objects.filter(
+                            part_code=old_customer_code,
+                            amount=int(old_sell_amount),
+                            received_amount='0'
+                        ).delete()
+
+                    last_receipt = (
+                        ReceiptHistory.objects
+                        .filter(part_code=party_code)
+                        .order_by('-id')
+                        .first()
+                    )
+                    prev_due = int(last_receipt.due)     if last_receipt and last_receipt.due     else 0
+                    prev_adv = int(last_receipt.advance) if last_receipt and last_receipt.advance else 0
+
+                    net = (prev_due - prev_adv) + int(calculated_amount)
+                    if net >= 0:
+                        new_due, new_adv = net, 0
+                    else:
+                        new_due, new_adv = 0, abs(net)
+
+                    ReceiptHistory.objects.create(
+                        party_name      = customer_name,
+                        part_code       = party_code,
+                        amount          = int(calculated_amount),
+                        received_amount = '0',
+                        payment_method  = None,
+                        date            = final_sell_datetime,
+                        due             = new_due,
+                        advance         = new_adv,
+                    )
+
+                messages.success(
+                    request,
+                    f'✅ Sell #{sell_obj.sells_no} updated! '
+                    f'Purchase #{purchase_number} | '
+                    f'Previous: {sell_number(old_sell_weight)} kg | '
+                    f'New: {sell_number(sell_weight)} kg | '
+                    f'New Stock: {sell_number(new_remaining)} kg'
+                )
+
+            except Exception as e:
+                messages.error(request, f'Update Error: {str(e)}')
+
+            return redirect('sells')
+
+        # ----------------------------------------------------
+        # NEW SELL
+        # ----------------------------------------------------
         target_purchase_id = purchase_id_post or (active_purchase.id if active_purchase else None)
         if not target_purchase_id:
             messages.error(request, 'Please create a Purchase Receiving record first.')
@@ -676,10 +863,7 @@ def sells(request):
                 if not purchase_obj:
                     raise ValueError('Purchase record not found.')
 
-                # =====================================================
                 # 🛑 CRITICAL CONSTRAINT: Purchase date == Sale date
-                # "jo purchase jis date ko purchase ho wo usi date mai sell b ho usky elwa ksi date mai sell na ho"
-                # =====================================================
                 purchase_date = purchase_obj.date.date() if purchase_obj.date else None
                 pk_now = get_pk_now()
 
@@ -757,8 +941,6 @@ def sells(request):
                 # =================================================
                 # 💰 INSERT INTO receipt_history
                 # =================================================
-
-                # Get last entry for this party → carry forward due/advance
                 last_receipt = (
                     ReceiptHistory.objects
                     .filter(part_code=party_code)
@@ -769,7 +951,6 @@ def sells(request):
                 prev_due = int(last_receipt.due)     if last_receipt and last_receipt.due     else 0
                 prev_adv = int(last_receipt.advance) if last_receipt and last_receipt.advance else 0
 
-                # New sell adds to the party's outstanding balance
                 net = (prev_due - prev_adv) + int(calculated_amount)
 
                 if net >= 0:
@@ -780,10 +961,10 @@ def sells(request):
                 ReceiptHistory.objects.create(
                     party_name      = customer_name,
                     part_code       = party_code,
-                    amount          = int(calculated_amount),   # 👈 sell amount
-                    received_amount = '0',                       # not received yet
-                    payment_method  = None,                      # not applicable
-                    date            = final_sell_datetime,       # exact purchase/sell date
+                    amount          = int(calculated_amount),
+                    received_amount = '0',
+                    payment_method  = None,
+                    date            = final_sell_datetime,
                     due             = new_due,
                     advance         = new_adv,
                 )
@@ -806,7 +987,6 @@ def sells(request):
     # ========================================================
     # 5. GET DATA FOR DISPLAY
     # ========================================================
-    # All parties can be sold to (Customer, Vendor, Trader)
     customer_list = Parties.objects.all().order_by('company_name')
 
     history = SellsInvoice.objects.all().order_by('-id')
@@ -817,34 +997,34 @@ def sells(request):
             amount = sell_decimal(item.weight) * sell_decimal(item.rate)
         item.total_display = sell_number(amount)
 
-    # Allow switching active purchase if query param provided
-    selected_pur_id = request.GET.get('purchase_id')
-    if selected_pur_id:
-        target_pur = PurchaseReceiving.objects.filter(id=selected_pur_id).first()
-        if target_pur:
-            active_purchase = target_pur
-
     active_purchases_list = PurchaseReceiving.objects.filter(status='Active').order_by('-date', '-id')[:15]
 
     if active_purchase:
         current_remaining = sell_decimal(active_purchase.remaining_weight)
-        available_stock   = sell_number(current_remaining)
-        auto_vehicle      = active_purchase.vehicle_number or ''
-        stock_negative    = (current_remaining < 0)
-        stock_zero        = (current_remaining == 0)
-        purchase_date_str = active_purchase.date.strftime('%Y-%m-%d') if active_purchase.date else ''
+        # If currently editing a sell belonging to this purchase, the sell's current weight is also available to edit
+        if edit_sell and edit_sell.purchase_number == active_purchase.purchase_number:
+            effective_stock = current_remaining + sell_decimal(edit_sell.weight)
+            available_stock = sell_number(effective_stock)
+        else:
+            available_stock = sell_number(current_remaining)
+
+        auto_vehicle          = active_purchase.vehicle_number or ''
+        stock_negative        = (current_remaining < 0)
+        stock_zero            = (current_remaining == 0)
+        purchase_date_str     = active_purchase.date.strftime('%Y-%m-%d') if active_purchase.date else ''
         purchase_date_display = active_purchase.date.strftime('%d-%m-%Y') if active_purchase.date else ''
     else:
-        available_stock = '0'
-        auto_vehicle    = ''
-        stock_negative  = False
-        stock_zero      = True
-        purchase_date_str = ''
+        available_stock       = '0'
+        auto_vehicle          = ''
+        stock_negative        = False
+        stock_zero            = True
+        purchase_date_str     = ''
         purchase_date_display = ''
 
     pk_now = get_pk_now()
 
     context = {
+        'edit_sell':             edit_sell,
         'active_purchase':       active_purchase,
         'active_purchases_list': active_purchases_list,
         'customer_list':         customer_list,

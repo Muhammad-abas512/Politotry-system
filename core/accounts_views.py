@@ -387,6 +387,8 @@ def generate_voucher_no(voucher_type):
         'BPV': 'BPV',
         'BRV': 'BRV',
         'JV': 'JV',
+        'CASH_TO_BANK': 'JV',
+        'BANK_TO_CASH': 'JV',
         'Payment Voucher': 'CPV',
         'Receipt Voucher': 'CRV',
         'Transfer Voucher': 'JV',
@@ -458,7 +460,7 @@ def voucher_entry(request):
                 'Transfer Voucher': 'JV',
             }
             v_type = type_map.get(raw_type, raw_type)
-            if v_type not in ['CPV', 'CRV', 'BPV', 'BRV', 'JV']:
+            if v_type not in ['CPV', 'CRV', 'BPV', 'BRV', 'JV', 'CASH_TO_BANK', 'BANK_TO_CASH']:
                 v_type = 'CPV'
 
             date_str = (data.get('date') or '').strip()
@@ -501,6 +503,16 @@ def voucher_entry(request):
                     # Cash Receipt: Cash in Hand is DEBIT
                     if not dr_acc_id and cash_acc:
                         dr_acc_id = cash_acc.id
+                elif v_type == 'CASH_TO_BANK':
+                    # Cash Deposit: Cash in Hand is CREDIT, Selected Bank is DEBIT
+                    if not cr_acc_id and cash_acc:
+                        cr_acc_id = cash_acc.id
+                    party_id = None
+                elif v_type == 'BANK_TO_CASH':
+                    # Cash Withdrawal: Selected Bank is CREDIT, Cash in Hand is DEBIT
+                    if not dr_acc_id and cash_acc:
+                        dr_acc_id = cash_acc.id
+                    party_id = None
 
                 if not dr_acc_id or not cr_acc_id:
                     return JsonResponse({'success': False, 'message': 'Both Debit and Credit accounts must be specified'})
@@ -525,8 +537,7 @@ def voucher_entry(request):
                             'success': False,
                             'message': (
                                 f"❌ Payment Rejection: Cash in Hand mein kafi raqam mojood nahi hai! "
-                                f"Mojooda Cash Balance: Rs. {available:,.2f}, jabkay Payment Amount: Rs. {amount:,.2f}. "
-                                f"Pehle Cash Receive karein (CRV) ya Opening Balance darj karein."
+                                f"Mojooda Cash Balance: Rs. {available:,.2f}, jabkay Transfer/Payment Amount: Rs. {amount:,.2f}."
                             )
                         })
 
@@ -537,8 +548,7 @@ def voucher_entry(request):
                             'success': False,
                             'message': (
                                 f"❌ Payment Rejection: Bank Account '{cr_acc.name}' mein kafi raqam mojood nahi hai! "
-                                f"Mojooda Bank Balance: Rs. {available:,.2f}, jabkay Payment Amount: Rs. {amount:,.2f}. "
-                                f"Pehle Bank mein raqam transfer/receive karein."
+                                f"Mojooda Bank Balance: Rs. {available:,.2f}, jabkay Transfer/Payment Amount: Rs. {amount:,.2f}."
                             )
                         })
 
@@ -555,22 +565,35 @@ def voucher_entry(request):
                 elif v_type in ['CRV', 'BRV']:
                     cr_party_id = cr_acc.party_id or party_id
                     dr_party_id = None
+                elif v_type in ['CASH_TO_BANK', 'BANK_TO_CASH']:
+                    dr_party_id = None
+                    cr_party_id = None
                 else:
                     dr_party_id = dr_acc.party_id or (party_id if not is_cash_hand_dr and not is_bank_dr else None)
                     cr_party_id = cr_acc.party_id or (party_id if not is_cash_hand_cr and not is_bank_cr else None)
+
+                if v_type == 'CASH_TO_BANK':
+                    dr_narration = remarks or f"Cash Deposit: Cash in Hand to {dr_acc.name}"
+                    cr_narration = remarks or f"Cash Deposit: Paid from Cash in Hand to {dr_acc.name}"
+                elif v_type == 'BANK_TO_CASH':
+                    dr_narration = remarks or f"Cash Withdrawal: Received in Cash in Hand from {cr_acc.name}"
+                    cr_narration = remarks or f"Cash Withdrawal: Paid from {cr_acc.name} to Cash in Hand"
+                else:
+                    dr_narration = remarks or f"{v_type}: Debit to {dr_acc.name}"
+                    cr_narration = remarks or f"{v_type}: Credit from {cr_acc.name}"
 
                 entries.append({
                     'account': dr_acc,
                     'debit': amount,
                     'credit': Decimal('0'),
-                    'narration': remarks or f"{v_type}: Debit to {dr_acc.name}",
+                    'narration': dr_narration,
                     'party_id': dr_party_id,
                 })
                 entries.append({
                     'account': cr_acc,
                     'debit': Decimal('0'),
                     'credit': amount,
-                    'narration': remarks or f"{v_type}: Credit from {cr_acc.name}",
+                    'narration': cr_narration,
                     'party_id': cr_party_id,
                 })
                 total_voucher_amt = amount
@@ -640,17 +663,18 @@ def voucher_entry(request):
 
                 total_voucher_amt = total_dr
 
+            actual_v_type = 'JV' if v_type in ['CASH_TO_BANK', 'BANK_TO_CASH'] else v_type
             user_name = request.session.get('user_name', 'Admin')
-            voucher_no = generate_voucher_no(v_type)
+            voucher_no = generate_voucher_no(actual_v_type)
 
             with transaction.atomic():
                 voucher = Voucher.objects.create(
                     voucher_no=voucher_no,
-                    voucher_type=v_type,
+                    voucher_type=actual_v_type,
                     date=voucher_date,
                     reference_no=reference_no or voucher_no,
                     total_amount=total_voucher_amt,
-                    remarks=remarks,
+                    remarks=remarks or (f"Cash Deposit: Cash in Hand to {dr_acc.name}" if v_type == 'CASH_TO_BANK' else (f"Cash Withdrawal: {cr_acc.name} to Cash in Hand" if v_type == 'BANK_TO_CASH' else '')),
                     created_by=user_name,
                 )
 
@@ -702,12 +726,19 @@ def voucher_entry(request):
                         cash_in_hand=new_hand,
                         cash_in_bank=new_bank,
                         date=datetime.combine(voucher_date, _get_pk_now().time()),
-                        discription=f"[{v_type}] #{voucher_no}: {remarks[:380]}" if remarks else f"[{v_type}] #{voucher_no}",
+                        discription=f"[{actual_v_type}] #{voucher_no}: {remarks[:380]}" if remarks else f"[{actual_v_type}] #{voucher_no}",
                     )
+
+            if v_type == 'CASH_TO_BANK':
+                success_msg = f'💵➔🏦 Cash Deposit Voucher #{voucher_no} posted! Rs. {total_voucher_amt:,.2f} transferred from Cash in Hand to {dr_acc.name}'
+            elif v_type == 'BANK_TO_CASH':
+                success_msg = f'🏦➔💵 Cash Withdrawal Voucher #{voucher_no} posted! Rs. {total_voucher_amt:,.2f} transferred from {cr_acc.name} to Cash in Hand'
+            else:
+                success_msg = f'{v_type} Voucher #{voucher_no} posted successfully! Total: Rs. {total_voucher_amt:,.2f}'
 
             return JsonResponse({
                 'success': True,
-                'message': f'{v_type} Voucher #{voucher_no} posted successfully! Total: Rs. {total_voucher_amt:,.2f}',
+                'message': success_msg,
                 'voucher_no': voucher_no,
             })
 

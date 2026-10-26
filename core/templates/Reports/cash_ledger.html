@@ -314,7 +314,7 @@
                     <tbody>
                         {% if ledger_rows %}
                             {% for row in ledger_rows %}
-                            <tr>
+                            <tr {% if row.is_expense %}style="background-color: #fdf6f6;"{% endif %}>
                                 <td class="text-center text-secondary fw-semibold">
                                     {{ row.date_str }}
                                 </td>
@@ -322,6 +322,10 @@
                                     {% if row.is_opening %}
                                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1">
                                             <i class="fa-solid fa-clock-rotate-left"></i>
+                                        </span>
+                                    {% elif row.is_expense %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">
+                                            <i class="fa-solid fa-receipt"></i>
                                         </span>
                                     {% endif %}
                                     {{ row.account }}

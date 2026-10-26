@@ -152,6 +152,8 @@
                         <option value="CRV">CRV — Cash Receipt Voucher (کیش وصولی)</option>
                         <option value="BPV">BPV — Bank Payment Voucher (بینک ادائیگی)</option>
                         <option value="BRV">BRV — Bank Receipt Voucher (بینک وصولی)</option>
+                        <option value="CASH_TO_BANK">💵➔🏦 Cash Deposit to Bank (کیش بینک میں جمع)</option>
+                        <option value="BANK_TO_CASH">🏦➔💵 Cash Withdrawal from Bank (بینک سے کیش نکلوایا)</option>
                         <option value="JV">JV — Journal / Transfer Voucher (کھاتہ ٹرانسفر)</option>
                     </select>
                 </div>
@@ -200,26 +202,26 @@
 
             <div class="row g-3">
                 <!-- DATE -->
-                <div class="col-md-3 col-12">
+                <div class="col-md-3 col-12" id="dateCol">
                     <label class="form-label-bold">Voucher Date <span class="text-danger">*</span></label>
                     <input type="date" class="form-control" id="vDate" value="{{ today_date }}" required>
                 </div>
 
                 <!-- REFERENCE / CHEQUE # -->
-                <div class="col-md-3 col-12">
+                <div class="col-md-3 col-12" id="refCol">
                     <label class="form-label-bold" id="refLabel">Reference / Cheque #</label>
                     <input type="text" class="form-control font-monospace fw-bold bg-light text-dark border-secondary" id="vRef" value="{{ next_cpv }}" readonly title="Auto-calculated Voucher / Reference #">
                 </div>
 
                 <!-- AMOUNT -->
-                <div class="col-md-3 col-12">
+                <div class="col-md-3 col-12" id="amountCol">
                     <label class="form-label-bold text-danger">Amount (Rs.) <span class="text-danger">*</span></label>
                     <input type="number" step="0.01" class="form-control fw-bold fs-5 text-danger border-danger" id="vAmount" placeholder="0.00" required oninput="validatePaymentAmount()">
                     <div id="insufficientWarning" class="text-danger fw-bold small mt-1" style="display:none;"></div>
                 </div>
 
                 <!-- LINKED PARTY -->
-                <div class="col-md-3 col-12">
+                <div class="col-md-3 col-12" id="partyCol">
                     <label class="form-label-bold">Party (For Party Ledger)</label>
                     <select class="form-select select2-basic" id="vParty" onchange="onPartyDropdownChange(this.value)">
                         <option value="">-- Direct / No Party --</option>
@@ -459,6 +461,8 @@
         'BPV': '{{ next_bpv }}',
         'BRV': '{{ next_brv }}',
         'JV':  '{{ next_jv }}',
+        'CASH_TO_BANK': '{{ next_jv }}',
+        'BANK_TO_CASH': '{{ next_jv }}',
     };
 
     const cashAccountId = '{{ cash_account.id|default:"" }}';
@@ -469,10 +473,10 @@
     $(document).ready(function() {
         $('.select2-basic').select2({ theme: 'bootstrap-5' });
 
-        // Check URL Query Param ?type=CPV|CRV|BPV|BRV|JV
+        // Check URL Query Param ?type=CPV|CRV|BPV|BRV|JV|CASH_TO_BANK|BANK_TO_CASH
         const urlParams = new URLSearchParams(window.location.search);
         const reqType = (urlParams.get('type') || 'CPV').toUpperCase();
-        if (['CPV', 'CRV', 'BPV', 'BRV', 'JV'].includes(reqType)) {
+        if (['CPV', 'CRV', 'BPV', 'BRV', 'JV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(reqType)) {
             switchVoucherType(reqType);
         } else {
             switchVoucherType('CPV');
@@ -523,7 +527,7 @@
         const crOpt = $('#vCreditAccount option:selected');
         const crCode = String(crOpt.data('code') || '');
         const crName = String(crOpt.data('name') || '').toLowerCase();
-        const isCashOrBankCr = (vType === 'CPV' || vType === 'BPV' || crCode === '010101001' || crCode === '1110001' || crCode.startsWith('010101') || crCode.startsWith('1110') || crName.includes('cash in hand') || crName.includes('bank'));
+        const isCashOrBankCr = (vType === 'CPV' || vType === 'BPV' || vType === 'CASH_TO_BANK' || vType === 'BANK_TO_CASH' || crCode === '010101001' || crCode === '1110001' || crCode.startsWith('010101') || crCode.startsWith('1110') || crName.includes('cash in hand') || crName.includes('bank'));
 
         if (isCashOrBankCr && crOpt.val()) {
             const availBal = parseFloat(crOpt.data('balance') || 0);
@@ -574,7 +578,7 @@
 
     function switchVoucherType(type) {
         type = (type || 'CPV').toUpperCase();
-        if (!['CPV', 'CRV', 'BPV', 'BRV', 'JV'].includes(type)) {
+        if (!['CPV', 'CRV', 'BPV', 'BRV', 'JV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(type)) {
             type = 'CPV';
         }
 
@@ -582,10 +586,24 @@
         $('#voucherTypeSelect').val(type);
         $('#selectedVoucherType').val(type);
 
-        const vNo = nextNumbers[type] || '';
+        const vNo = nextNumbers[type] || '{{ next_jv }}';
         $('#displayVoucherNo').text(vNo);
         $('#displayVoucherNoTop').text(vNo);
         $('#vRef').val(vNo);
+
+        // Hide party field and expand date/ref/amount for clean contra transfers
+        if (type === 'CASH_TO_BANK' || type === 'BANK_TO_CASH') {
+            $('#partyCol').hide();
+            $('#vParty').val('').trigger('change');
+            $('#dateCol').removeClass('col-md-3').addClass('col-md-4');
+            $('#refCol').removeClass('col-md-3').addClass('col-md-4');
+            $('#amountCol').removeClass('col-md-3').addClass('col-md-4');
+        } else {
+            $('#partyCol').show();
+            $('#dateCol').removeClass('col-md-4').addClass('col-md-3');
+            $('#refCol').removeClass('col-md-4').addClass('col-md-3');
+            $('#amountCol').removeClass('col-md-4').addClass('col-md-3');
+        }
 
         if (type === 'CPV') {
             updateSelectorStyles('CPV', 'Cash Payment Voucher', 'Cash Outflow / نقد ادائیگی', 'bi-arrow-up-right-circle', '#dc2626', '#fee2e2', '#991b1b');
@@ -657,6 +675,46 @@
                 $('#vDebitAccount').val(firstBankId).trigger('change');
             }
 
+        } else if (type === 'CASH_TO_BANK') {
+            updateSelectorStyles('C2B', 'Cash Deposit to Bank', 'Cash in Hand ➔ Bank Account / بینک میں جمع', 'bi-box-arrow-up', '#059669', '#d1fae5', '#065f46');
+            $('#currentFormTitle').html('<i class="bi bi-box-arrow-up text-success me-2"></i> Cash Deposit to Bank (کیش بینک میں جمع)');
+            $('#currentFormSubTitle').text('Cash in Hand se raqam nikal kar company k Bank account me deposit / jama krwana.');
+
+            $('#sourceLabel').html('<i class="bi bi-wallet2 me-1 text-danger"></i> Deposit From (Credit Head: Cash in Hand) <span class="text-danger">*</span>');
+            $('#destLabel').html('<i class="bi bi-bank me-1 text-success"></i> Deposit Into (Debit Head: Bank Account) <span class="text-danger">*</span>');
+            $('#sourceHint').text('Cash in Hand account credit hoga (cash in hand balance kam hoga).');
+            $('#destHint').text('Muntakhib Bank account debit hoga (bank balance barhega).');
+
+            $('#voucherRuleNotice').show();
+            $('#voucherRuleText').text('Cash in Hand se raqam kam hogi aur muntakhib Bank account mein jama ho jayegi. Party ledger par koi asar nahi hoga.');
+
+            if (cashAccountId) {
+                $('#vCreditAccount').val(cashAccountId).trigger('change');
+            }
+            if (firstBankId) {
+                $('#vDebitAccount').val(firstBankId).trigger('change');
+            }
+
+        } else if (type === 'BANK_TO_CASH') {
+            updateSelectorStyles('B2C', 'Cash Withdrawal from Bank', 'Bank Account ➔ Cash in Hand / بینک سے نکلوایا', 'bi-box-arrow-down', '#0284c7', '#e0f2fe', '#0369a1');
+            $('#currentFormTitle').html('<i class="bi bi-box-arrow-down text-info me-2"></i> Cash Withdrawal from Bank (بینک سے کیش نکلوایا)');
+            $('#currentFormSubTitle').text('Company k Bank account se cheque ya ATM k zariye raqam nikal kar Cash in Hand me lana.');
+
+            $('#sourceLabel').html('<i class="bi bi-bank me-1 text-danger"></i> Withdraw From (Credit Head: Bank Account) <span class="text-danger">*</span>');
+            $('#destLabel').html('<i class="bi bi-wallet2 me-1 text-success"></i> Withdraw Into (Debit Head: Cash in Hand) <span class="text-danger">*</span>');
+            $('#sourceHint').text('Muntakhib Bank account credit hoga (bank balance kam hoga).');
+            $('#destHint').text('Cash in Hand account debit hoga (cash in hand balance barhega).');
+
+            $('#voucherRuleNotice').show();
+            $('#voucherRuleText').text('Muntakhib Bank account se balance kam hoga aur Cash in Hand barh jayega. Party ledger par koi asar nahi hoga.');
+
+            if (firstBankId) {
+                $('#vCreditAccount').val(firstBankId).trigger('change');
+            }
+            if (cashAccountId) {
+                $('#vDebitAccount').val(cashAccountId).trigger('change');
+            }
+
         } else if (type === 'JV') {
             updateSelectorStyles('JV', 'Transfer / Journal Voucher', 'Account Adjustment / کھاتہ ٹرانسفر', 'bi-arrow-left-right', '#7c3aed', '#ede9fe', '#5b21b6');
             $('#currentFormTitle').html('<i class="bi bi-arrow-left-right text-purple me-2"></i> Journal / Transfer Voucher (JV)');
@@ -699,7 +757,7 @@
         const crOpt = $('#vCreditAccount option:selected');
         const crCode = String(crOpt.data('code') || '');
         const crName = String(crOpt.data('name') || '').toLowerCase();
-        const isCashOrBankCr = (vType === 'CPV' || vType === 'BPV' || crCode === '010101001' || crCode === '1110001' || crCode.startsWith('010101') || crCode.startsWith('1110') || crName.includes('cash in hand') || crName.includes('bank'));
+        const isCashOrBankCr = (vType === 'CPV' || vType === 'BPV' || vType === 'CASH_TO_BANK' || vType === 'BANK_TO_CASH' || crCode === '010101001' || crCode === '1110001' || crCode.startsWith('010101') || crCode.startsWith('1110') || crName.includes('cash in hand') || crName.includes('bank'));
 
         if (isCashOrBankCr) {
             const availBal = parseFloat(crOpt.data('balance') || 0);
@@ -717,7 +775,7 @@
             amount: amount,
             credit_account_id: crAcc,
             debit_account_id: drAcc,
-            party_id: document.getElementById('vParty').value || null,
+            party_id: (vType === 'CASH_TO_BANK' || vType === 'BANK_TO_CASH') ? null : (document.getElementById('vParty').value || null),
             remarks: document.getElementById('vRemarks').value.trim(),
         };
 

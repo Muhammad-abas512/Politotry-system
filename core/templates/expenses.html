@@ -480,13 +480,36 @@
             <div class="row g-2 g-md-3">
                 <!-- Date -->
                 <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">Date <span class="text-danger">*</span></label>
+                    <label class="form-label form-label-sm fw-bold">Date <span class="text-danger">*</span></label>
                     <input type="date" name="expense_date" id="expDate" class="form-control form-control-sm" value="{{ today_date }}" required>
                 </div>
 
+                <!-- Payment Method (Strictly 2 Options: CPV & BPV) -->
+                <div class="col-6 col-md-2">
+                    <label class="form-label form-label-sm fw-bold">Payment Method <span class="text-danger">*</span></label>
+                    <select name="voucher_type" id="expVoucherType" class="form-select form-select-sm fw-bold border-primary" onchange="toggleExpensePaymentMode(this.value)" required>
+                        <option value="CPV" selected>CPV (Cash)</option>
+                        <option value="BPV">BPV (Bank)</option>
+                    </select>
+                    <small class="text-success fw-bold d-block mt-1" id="expCashBalBadge" style="font-size:0.72rem;">
+                        <i class="bi bi-wallet2"></i> Cash: Rs. {{ cash_in_hand_bal|floatformat:0 }}
+                    </small>
+                </div>
+
+                <!-- Bank Account Dropdown (Visible only when BPV is selected) -->
+                <div class="col-12 col-md-3" id="expBankCol" style="display:none;">
+                    <label class="form-label form-label-sm fw-bold text-primary">Bank Account <span class="text-danger">*</span></label>
+                    <select name="bank_id" id="expBankSelect" class="form-select form-select-sm border-primary">
+                        <option value="">-- Select Bank Account --</option>
+                        {% for bank in bank_accounts %}
+                        <option value="{{ bank.id }}">{{ bank.name }} (Rs. {{ bank.current_balance|floatformat:0 }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <!-- Head Name -->
-                <div class="col-12 col-md-4">
-                    <label class="form-label form-label-sm">Head Name <span class="text-danger">*</span></label>
+                <div class="col-12 col-md-5" id="expHeadCol">
+                    <label class="form-label form-label-sm fw-bold">Head Name <span class="text-danger">*</span></label>
                     <div class="position-relative">
                         <input type="text" 
                                class="form-control form-control-sm" 
@@ -512,24 +535,24 @@
                 </div>
 
                 <!-- Amount -->
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">Amount <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" name="amount" id="expAmount" class="form-control form-control-sm" placeholder="0.00" required>
+                <div class="col-6 col-md-3">
+                    <label class="form-label form-label-sm fw-bold">Amount <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" name="amount" id="expAmount" class="form-control form-control-sm fw-bold text-danger border-danger" placeholder="0.00" required>
                 </div>
 
                 <!-- Description -->
-                <div class="col-12 col-md-4">
-                    <label class="form-label form-label-sm">Description</label>
+                <div class="col-12 col-md-6">
+                    <label class="form-label form-label-sm fw-bold">Description / Narration</label>
                     <input type="text" name="remarks" id="expRemarks" class="form-control form-control-sm" placeholder="Enter description...">
                 </div>
 
                 <!-- Buttons -->
-                <div class="col-12 mt-2">
-                    <div class="d-flex gap-2 flex-wrap">
+                <div class="col-12 col-md-3 d-flex align-items-end">
+                    <div class="d-flex gap-2 w-100">
                         <button type="submit" class="btn btn-gradient btn-sm flex-fill" id="saveBtn" style="min-width:120px;">
                             <i class="bi bi-check-circle"></i> <span id="saveBtnText">Save Expense</span>
                         </button>
-                        <button type="button" class="btn btn-secondary btn-sm flex-fill" onclick="resetForm()" style="min-width:100px;">
+                        <button type="button" class="btn btn-secondary btn-sm flex-fill" onclick="resetForm()" style="min-width:80px;">
                             <i class="bi bi-arrow-clockwise"></i> Reset
                         </button>
                     </div>
@@ -600,8 +623,9 @@
                     <thead style="background:var(--primary-gradient);">
                         <tr class="text-white">
                             <th style="width:50px;">#</th>
-                            <th style="width:120px;">Date</th>
-                            <th style="width:120px;">Head Code</th>
+                            <th style="width:110px;">Date</th>
+                            <th style="width:130px;">Voucher #</th>
+                            <th style="width:100px;">Head Code</th>
                             <th>Head Name</th>
                             <th>Description</th>
                             <th style="width:120px;">Amount</th>
@@ -613,6 +637,13 @@
                         <tr>
                             <td class="fw-bold">{{ forloop.counter }}</td>
                             <td>{{ exp.date|date:"d M Y" }}</td>
+                            <td>
+                                {% if exp.voucher_no %}
+                                    <span class="badge {% if 'BPV' in exp.voucher_no %}bg-primary{% else %}bg-danger{% endif %} font-monospace">{{ exp.voucher_no }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td><span class="head-badge">{{ exp.head_code|default:"-" }}</span></td>
                             <td><i class="bi bi-tag-fill text-primary me-1"></i>{{ exp.head_name|default:"-" }}</td>
                             <td>{{ exp.remarks|default:"-" }}</td>
@@ -628,7 +659,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox" style="font-size:2rem;"></i>
                                 <p class="mb-0 mt-2">No expenses found for today</p>
                             </td>
@@ -648,7 +679,12 @@
                         <span class="label">Head</span>
                         <div class="value fw-bold"><i class="bi bi-tag-fill text-primary me-1"></i>{{ exp.head_name|default:"-" }}</div>
                     </div>
-                    <span class="head-badge ms-2">{{ exp.head_code|default:"-" }}</span>
+                    <div>
+                        {% if exp.voucher_no %}
+                            <span class="badge {% if 'BPV' in exp.voucher_no %}bg-primary{% else %}bg-danger{% endif %} font-monospace">{{ exp.voucher_no }}</span>
+                        {% endif %}
+                        <span class="head-badge ms-1">{{ exp.head_code|default:"-" }}</span>
+                    </div>
                 </div>
                 <div class="mb-2">
                     <span class="label">Description</span>
@@ -851,6 +887,24 @@ function loadExpenses() {
         .catch(error => console.error('Error:', error));
 }
 
+// ================= TOGGLE EXPENSE PAYMENT MODE =================
+function toggleExpensePaymentMode(vType) {
+    const bankCol = document.getElementById('expBankCol');
+    const bankSelect = document.getElementById('expBankSelect');
+    const cashBadge = document.getElementById('expCashBalBadge');
+
+    if (vType === 'BPV') {
+        bankCol.style.display = 'block';
+        bankSelect.required = true;
+        cashBadge.style.display = 'none';
+    } else {
+        bankCol.style.display = 'none';
+        bankSelect.required = false;
+        bankSelect.value = '';
+        cashBadge.style.display = 'block';
+    }
+}
+
 // ================= RENDER EXPENSES =================
 function renderExpenses(list, searchTerm = '') {
     const highlight = (text) => {
@@ -862,7 +916,7 @@ function renderExpenses(list, searchTerm = '') {
 
     if (!list || !list.length) {
         document.getElementById('expTableBody').innerHTML = 
-            `<tr><td colspan="7" class="text-center text-muted py-4">
+            `<tr><td colspan="8" class="text-center text-muted py-4">
                 <i class="bi bi-inbox" style="font-size:2rem;"></i>
                 <p class="mb-0 mt-2">No expenses found</p>
             </td></tr>`;
@@ -877,9 +931,14 @@ function renderExpenses(list, searchTerm = '') {
     // Table
     let rows = '';
     list.forEach((e, i) => {
+        const vBadge = (e.voucher_no && e.voucher_no !== '-')
+            ? `<span class="badge ${e.voucher_type === 'BPV' ? 'bg-primary' : 'bg-danger'} font-monospace">${e.voucher_no}</span>`
+            : `<span class="text-muted">-</span>`;
+
         rows += `<tr>
             <td class="fw-bold">${i+1}</td>
             <td>${e.date}</td>
+            <td>${vBadge}</td>
             <td><span class="head-badge">${highlight(e.head_code)}</span></td>
             <td><i class="bi bi-tag-fill text-primary me-1"></i>${highlight(e.head_name)}</td>
             <td>${highlight(e.remarks)}</td>
@@ -899,13 +958,20 @@ function renderExpenses(list, searchTerm = '') {
     // Mobile Cards
     let cards = '';
     list.forEach(e => {
+        const vBadge = (e.voucher_no && e.voucher_no !== '-')
+            ? `<span class="badge ${e.voucher_type === 'BPV' ? 'bg-primary' : 'bg-danger'} font-monospace">${e.voucher_no}</span>`
+            : '';
+
         cards += `<div class="expense-mobile-card">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div class="flex-grow-1">
                     <span class="label">Head</span>
                     <div class="value fw-bold"><i class="bi bi-tag-fill text-primary me-1"></i>${highlight(e.head_name)}</div>
                 </div>
-                <span class="head-badge ms-2">${highlight(e.head_code)}</span>
+                <div>
+                    ${vBadge}
+                    <span class="head-badge ms-1">${highlight(e.head_code)}</span>
+                </div>
             </div>
             <div class="mb-2">
                 <span class="label">Description</span>
@@ -964,9 +1030,16 @@ function editExpense(id) {
                 document.getElementById('head_name').value = data.head_name;
                 document.getElementById('expAmount').value = data.amount;
                 document.getElementById('expRemarks').value = data.remarks;
+
+                const vType = data.voucher_type || 'CPV';
+                document.getElementById('expVoucherType').value = vType;
+                toggleExpensePaymentMode(vType);
+                if (data.bank_id) {
+                    document.getElementById('expBankSelect').value = data.bank_id;
+                }
                 
                 document.getElementById('formAction').value = 'update';
-                document.getElementById('formTitle').innerHTML = '<i class="bi bi-pencil-square text-warning"></i> Edit Expense';
+                document.getElementById('formTitle').innerHTML = `<i class="bi bi-pencil-square text-warning"></i> Edit Expense ${data.voucher_no ? '(' + data.voucher_no + ')' : ''}`;
                 document.getElementById('saveBtnText').textContent = 'Update Expense';
                 document.getElementById('saveBtn').className = 'btn btn-warning btn-sm flex-fill text-white';
                 isEditMode = true;
@@ -980,7 +1053,7 @@ function editExpense(id) {
 
 // ================= DELETE EXPENSE =================
 function deleteExpense(id) {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
+    if (!confirm('Are you sure you want to delete this expense and reverse its accounting voucher?')) return;
     
     const form = document.createElement('form');
     form.method = 'POST';
@@ -1017,6 +1090,10 @@ function resetForm() {
     document.getElementById('head_name').value = '';
     document.getElementById('expAmount').value = '';
     document.getElementById('expRemarks').value = '';
+
+    document.getElementById('expVoucherType').value = 'CPV';
+    toggleExpensePaymentMode('CPV');
+    document.getElementById('expBankSelect').value = '';
     
     document.getElementById('formAction').value = 'save';
     document.getElementById('formTitle').innerHTML = '<i class="bi bi-cash-stack text-primary"></i> New Expense';
@@ -1036,18 +1113,44 @@ document.addEventListener('keydown', function(e) {
 
 // ================= FORM SUBMIT HANDLER =================
 document.getElementById('expenseForm').addEventListener('submit', function(e) {
-    const headCode = document.getElementById('head_code').value;
+    let headCode = document.getElementById('head_code').value.trim();
+    let headName = document.getElementById('head_name').value.trim();
+    const searchVal = document.getElementById('headSearch').value.trim();
     const amount = document.getElementById('expAmount').value;
+    const vType = document.getElementById('expVoucherType').value;
+    const bankId = document.getElementById('expBankSelect').value;
+
+    if (!headCode && searchVal) {
+        const match = Array.from(document.querySelectorAll('.head-option')).find(o => 
+            (o.dataset.name && o.dataset.name.toLowerCase() === searchVal.toLowerCase()) || 
+            (o.dataset.code && o.dataset.code.toLowerCase() === searchVal.toLowerCase())
+        );
+        if (match) {
+            headCode = match.dataset.code;
+            headName = match.dataset.name;
+        } else {
+            headCode = 'EXP';
+            headName = searchVal;
+        }
+        document.getElementById('head_code').value = headCode;
+        document.getElementById('head_name').value = headName;
+    }
     
-    if (!headCode) {
+    if (!headCode && !searchVal) {
         e.preventDefault();
-        showToast('⚠️ Please select a head from the dropdown!', 'warning', 1500);
+        showToast('⚠️ Please select or type an Expense Head!', 'warning', 1500);
         return false;
     }
     
     if (!amount || parseFloat(amount) <= 0) {
         e.preventDefault();
         showToast('⚠️ Please enter a valid amount!', 'warning', 1500);
+        return false;
+    }
+
+    if (vType === 'BPV' && !bankId) {
+        e.preventDefault();
+        showToast('⚠️ Please select a Bank Account for Bank Payment (BPV)!', 'warning', 2000);
         return false;
     }
 });
