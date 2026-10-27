@@ -2,7 +2,11 @@
 
 {% block title %}Parties Ledger - Politory{% endblock %}
 
-{% block content %}
+{% block extra_css %}
+<!-- Select2 CSS & Bootstrap 5 Theme -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+
 <style>
     :root {
         --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -28,12 +32,67 @@
     .summary-title { font-size: 0.75rem; text-transform: uppercase; color: #6c757d; }
     .summary-value { font-size: 1.1rem; font-weight: 700; }
 
+    /* Select2 Real-Time Searchable Dropdown Styling */
+    .select2-container--bootstrap-5 .select2-selection {
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        min-height: 40px;
+        padding: 4px 8px;
+        font-size: 0.88rem;
+        display: flex;
+        align-items: center;
+        background-color: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    .select2-container--bootstrap-5.select2-container--open .select2-selection {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+    }
+    .select2-container--bootstrap-5 .select2-dropdown {
+        border: 1.5px solid #667eea;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+        overflow: hidden;
+        z-index: 1060;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search {
+        padding: 8px 10px;
+        background: #f8faff;
+        border-bottom: 1px solid #eef2f7;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field {
+        border-radius: 6px;
+        border: 1.5px solid #667eea;
+        padding: 7px 12px;
+        font-size: 0.88rem;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+    }
+    .select2-container--bootstrap-5 .select2-results__option {
+        padding: 8px 12px;
+        font-size: 0.86rem;
+    }
+    .select2-container--bootstrap-5 .select2-results__option--highlighted[aria-selected] {
+        background: var(--primary-gradient);
+        color: #fff;
+    }
+    .select2-container--bootstrap-5 .select2-results__option--selected {
+        background-color: #eef2ff;
+        color: #4338ca;
+        font-weight: 700;
+    }
+
     @media print {
         .btn-search, .btn-print, #ledgerFilterForm { display: none !important; }
         .ledger-card { box-shadow: none !important; border: 1px solid #ddd !important; }
     }
 </style>
+{% endblock %}
 
+{% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold mb-0"><i class="bi bi-journal-text text-primary me-2"></i> Parties Ledger</h4>
@@ -43,11 +102,16 @@
     <div class="ledger-card p-4 mb-4">
         <form id="ledgerFilterForm" class="row g-3 align-items-end">
             <div class="col-12 col-md-4">
-                <label class="form-label fw-semibold small">Select Party / Head</label>
-                <select class="form-select border-2" id="partySelect" required>
-                    <option value="">-- Choose Party --</option>
+                <label class="form-label fw-semibold small">
+                    <i class="bi bi-search text-primary me-1"></i>Select Party / Head (Searchable)
+                </label>
+                <!-- Real-time Searchable Select2 Dropdown -->
+                <select class="form-select border-2 select2-party" id="partySelect" required>
+                    <option value="">-- Search & Choose Party --</option>
                     {% for party in parties %}
-                        <option value="{{ party.id }}">{{ party.company_name|default:party.owner_name }}</option>
+                        <option value="{{ party.id }}">
+                            {{ party.company_name|default:party.owner_name }}{% if party.owner_name and party.company_name and party.owner_name != party.company_name %} ({{ party.owner_name }}){% endif %}{% if party.code %} [{{ party.code }}]{% endif %}{% if party.party_type %} - {{ party.party_type }}{% endif %}
+                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -128,11 +192,40 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- jQuery & Select2 JS -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const now = new Date();
     document.getElementById('fromDate').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     document.getElementById('toDate').value = now.toISOString().split('T')[0];
+});
+
+$(document).ready(function() {
+    // Initialize Real-time Searchable Select2
+    $('#partySelect').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Search & Choose Party --',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Auto-focus search input when Select2 dropdown is clicked/opened
+    $(document).on('select2:open', () => {
+        const searchField = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchField) {
+            searchField.focus();
+        }
+    });
+
+    // Automatically load ledger data when a party is selected
+    $('#partySelect').on('select2:select', function(e) {
+        if (e.params && e.params.data && e.params.data.id) {
+            fetchLedger();
+        }
+    });
 });
 
 function formatCurrency(amt, type="") {
@@ -141,7 +234,7 @@ function formatCurrency(amt, type="") {
 }
 
 function fetchLedger() {
-    const party = document.getElementById('partySelect').value;
+    const party = $('#partySelect').val();
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
 
@@ -188,7 +281,7 @@ function fetchLedger() {
 }
 
 function printPDF() {
-    const party = document.getElementById('partySelect').value;
+    const party = $('#partySelect').val();
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
     if(!party) { alert("Please select a party first!"); return; }

@@ -1,0 +1,889 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Expense Report - MJ Poultries{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --exp-navy-dark: #0f172a;
+        --exp-navy: #1e293b;
+        --exp-navy-light: #334155;
+        --exp-blue: #2563eb;
+        --exp-indigo: #4f46e5;
+        --exp-emerald: #059669;
+        --exp-rose: #e11d48;
+        --exp-amber: #d97706;
+        --exp-bg: #f8fafc;
+        --exp-card-border: #e2e8f0;
+    }
+
+    body {
+        background-color: var(--exp-bg);
+    }
+
+    .expense-report-container {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        color: #1e293b;
+    }
+
+    /* Hero Banner Header */
+    .report-hero {
+        background: linear-gradient(135deg, #0a0f1f 0%, #0f172a 45%, #1e293b 100%);
+        color: #ffffff;
+        border-radius: 16px;
+        padding: 22px 26px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+        margin-bottom: 22px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .report-hero::before {
+        content: "";
+        position: absolute;
+        width: 280px;
+        height: 280px;
+        border: 45px solid rgba(255, 255, 255, 0.03);
+        border-radius: 50%;
+        right: -80px;
+        top: -100px;
+        pointer-events: none;
+    }
+
+    .report-hero-title {
+        font-size: 1.55rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .report-hero-subtitle {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        margin: 0;
+    }
+
+    .btn-print-pdf {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff;
+        border: none;
+        font-weight: 700;
+        padding: 9px 18px;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+        box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+
+    .btn-print-pdf:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(217, 119, 6, 0.5);
+        color: #fff;
+    }
+
+    .btn-browser-print {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        font-weight: 600;
+        padding: 9px 16px;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-browser-print:hover {
+        background: rgba(255, 255, 255, 0.22);
+        color: #fff;
+    }
+
+    /* Filter Card */
+    .filter-card {
+        background: #ffffff;
+        border: 1px solid var(--exp-card-border);
+        border-radius: 14px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+        margin-bottom: 22px;
+        padding: 20px;
+    }
+
+    .filter-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #475569;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 9px;
+        border: 1.5px solid #cbd5e1;
+        font-size: 0.88rem;
+        padding: 8px 12px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border: none;
+        font-weight: 700;
+        font-size: 0.88rem;
+        padding: 9px 18px;
+        border-radius: 9px;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        transition: all 0.2s ease;
+    }
+
+    .btn-filter:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+        color: #fff;
+    }
+
+    .btn-reset {
+        border: 1.5px solid #cbd5e1;
+        color: #64748b;
+        background: #fff;
+        font-weight: 600;
+        font-size: 0.88rem;
+        padding: 9px 16px;
+        border-radius: 9px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .btn-reset:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+        border-color: #94a3b8;
+    }
+
+    /* Date Preset Pills */
+    .preset-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px dashed #e2e8f0;
+    }
+
+    .preset-btn {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-size: 0.73rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-card {
+        border-radius: 14px;
+        color: #fff;
+        padding: 16px 18px;
+        height: 100%;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.25s ease;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .kpi-card small {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        opacity: 0.85;
+        margin-bottom: 4px;
+    }
+
+    .kpi-card h3 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.3px;
+    }
+
+    .kpi-card .kpi-sub {
+        font-size: 0.72rem;
+        margin-top: 4px;
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .kpi-card i.kpi-bg-icon {
+        position: absolute;
+        right: -8px;
+        bottom: -12px;
+        font-size: 4rem;
+        opacity: 0.15;
+        pointer-events: none;
+    }
+
+    .kpi-1 { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+    .kpi-2 { background: linear-gradient(135deg, #059669, #10b981); }
+    .kpi-3 { background: linear-gradient(135deg, #0284c7, #0ea5e9); }
+    .kpi-4 { background: linear-gradient(135deg, #d97706, #f59e0b); }
+
+    /* Report Data Table Card */
+    .table-card {
+        background: #ffffff;
+        border: 1px solid var(--exp-card-border);
+        border-radius: 14px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+        margin-bottom: 30px;
+    }
+
+    .table-card-header {
+        padding: 16px 20px;
+        background: #ffffff;
+        border-bottom: 1px solid var(--exp-card-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .table-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .table-search-input {
+        max-width: 260px;
+        font-size: 0.82rem;
+        border-radius: 20px;
+        padding: 6px 14px 6px 34px;
+        background-color: #f8fafc;
+    }
+
+    .search-wrapper {
+        position: relative;
+    }
+
+    .search-wrapper i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+
+    .expense-table {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+
+    .expense-table thead th {
+        background: #0f172a;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        padding: 12px 14px;
+        white-space: nowrap;
+        border: none;
+    }
+
+    .expense-table tbody td {
+        padding: 12px 14px;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .expense-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .voucher-badge {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        font-family: monospace;
+        letter-spacing: 0.3px;
+    }
+
+    .head-badge {
+        background: #f1f5f9;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .head-code-pill {
+        background: #0f172a;
+        color: #fff;
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        font-weight: 700;
+    }
+
+    .amount-text {
+        font-weight: 800;
+        color: #0f172a;
+        font-size: 0.92rem;
+    }
+
+    .total-row td {
+        background: #e2e8f0 !important;
+        border-top: 2px solid #0f172a !important;
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #0f172a;
+        padding: 14px 14px;
+    }
+
+    /* Print-Only Sheet Header (hidden on screen) */
+    .print-sheet-header {
+        display: none;
+    }
+
+    /* Print Media Styles */
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        body {
+            background: #fff !important;
+            font-size: 9pt;
+            color: #000 !important;
+        }
+
+        .sidebar, .mobile-toggle, .sidebar-overlay,
+        .report-hero, .filter-card, .preset-pills,
+        .table-search-input, .search-wrapper, .btn-print-pdf, .btn-browser-print,
+        .btn, nav, .sidebar-footer {
+            display: none !important;
+        }
+
+        .main-content {
+            margin-left: 0 !important;
+            padding: 0 !important;
+        }
+
+        .page-content {
+            padding: 0 !important;
+        }
+
+        .print-sheet-header {
+            display: block !important;
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 10px;
+        }
+
+        .print-sheet-header h2 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 0 0 4px 0;
+            color: #0f172a;
+        }
+
+        .print-sheet-header h4 {
+            font-size: 12pt;
+            margin: 0 0 6px 0;
+            color: #2563eb;
+        }
+
+        .print-sheet-meta {
+            font-size: 8.5pt;
+            color: #475569;
+        }
+
+        .table-card {
+            border: none !important;
+            box-shadow: none !important;
+            margin-bottom: 0 !important;
+        }
+
+        .table-card-header {
+            display: none !important;
+        }
+
+        .expense-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 8.5pt !important;
+        }
+
+        .expense-table th {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            border: 1px solid #334155 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            padding: 6px 8px !important;
+        }
+
+        .expense-table td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 6px 8px !important;
+        }
+
+        .total-row td {
+            background-color: #e2e8f0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-weight: bold !important;
+        }
+
+        .print-signatures {
+            display: flex !important;
+            justify-content: space-between;
+            margin-top: 50px;
+            padding-top: 10px;
+            page-break-inside: avoid;
+        }
+
+        .print-sign-box {
+            text-align: center;
+            width: 180px;
+            border-top: 1px solid #334155;
+            padding-top: 6px;
+            font-size: 8.5pt;
+            font-weight: bold;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .report-hero { padding: 16px; }
+        .report-hero-title { font-size: 1.25rem; }
+        .btn-print-pdf, .btn-browser-print { width: 100%; justify-content: center; }
+        .table-card-header { flex-direction: column; align-items: stretch; }
+        .table-search-input { max-width: 100%; }
+        .expense-table { font-size: 0.75rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="expense-report-container">
+    <div class="container-fluid p-0">
+
+        <!-- Print Sheet Header (Visible Only in Print) -->
+        <div class="print-sheet-header">
+            <h2>MJ POULTRIES</h2>
+            <h4>EXPENSE REPORT</h4>
+            <div class="print-sheet-meta">
+                <strong>Expense Head:</strong> {{ selected_head_name }} &nbsp;|&nbsp;
+                <strong>Period:</strong> {% if from_date %}{{ from_date }}{% else %}Start{% endif %} to {% if to_date %}{{ to_date }}{% else %}Current{% endif %} &nbsp;|&nbsp;
+                <strong>Total Entries:</strong> {{ total_count }} &nbsp;|&nbsp;
+                <strong>Printed On:</strong> {% now "d-m-Y H:i" %}
+            </div>
+        </div>
+
+        <!-- Hero Header -->
+        <div class="report-hero d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h1 class="report-hero-title">
+                    <i class="bi bi-wallet2 text-warning"></i>
+                    Expense Report
+                </h1>
+                <p class="report-hero-subtitle">
+                    Comprehensive head-wise and date-filtered expense statement & analysis
+                </p>
+            </div>
+
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <!-- PRINT IN NEW TAB: Calls reports.expense_report with print=1 -->
+                <a href="{% url 'expense_report' %}?from_date={{ from_date }}&to_date={{ to_date }}&expense_head={{ selected_head }}&print=1"
+                   target="_blank"
+                   rel="noopener"
+                   class="btn btn-print-pdf shadow"
+                   id="btnPrintReportPdf"
+                   title="Open printable PDF report in a new tab">
+                    <i class="bi bi-printer-fill fs-5"></i>
+                    <span>Print Report (PDF)</span>
+                </a>
+
+            </div>
+        </div>
+
+        <!-- Filter Card -->
+        <div class="filter-card">
+            <form method="GET" action="{% url 'expense_report' %}" id="expenseFilterForm">
+                <div class="row g-3 align-items-end">
+
+                    <!-- From Date Filter -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label class="filter-label">
+                            <i class="bi bi-calendar-event text-primary"></i> From Date
+                        </label>
+                        <input type="date"
+                               name="from_date"
+                               id="fromDateInput"
+                               value="{{ from_date }}"
+                               class="form-control"
+                               placeholder="YYYY-MM-DD">
+                    </div>
+
+                    <!-- To Date Filter -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label class="filter-label">
+                            <i class="bi bi-calendar-check text-primary"></i> To Date
+                        </label>
+                        <input type="date"
+                               name="to_date"
+                               id="toDateInput"
+                               value="{{ to_date }}"
+                               class="form-control"
+                               placeholder="YYYY-MM-DD">
+                    </div>
+
+                    <!-- Expense Head Filter Dropdown -->
+                    <div class="col-12 col-sm-12 col-lg-4">
+                        <label class="filter-label">
+                            <i class="bi bi-tags text-primary"></i> Expense Head
+                        </label>
+                        <select name="expense_head" id="expenseHeadSelect" class="form-select">
+                            <option value="">-- All Expense Heads (Display All) --</option>
+                            <option value="all" {% if selected_head == 'all' %}selected{% endif %}>
+                                All Expense Heads
+                            </option>
+                            {% for head in expense_heads %}
+                            <option value="{{ head.code }}"
+                                    {% if selected_head == head.code or selected_head == head.name %}selected{% endif %}>
+                                {{ head.code }} - {{ head.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="col-12 col-lg-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-filter flex-grow-1" id="btnFilterSubmit">
+                            <i class="bi bi-funnel-fill me-1"></i> Filter
+                        </button>
+                        <a href="{% url 'expense_report' %}" class="btn btn-reset" title="Reset all filters">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- Date Presets Shortcuts -->
+                <div class="preset-pills">
+                    <span class="text-muted small fw-bold me-1" style="font-size:0.72rem; align-self:center;">
+                        <i class="bi bi-lightning-charge-fill text-warning"></i> Quick Presets:
+                    </span>
+                    <button type="button" class="preset-btn" onclick="applyPreset('today')">Today</button>
+                    <button type="button" class="preset-btn" onclick="applyPreset('yesterday')">Yesterday</button>
+                    <button type="button" class="preset-btn" onclick="applyPreset('this_month')">This Month</button>
+                    <button type="button" class="preset-btn" onclick="applyPreset('last_month')">Last Month</button>
+                    <button type="button" class="preset-btn" onclick="applyPreset('all_time')">All Time</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Summary KPI Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Amount -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-1">
+                    <i class="bi bi-cash-stack kpi-bg-icon"></i>
+                    <small>TOTAL EXPENSES</small>
+                    <h3>Rs. {{ total_amount|floatformat:2 }}</h3>
+                    <div class="kpi-sub">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>Sum of filtered expenses</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Transactions -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-2">
+                    <i class="bi bi-receipt kpi-bg-icon"></i>
+                    <small>TOTAL ENTRIES</small>
+                    <h3>{{ total_count }}</h3>
+                    <div class="kpi-sub">
+                        <i class="bi bi-list-check"></i>
+                        <span>Expense records found</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expense Head -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-3">
+                    <i class="bi bi-tag-fill kpi-bg-icon"></i>
+                    <small>EXPENSE HEAD</small>
+                    <h3 style="font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ selected_head_name }}">
+                        {{ selected_head_name }}
+                    </h3>
+                    <div class="kpi-sub">
+                        <i class="bi bi-filter"></i>
+                        <span>Active category filter</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date Range -->
+            <div class="col-6 col-lg-3">
+                <div class="kpi-card kpi-4">
+                    <i class="bi bi-calendar3 kpi-bg-icon"></i>
+                    <small>DATE RANGE</small>
+                    <h3 style="font-size: 1.05rem;">
+                        {% if from_date or to_date %}
+                            {{ from_date|default:"Start" }} &rarr; {{ to_date|default:"Current" }}
+                        {% else %}
+                            All Available Dates
+                        {% endif %}
+                    </h3>
+                    <div class="kpi-sub">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Filtered timeframe</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expense Data Table Card -->
+        <div class="table-card">
+            <div class="table-card-header">
+                <h5 class="table-card-title">
+                    <i class="bi bi-table text-primary"></i>
+                    <span>Detailed Expense Statements</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill ms-2">
+                        {{ total_count }} record{{ total_count|pluralize }}
+                    </span>
+                </h5>
+
+                <!-- Live Client Search Box -->
+                <div class="search-wrapper">
+                    <i class="bi bi-search"></i>
+                    <input type="text"
+                           id="tableSearchInput"
+                           class="form-control table-search-input"
+                           placeholder="Search in table..."
+                           onkeyup="filterTable()">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table expense-table" id="expenseReportTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px; text-align: center;">#</th>
+                            <th style="width: 120px;">Date</th>
+                            <th style="width: 150px;">Voucher #</th>
+                            <th style="width: 200px;">Expense Head</th>
+                            <th>Narration / Remarks</th>
+                            <th style="width: 160px; text-align: right;">Amount (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseTableBody">
+                        {% for row in records %}
+                        <tr>
+                            <td style="text-align: center; color: #64748b; font-weight: 600;">
+                                {{ row.sr_no }}
+                            </td>
+                            <td>
+                                <span class="fw-semibold text-dark">
+                                    {{ row.date|date:"d-m-Y" }}
+                                </span>
+                                {% if row.date %}
+                                <small class="d-block text-muted" style="font-size:0.68rem;">
+                                    {{ row.date|date:"h:i A" }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.voucher_no %}
+                                    <span class="voucher-badge">
+                                        <i class="bi bi-receipt me-1"></i>{{ row.voucher_no }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="head-badge">
+                                    {% if row.head_code %}
+                                    <span class="head-code-pill">{{ row.head_code }}</span>
+                                    {% endif %}
+                                    <span>{{ row.head_name|default:"General Expense" }}</span>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="text-secondary" style="font-size:0.83rem;">
+                                    {{ row.remarks|default:"<span class='text-muted italic'>No narration</span>"|safe }}
+                                </div>
+                            </td>
+                            <td style="text-align: right;">
+                                <span class="amount-text text-danger">
+                                    Rs. {{ row.cleaned_amount|floatformat:2 }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="my-4">
+                                    <i class="bi bi-inbox text-muted" style="font-size: 3.5rem;"></i>
+                                    <h6 class="fw-bold mt-3 text-secondary">No Expense Records Found</h6>
+                                    <p class="text-muted small mb-3">
+                                        No expenses match the selected date range or expense head criteria.
+                                    </p>
+                                    <a href="{% url 'expense_report' %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if records %}
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3" class="text-uppercase">
+                                <i class="bi bi-calculator me-1"></i> GRAND TOTAL
+                            </td>
+                            <td colspan="2" class="text-muted fw-normal" style="font-size:0.85rem;">
+                                Total Entries: <strong>{{ total_count }}</strong>
+                            </td>
+                            <td style="text-align: right; color: #b91c1c; font-size: 1.05rem;">
+                                Rs. {{ total_amount|floatformat:2 }}
+                            </td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Print-only Signatures block -->
+        <div class="print-signatures" style="display: none;">
+            <div class="print-sign-box">Prepared By</div>
+            <div class="print-sign-box">Verified By</div>
+            <div class="print-sign-box">Approved By</div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Quick Presets for Date Range
+    function applyPreset(preset) {
+        const fromInput = document.getElementById('fromDateInput');
+        const toInput = document.getElementById('toDateInput');
+        const today = new Date();
+
+        function formatDate(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        if (preset === 'today') {
+            const tStr = formatDate(today);
+            fromInput.value = tStr;
+            toInput.value = tStr;
+        } else if (preset === 'yesterday') {
+            const yest = new Date(today);
+            yest.setDate(yest.getDate() - 1);
+            const yStr = formatDate(yest);
+            fromInput.value = yStr;
+            toInput.value = yStr;
+        } else if (preset === 'this_month') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            fromInput.value = formatDate(firstDay);
+            toInput.value = formatDate(lastDay);
+        } else if (preset === 'last_month') {
+            const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+            fromInput.value = formatDate(firstDayLastMonth);
+            toInput.value = formatDate(lastDayLastMonth);
+        } else if (preset === 'all_time') {
+            fromInput.value = '';
+            toInput.value = '';
+        }
+
+        // Auto submit form on preset click
+        document.getElementById('expenseFilterForm').submit();
+    }
+
+    // Live search filter in the table
+    function filterTable() {
+        const input = document.getElementById('tableSearchInput');
+        const filter = input.value.toLowerCase();
+        const tbody = document.getElementById('expenseTableBody');
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const text = row.textContent || row.innerText;
+            if (text.toLowerCase().indexOf(filter) > -1) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+</script>
+{% endblock %}

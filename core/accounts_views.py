@@ -573,14 +573,14 @@ def voucher_entry(request):
                     cr_party_id = cr_acc.party_id or (party_id if not is_cash_hand_cr and not is_bank_cr else None)
 
                 if v_type == 'CASH_TO_BANK':
-                    dr_narration = remarks or f"Cash Deposit: Cash in Hand to {dr_acc.name}"
-                    cr_narration = remarks or f"Cash Deposit: Paid from Cash in Hand to {dr_acc.name}"
+                    dr_narration = remarks or f"Cash Deposit to {dr_acc.name}"
+                    cr_narration = remarks or "Cash Deposit from Cash in Hand"
                 elif v_type == 'BANK_TO_CASH':
-                    dr_narration = remarks or f"Cash Withdrawal: Received in Cash in Hand from {cr_acc.name}"
-                    cr_narration = remarks or f"Cash Withdrawal: Paid from {cr_acc.name} to Cash in Hand"
+                    dr_narration = remarks or "Cash Withdrawal into Cash in Hand"
+                    cr_narration = remarks or f"Cash Withdrawal from {cr_acc.name}"
                 else:
-                    dr_narration = remarks or f"{v_type}: Debit to {dr_acc.name}"
-                    cr_narration = remarks or f"{v_type}: Credit from {cr_acc.name}"
+                    dr_narration = remarks or (f"Payment to {dr_acc.name}" if v_type in ['CPV', 'BPV'] else f"Receipt from {cr_acc.name}")
+                    cr_narration = remarks or (f"Paid from {cr_acc.name}" if v_type in ['CPV', 'BPV'] else f"Received into {dr_acc.name}")
 
                 entries.append({
                     'account': dr_acc,

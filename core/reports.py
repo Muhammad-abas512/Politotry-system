@@ -5,8 +5,8 @@ from datetime import datetime, time
 from django.db.models import Q, Sum
 from .models import (
     Parties, SellsInvoice, Sellspayment, PurchaseReceiving,
-    PurchasePayments, Expensedetail, CashRecord, Mortality,
-    Voucher, VoucherDetail, ChartOfAccount
+    PurchasePayments, Expensedetail, ExpenseHead, CashRecord, Mortality,
+    Voucher, VoucherDetail, ChartOfAccount, BroilerRate
 )
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.pagesizes import A4
@@ -105,11 +105,12 @@ def get_party_ledger(request):
         # 2. TRANSACTIONS
         combined = []
         for inv in SellsInvoice.objects.filter(sales_q, entry_date__date__gte=from_date, entry_date__date__lte=to_date).order_by('entry_date', 'id'):
+            sale_desc = f"Vehicle: {inv.vehicle_no.strip()}" if (inv.vehicle_no and str(inv.vehicle_no).strip()) else "Sale"
             combined.append({
                 'dt': inv.entry_date,
                 'id': inv.id or 0,
                 'priority': 1,
-                'desc': f"Sale Invoice #{inv.sells_no}",
+                'desc': sale_desc,
                 'w': inv.weight,
                 'mr': '-',
                 'vr': inv.rate,
@@ -129,14 +130,35 @@ def get_party_ledger(request):
                 'cr': safe_decimal(rec.received_amount) or safe_decimal(rec.amount)
             })
         for pur in PurchaseReceiving.objects.filter(pur_q, date__date__gte=from_date, date__date__lte=to_date).order_by('date', 'id'):
+            # Description jo purchase receiving form pr dali thi
+            pur_desc = pur.discription.strip() if (pur.discription and str(pur.discription).strip()) else f"Purchase Invoice #{pur.purchase_number}"
+
+            # Market rate: pur.market_rate ya us date ka BroilerRate
+            mr_val = safe_decimal(pur.market_rate)
+            if mr_val <= 0:
+                p_date = pur.date.date() if hasattr(pur.date, 'date') else pur.date
+                b_rate = BroilerRate.objects.filter(date=p_date).first()
+                if not b_rate:
+                    b_rate = BroilerRate.objects.filter(date__lte=p_date).order_by('-date').first()
+                if not b_rate:
+                    b_rate = BroilerRate.objects.order_by('-date', '-id').first()
+                if b_rate and b_rate.rate:
+                    mr_val = safe_decimal(b_rate.rate)
+
+            mr_display = f"{mr_val:g}" if mr_val > 0 else "-"
+            vr_val = safe_decimal(pur.vendor_rate)
+            vr_display = f"{vr_val:g}" if vr_val > 0 else "-"
+            w_val = safe_decimal(pur.weight)
+            w_display = f"{w_val:g}" if w_val > 0 else "-"
+
             combined.append({
                 'dt': pur.date,
                 'id': pur.id or 0,
                 'priority': 1,
-                'desc': f"Purchase Invoice #{pur.purchase_number}",
-                'w': pur.weight,
-                'mr': pur.market_rate,
-                'vr': pur.vendor_rate,
+                'desc': pur_desc,
+                'w': w_display,
+                'mr': mr_display,
+                'vr': vr_display,
                 'dr': 0.0,
                 'cr': safe_decimal(pur.amount)
             })
@@ -163,16 +185,37 @@ def get_party_ledger(request):
             else:
                 v_dt = datetime.combine(v.voucher.date, time.min)
 
-            v_remarks = (v.narration or v.voucher.remarks or '').strip()
-            desc = f"{v.voucher.voucher_no} ({v.voucher.voucher_type})"
-            if v_remarks:
-                desc += f" - {v_remarks}"
+            # Clean description: Do NOT prepend voucher number or type
+            vt_clean_map = {
+                'CPV': 'Cash Payment',
+                'CRV': 'Cash Receipt',
+                'BPV': 'Bank Payment',
+                'BRV': 'Bank Receipt',
+                'JV': 'Journal Entry',
+                'CASH_TO_BANK': 'Cash Deposit',
+                'BANK_TO_CASH': 'Cash Withdrawal',
+                'Payment Voucher': 'Cash Payment',
+                'Receipt Voucher': 'Cash Receipt',
+                'Transfer Voucher': 'Journal Entry',
+            }
+            default_v_label = vt_clean_map.get(v.voucher.voucher_type, 'Payment / Receipt')
+
+            raw_desc = (v.narration or v.voucher.remarks or '').strip()
+            clean_desc = raw_desc
+            for pfx in ['CPV:', 'CRV:', 'BPV:', 'BRV:', 'JV:', 'CASH_TO_BANK:', 'BANK_TO_CASH:']:
+                if clean_desc.upper().startswith(pfx):
+                    clean_desc = clean_desc[len(pfx):].strip()
+
+            clean_lower = clean_desc.lower()
+            if not clean_desc or clean_lower.startswith('debit to') or clean_lower.startswith('credit from') or clean_lower.startswith('expense:'):
+                clean_desc = default_v_label
+
             combined.append({
                 'dt': v_dt,
                 'id': v.voucher.id or 0,
                 'line_id': v.id or 0,
                 'priority': 2,
-                'desc': desc,
+                'desc': clean_desc,
                 'w': '-',
                 'mr': '-',
                 'vr': '-',
@@ -378,13 +421,14 @@ def export_ledger_pdf(request):
 
     combined = []
     for inv in SellsInvoice.objects.filter(customer_name__iexact=target_name, entry_date__range=[from_dt, to_dt]).order_by('entry_date', 'id'):
+        sale_desc = f"Vehicle: {inv.vehicle_no.strip()}" if (inv.vehicle_no and str(inv.vehicle_no).strip()) else "Sale"
         combined.append({
             'date': inv.entry_date.date(),
             'sort_dt': inv.entry_date,
             'id': inv.id or 0,
             'priority': 1,
             'code': inv.sells_no or f"SI-{inv.id}",
-            'desc': f"Sale Invoice #{inv.sells_no}",
+            'desc': sale_desc,
             'dr': safe_decimal(inv.amount),
             'cr': 0.0
         })
@@ -400,13 +444,14 @@ def export_ledger_pdf(request):
             'cr': safe_decimal(rec.received_amount) or safe_decimal(rec.amount)
         })
     for pur in PurchaseReceiving.objects.filter(vendor_name__iexact=target_name, date__range=[from_dt, to_dt]).order_by('date', 'id'):
+        pur_desc = pur.discription.strip() if (pur.discription and str(pur.discription).strip()) else f"Purchase Invoice #{pur.purchase_number}"
         combined.append({
             'date': pur.date.date(),
             'sort_dt': pur.date,
             'id': pur.id or 0,
             'priority': 1,
             'code': pur.purchase_number or f"PI-{pur.id}",
-            'desc': f"Purchase Invoice #{pur.purchase_number}",
+            'desc': pur_desc,
             'dr': 0.0,
             'cr': safe_decimal(pur.amount)
         })
@@ -432,10 +477,30 @@ def export_ledger_pdf(request):
         else:
             v_dt = datetime.combine(v.voucher.date, time.min)
 
-        v_remarks = (v.narration or v.voucher.remarks or '').strip()
-        v_desc = f"{v.voucher.voucher_no} ({v.voucher.voucher_type})"
-        if v_remarks:
-            v_desc += f" - {v_remarks}"
+        vt_clean_map = {
+            'CPV': 'Cash Payment',
+            'CRV': 'Cash Receipt',
+            'BPV': 'Bank Payment',
+            'BRV': 'Bank Receipt',
+            'JV': 'Journal Entry',
+            'CASH_TO_BANK': 'Cash Deposit',
+            'BANK_TO_CASH': 'Cash Withdrawal',
+            'Payment Voucher': 'Cash Payment',
+            'Receipt Voucher': 'Cash Receipt',
+            'Transfer Voucher': 'Journal Entry',
+        }
+        default_v_label = vt_clean_map.get(v.voucher.voucher_type, 'Payment / Receipt')
+
+        raw_desc = (v.narration or v.voucher.remarks or '').strip()
+        clean_desc = raw_desc
+        for pfx in ['CPV:', 'CRV:', 'BPV:', 'BRV:', 'JV:', 'CASH_TO_BANK:', 'BANK_TO_CASH:']:
+            if clean_desc.upper().startswith(pfx):
+                clean_desc = clean_desc[len(pfx):].strip()
+
+        clean_lower = clean_desc.lower()
+        if not clean_desc or clean_lower.startswith('debit to') or clean_lower.startswith('credit from') or clean_lower.startswith('expense:'):
+            clean_desc = default_v_label
+
         combined.append({
             'date': v.voucher.date,
             'sort_dt': v_dt,
@@ -443,7 +508,7 @@ def export_ledger_pdf(request):
             'line_id': v.id or 0,
             'priority': 2,
             'code': v.voucher.voucher_no,
-            'desc': v_desc,
+            'desc': clean_desc,
             'dr': safe_decimal(v.debit),
             'cr': safe_decimal(v.credit)
         })
@@ -3849,6 +3914,263 @@ def account_ledger_print(request):
     """View function wrapper in reports.py for General Account Ledger Print."""
     from .accounts_views import account_ledger_print as _alp
     return _alp(request)
+
+
+# =========================================================
+# EXPENSE REPORT (UNIFIED VIEW & PRINT FUNCTION)
+# =========================================================
+def expense_report(request, print_mode=False):
+    """
+    Unified single view function for Expense Report and Print.
+    - Filters: from_date, to_date, expense_head (select head or 'all')
+    - Displays: Date, Voucher #, Expense Head, Narration / Remarks, Amount
+    - Print: When print=1 (or print_mode=True), generates and returns inline PDF
+             that opens in a new tab for seamless printing/downloading.
+    """
+    if not request.session.get('user_id'):
+        return redirect('login')
+
+    from decimal import Decimal, InvalidOperation
+    from io import BytesIO
+    from django.db.models import Q
+    from django.utils import timezone
+    from .models import Expensedetail, ExpenseHead
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether
+
+    from_date = (request.GET.get('from_date') or '').strip()
+    to_date = (request.GET.get('to_date') or '').strip()
+    selected_head = (request.GET.get('expense_head') or request.GET.get('head_code') or '').strip()
+    is_print = print_mode or (request.GET.get('print') in ['1', 'true', 'yes', 'pdf'])
+
+    # Fetch all expense heads for the filter dropdown
+    expense_heads = ExpenseHead.objects.all().order_by('name')
+
+    # Query all expenses
+    records = Expensedetail.objects.all()
+
+    # Filter by Expense Head (if selected and not 'all')
+    selected_head_name = "All Expense Heads"
+    if selected_head and selected_head.lower() != 'all':
+        head_obj = ExpenseHead.objects.filter(Q(code__iexact=selected_head) | Q(name__iexact=selected_head)).first()
+        if head_obj:
+            selected_head_name = f"{head_obj.code} - {head_obj.name}" if head_obj.code else head_obj.name
+            records = records.filter(
+                Q(head_code__iexact=head_obj.code) |
+                Q(head_name__iexact=head_obj.name) |
+                Q(head_code__iexact=selected_head) |
+                Q(head_name__iexact=selected_head)
+            )
+        else:
+            selected_head_name = selected_head
+            records = records.filter(
+                Q(head_code__iexact=selected_head) |
+                Q(head_name__iexact=selected_head)
+            )
+    else:
+        selected_head = ''  # Normalize 'all' or empty to empty string
+
+    # Filter by date range
+    if from_date:
+        records = records.filter(date__date__gte=from_date)
+
+    if to_date:
+        records = records.filter(date__date__lte=to_date)
+
+    records = records.order_by('date', 'id')
+
+    # Helper function to parse and clean numbers
+    def parse_amt(val):
+        try:
+            return Decimal(str(val or '0').replace(',', '').strip())
+        except (InvalidOperation, ValueError, TypeError):
+            return Decimal('0')
+
+    # Process records and calculate total
+    total_amount = Decimal('0')
+    cleaned_records = []
+    for idx, row in enumerate(records, 1):
+        amt = parse_amt(row.amount)
+        total_amount += amt
+        row.cleaned_amount = amt
+        row.sr_no = idx
+        cleaned_records.append(row)
+
+    total_count = len(cleaned_records)
+
+    # =====================================================
+    # PRINT MODE: GENERATE PDF & OPEN IN NEW TAB
+    # =====================================================
+    if is_print:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            leftMargin=10 * mm,
+            rightMargin=10 * mm,
+            topMargin=10 * mm,
+            bottomMargin=10 * mm,
+            title='Expense Report'
+        )
+
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            'ExpenseTitle',
+            parent=styles['Heading1'],
+            fontName='Helvetica-Bold',
+            fontSize=16,
+            leading=20,
+            alignment=1,  # Center
+            textColor=colors.HexColor('#0f172a')
+        )
+        subtitle_style = ParagraphStyle(
+            'ExpenseSub',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=11,
+            leading=14,
+            alignment=1,
+            textColor=colors.HexColor('#2563eb')
+        )
+        meta_style = ParagraphStyle(
+            'ExpenseMeta',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8.5,
+            leading=12,
+            alignment=1,
+            textColor=colors.HexColor('#475569')
+        )
+        cell_style = ParagraphStyle(
+            'CellText',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor('#1e293b')
+        )
+        cell_bold = ParagraphStyle(
+            'CellBold',
+            parent=cell_style,
+            fontName='Helvetica-Bold'
+        )
+
+        # Date range string for header
+        if from_date and to_date:
+            date_range_str = f"From: {from_date} &nbsp; | &nbsp; To: {to_date}"
+        elif from_date:
+            date_range_str = f"From: {from_date} onwards"
+        elif to_date:
+            date_range_str = f"Up to: {to_date}"
+        else:
+            date_range_str = "All Dates"
+
+        elements = [
+            Paragraph("MJ POULTRIES", title_style),
+            Spacer(1, 1.5 * mm),
+            Paragraph("EXPENSE REPORT", subtitle_style),
+            Spacer(1, 2 * mm),
+            Paragraph(f"<b>Head:</b> {selected_head_name} &nbsp;&nbsp;&bull;&nbsp;&nbsp; <b>Period:</b> {date_range_str} &nbsp;&nbsp;&bull;&nbsp;&nbsp; <b>Total Entries:</b> {total_count}", meta_style),
+            Spacer(1, 4 * mm),
+        ]
+
+        # Table data
+        # Printable width on A4 Portrait: 210 - 20 = 190mm
+        col_widths = [10 * mm, 24 * mm, 30 * mm, 45 * mm, 51 * mm, 30 * mm]
+
+        table_data = [[
+            '#', 'Date', 'Voucher #', 'Expense Head', 'Narration / Remarks', 'Amount (Rs.)'
+        ]]
+
+        for row in cleaned_records:
+            date_display = row.date.strftime('%d-%m-%Y') if row.date else '-'
+            v_no = row.voucher_no or '-'
+            head_display = f"{row.head_code} - {row.head_name}" if (row.head_code and row.head_name) else (row.head_name or row.head_code or '-')
+            narration_display = row.remarks or '-'
+            amt_display = f"{row.cleaned_amount:,.2f}"
+
+            table_data.append([
+                Paragraph(str(row.sr_no), cell_style),
+                Paragraph(date_display, cell_style),
+                Paragraph(v_no, cell_style),
+                Paragraph(head_display, cell_style),
+                Paragraph(narration_display, cell_style),
+                Paragraph(amt_display, ParagraphStyle('Amt', parent=cell_bold, alignment=2))  # Right-aligned
+            ])
+
+        # Grand Total Row
+        table_data.append([
+            Paragraph('', cell_bold),
+            Paragraph('', cell_bold),
+            Paragraph('', cell_bold),
+            Paragraph('GRAND TOTAL', ParagraphStyle('GT', parent=cell_bold, alignment=2)),
+            Paragraph(f'Total Records: {total_count}', cell_bold),
+            Paragraph(f"Rs. {total_amount:,.2f}", ParagraphStyle('GTAmt', parent=cell_bold, alignment=2))
+        ])
+
+        report_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        report_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f172a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8.5),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8fafc')]),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e2e8f0')),
+            ('LINEABOVE', (0, -1), (-1, -1), 1.2, colors.HexColor('#0f172a')),
+        ]))
+
+        elements.append(report_table)
+
+        # Signature Section
+        elements.append(Spacer(1, 10 * mm))
+        sig_data = [[
+            Paragraph("______________________<br/><b>Prepared By</b>", cell_style),
+            Paragraph("______________________<br/><b>Verified By</b>", cell_style),
+            Paragraph("______________________<br/><b>Approved By</b>", ParagraphStyle('SigRight', parent=cell_style, alignment=2))
+        ]]
+        sig_table = Table(sig_data, colWidths=[63 * mm, 64 * mm, 63 * mm])
+        sig_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (1, 0), 'LEFT'),
+            ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        elements.append(KeepTogether([sig_table]))
+
+        doc.build(elements)
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        filename = f"Expense_Report_{from_date or 'all'}_to_{to_date or 'all'}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        buffer.close()
+        return response
+
+    # =====================================================
+    # HTML VIEW: RENDER TEMPLATE
+    # =====================================================
+    context = {
+        'expense_heads': expense_heads,
+        'records': cleaned_records,
+        'total_amount': total_amount,
+        'total_count': total_count,
+        'from_date': from_date,
+        'to_date': to_date,
+        'selected_head': selected_head,
+        'selected_head_name': selected_head_name,
+    }
+    return render(request, 'Reports/expense_report.html', context)
+
 
 
 

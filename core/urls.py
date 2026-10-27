@@ -59,6 +59,11 @@ urlpatterns = [
     path('net-position/', reports.net_position_report, name='net_position_hyphen'),
     path('net_position/print/', reports.net_position_print, name='net_position_print'),
     path('net-position/print/', reports.net_position_print, name='net_position_print_hyphen'),
+    path('expense_report/', reports.expense_report, name='expense_report'),
+    path('expense-report/', reports.expense_report, name='expense_report_hyphen'),
+    path('expence_report/', reports.expense_report, name='expence_report'),
+    path('expense_report/print/', reports.expense_report, {'print_mode': True}, name='expense_report_print'),
+    path('expense-report/print/', reports.expense_report, {'print_mode': True}, name='expense_report_print_hyphen'),
 
 
 
