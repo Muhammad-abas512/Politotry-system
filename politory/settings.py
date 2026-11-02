@@ -67,7 +67,7 @@ WSGI_APPLICATION = 'politory.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'politory',
+        'NAME': 'politory2',
         'USER': 'root',
         'PASSWORD': 'N@qvi512',
         'HOST': 'localhost',

@@ -17,38 +17,66 @@ class CoreUsers(models.Model):
 
 class Usermodule(models.Model):
     moduleid = models.AutoField(db_column='ModuleID', primary_key=True)  # Field name made lowercase.
-    userid = models.IntegerField(db_column='UserID', blank=True, null=True)  # Field name made lowercase.
+    userid = models.IntegerField(db_column='UserID', blank=True, null=True)  # Legacy field, optional
     modulename = models.CharField(db_column='ModuleName', max_length=50, blank=True, null=True)  # Field name made lowercase.
     module_url = models.CharField(db_column='Module_url', max_length=50, blank=True, null=True)  # Field name made lowercase.
-    showmodule = models.BooleanField(db_column='ShowModule', blank=True, null=True)  # Field name made lowercase.
-    can_module_add = models.BooleanField(blank=True, null=True)
-    can_module_edit = models.BooleanField(blank=True, null=True)
-    can_module_delete = models.BooleanField(blank=True, null=True)
-    is_admin = models.BooleanField(blank=True, null=True)
-    displayorder = models.IntegerField(db_column='DisplayOrder')  # Field name made lowercase.
+    showmodule = models.BooleanField(db_column='ShowModule', default=True, blank=True, null=True)  # Field name made lowercase.
+    can_module_add = models.BooleanField(default=True, blank=True, null=True)
+    can_module_edit = models.BooleanField(default=True, blank=True, null=True)
+    can_module_delete = models.BooleanField(default=True, blank=True, null=True)
+    is_admin = models.BooleanField(default=False, blank=True, null=True)
+    displayorder = models.IntegerField(db_column='DisplayOrder', default=0)  # Field name made lowercase.
 
     class Meta:
         managed = True
         db_table = 'UserModule'
 
+    def __str__(self):
+        return self.modulename or f"Module {self.moduleid}"
+
 
 class Userpage(models.Model):
-    moduleid = models.ForeignKey('Usermodule', models.DO_NOTHING, db_column='ModuleID', blank=True, null=True, db_constraint=False)  # Field name made lowercase.
-    userid = models.IntegerField(db_column='UserID', blank=True, null=True)  # Field name made lowercase.
+    moduleid = models.ForeignKey('Usermodule', models.CASCADE, db_column='ModuleID', blank=True, null=True, db_constraint=False)  # Field name made lowercase.
+    userid = models.IntegerField(db_column='UserID', blank=True, null=True)  # Legacy field, optional
     modulename = models.CharField(db_column='ModuleName', max_length=50, blank=True, null=True)  # Field name made lowercase.
     pageid = models.AutoField(db_column='PageId', primary_key=True)  # Field name made lowercase.
     pagename = models.CharField(db_column='PageName', max_length=50, blank=True, null=True)  # Field name made lowercase.
     pageurl = models.CharField(db_column='Pageurl', max_length=50, blank=True, null=True)  # Field name made lowercase.
-    showpage = models.BooleanField(db_column='ShowPage', blank=True, null=True)  # Field name made lowercase.
-    can_page_add = models.BooleanField(db_column='can_Page_add', blank=True, null=True)  # Field name made lowercase.
-    can_page_edit = models.BooleanField(db_column='can_Page_edit', blank=True, null=True)  # Field name made lowercase.
-    can_page_delete = models.BooleanField(db_column='can_Page_delete', blank=True, null=True)  # Field name made lowercase.
-    is_admin = models.BooleanField(blank=True, null=True)
-    displayorder = models.IntegerField(db_column='DisplayOrder')  # Field name made lowercase.
+    showpage = models.BooleanField(db_column='ShowPage', default=True, blank=True, null=True)  # Field name made lowercase.
+    can_page_add = models.BooleanField(db_column='can_Page_add', default=True, blank=True, null=True)  # Field name made lowercase.
+    can_page_edit = models.BooleanField(db_column='can_Page_edit', default=True, blank=True, null=True)  # Field name made lowercase.
+    can_page_delete = models.BooleanField(db_column='can_Page_delete', default=True, blank=True, null=True)  # Field name made lowercase.
+    is_admin = models.BooleanField(default=False, blank=True, null=True)
+    displayorder = models.IntegerField(db_column='DisplayOrder', default=0)  # Field name made lowercase.
 
     class Meta:
         managed = True
         db_table = 'UserPage'
+
+    def __str__(self):
+        return self.pagename or f"Page {self.pageid}"
+
+
+class Permission(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CoreUsers, on_delete=models.CASCADE, related_name='permissions', db_column='user_id')
+    module = models.ForeignKey(Usermodule, on_delete=models.CASCADE, related_name='permissions', db_column='module_id', null=True, blank=True)
+    page = models.ForeignKey(Userpage, on_delete=models.CASCADE, related_name='permissions', db_column='page_id', null=True, blank=True)
+    module_name = models.CharField(max_length=100, blank=True, null=True)
+    page_name = models.CharField(max_length=100, blank=True, null=True)
+    page_url = models.CharField(max_length=100, blank=True, null=True)
+    can_view = models.BooleanField(default=True)
+    can_add = models.BooleanField(default=False)
+    can_edit = models.BooleanField(default=False)
+    can_delete = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'user_permissions'
+
+    def __str__(self):
+        return f"{self.user_id} - {self.page_name or self.module_name}"
 
 class Parties(models.Model):
     code = models.CharField(max_length=50, blank=True, null=True)

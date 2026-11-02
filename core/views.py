@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from .models import CoreUsers, Usermodule, Userpage
+from .models import CoreUsers, Usermodule, Userpage, Permission
 from decimal import Decimal
 import json
 
@@ -19,6 +19,11 @@ def login_view(request):
             request.session['user_id'] = str(user.id)
             request.session['user_name'] = str(user.name) if user.name else ''
             request.session['user_role'] = str(user.role) if user.role else ''
+            try:
+                is_admin = bool(user.role and str(user.role).strip().lower() == 'admin')
+                sync_user_catalog_permissions(user.id, is_admin=is_admin)
+            except Exception:
+                pass
             return redirect('dashboard')
         else:
             return render(request, 'login.html', {'error': 'Invalid username or password'})
@@ -94,6 +99,7 @@ SYSTEM_CATALOG = [
             {'pagename': 'Daily Cash Report', 'pageurl': 'cashreport/', 'icon': 'bi-calculator'},
             {'pagename': 'Purchase Report', 'pageurl': 'purchase_report/', 'icon': 'bi-file-earmark-text'},
             {'pagename': 'Sell Report', 'pageurl': 'sells_report/', 'icon': 'bi-file-earmark-bar-graph'},
+            {'pagename': 'Expense Report', 'pageurl': 'expense_report/', 'icon': 'bi-wallet2'},
             {'pagename': 'Net Position', 'pageurl': 'net_position/', 'icon': 'bi-shield-check'},
             {'pagename': 'Broiler Report', 'pageurl': 'broiler_report/', 'icon': 'bi-pie-chart'},
             {'pagename': 'Profit & Loss Report', 'pageurl': 'profit_loss_report/', 'icon': 'bi-graph-up-arrow'},
@@ -149,102 +155,109 @@ PAGE_ICONS = {
     'net_position/': 'bi-shield-check',
     'broiler_report/': 'bi-pie-chart',
     'profit_loss_report/': 'bi-graph-up-arrow',
+    'expense_report/': 'bi-wallet2',
+    'expence_report/': 'bi-wallet2',
     'user-management/': 'bi-people-fill',
     'hierarchy/': 'bi-diagram-2',
 }
 
 
 def sync_user_catalog_permissions(user_id, is_admin=False):
-    """Ensure modules and pages exist in Usermodule and Userpage for user_id"""
-    # Clean up obsolete empty modules
-    Usermodule.objects.filter(
-        userid=user_id,
-        modulename__in=['Receipt', 'Payment', 'Expenses', 'Waste Payment', 'Waste Entry']
-    ).delete()
+    """
+    Ensure user has permissions in user_permissions table.
+    Modules and pages are read from master Usermodule & Userpage tables.
+    """
+    user = CoreUsers.objects.filter(id=user_id).first()
+    if not user:
+        return
 
-    for m in SYSTEM_CATALOG:
-        aliases = [m['modulename']]
-        if m['modulename'] == 'User Management':
-            aliases.append('Administration')
-        elif m['modulename'] == 'Chart of Accounts':
-            aliases.append('Accounts & Vouchers')
-        elif m['modulename'] == 'New Accounts':
-            aliases.append('Setup & Parties')
+    if is_admin is None:
+        is_admin = bool(user.role and str(user.role).strip().lower() == 'admin')
 
-        um = Usermodule.objects.filter(userid=user_id, modulename__in=aliases).first()
-        if not um:
-            um = Usermodule.objects.create(
-                userid=user_id,
-                modulename=m['modulename'],
-                module_url=m['module_url'],
-                showmodule=True if is_admin else False,
-                can_module_add=True if is_admin else False,
-                can_module_edit=True if is_admin else False,
-                can_module_delete=True if is_admin else False,
-                is_admin=is_admin,
-                displayorder=m['displayorder'],
+    # Get all master pages
+    pages = Userpage.objects.select_related('moduleid').all()
+
+    for p in pages:
+        perm = Permission.objects.filter(user_id=user_id, page_id=p.pageid).first()
+        if not perm:
+            # Check by pageurl if page_id not linked
+            p_url = p.pageurl or ''
+            url_variants = [p_url, p_url.rstrip('/'), p_url.lstrip('/')]
+            perm = Permission.objects.filter(user_id=user_id, page_url__in=url_variants).first()
+
+        if not perm:
+            Permission.objects.create(
+                user=user,
+                module=p.moduleid,
+                page=p,
+                module_name=p.modulename or (p.moduleid.modulename if p.moduleid else ''),
+                page_name=p.pagename,
+                page_url=p.pageurl,
+                can_view=True if is_admin else False,
+                can_add=is_admin,
+                can_edit=is_admin,
+                can_delete=is_admin,
             )
         else:
-            um.modulename = m['modulename']
-            um.module_url = m['module_url']
-            um.displayorder = m['displayorder']
+            # Keep links updated
+            perm.module = p.moduleid
+            perm.page = p
+            perm.module_name = p.modulename or (p.moduleid.modulename if p.moduleid else '')
+            perm.page_name = p.pagename
+            perm.page_url = p.pageurl
             if is_admin:
-                um.showmodule = True
-                um.is_admin = True
-            um.save()
-
-        for idx, p in enumerate(m['pages'], 1):
-            p_url = p['pageurl']
-            url_variants = [p_url, p_url.rstrip('/'), p_url.lstrip('/')]
-            up = Userpage.objects.filter(userid=user_id, pageurl__in=url_variants).first()
-            if not up:
-                Userpage.objects.create(
-                    moduleid=um,
-                    userid=user_id,
-                    modulename=m['modulename'],
-                    pagename=p['pagename'],
-                    pageurl=p_url,
-                    showpage=True if is_admin else False,
-                    can_page_add=True if is_admin else False,
-                    can_page_edit=True if is_admin else False,
-                    can_page_delete=True if is_admin else False,
-                    is_admin=is_admin,
-                    displayorder=idx,
-                )
-            else:
-                up.moduleid = um
-                up.modulename = m['modulename']
-                up.pagename = p['pagename']
-                up.pageurl = p_url
-                up.displayorder = idx
-                if is_admin:
-                    up.showpage = True
-                    up.is_admin = True
-                up.save()
+                perm.can_view = True
+                perm.can_add = True
+                perm.can_edit = True
+                perm.can_delete = True
+            perm.save()
 
 
 def get_sidebar_data(user_id):
-    """Sidebar data fetch karo - modules aur unke pages"""
+    """
+    Sidebar data fetch karo - user_permissions table se filter karke.
+    Admin ko tamam visible master modules aur unke pages show honge.
+    Staff ko sirf wahi pages aur unke parent modules show honge jinki can_view=True hai.
+    """
     if not user_id:
         return []
 
     user = CoreUsers.objects.filter(id=user_id).first()
+    if not user:
+        return []
+
     is_admin = bool(user and str(user.role).strip().lower() == 'admin')
 
-    # Automatically ensure user has all catalog modules and pages in DB!
+    # Ensure permissions table has rows for this user
     sync_user_catalog_permissions(user_id, is_admin=is_admin)
 
-    modules = Usermodule.objects.filter(
-        userid=user_id, showmodule=True
-    ).order_by('displayorder')
+    # Master modules (only showmodule=True)
+    master_modules = Usermodule.objects.filter(showmodule=True).order_by('displayorder', 'moduleid')
+
+    if is_admin:
+        allowed_page_ids = None
+    else:
+        allowed_page_ids = set(
+            Permission.objects.filter(
+                user_id=user_id,
+                can_view=True
+            ).values_list('page_id', flat=True)
+        )
 
     sidebar = []
-    for module in modules:
-        pages = Userpage.objects.filter(
-            userid=user_id,
+    for module in master_modules:
+        page_qs = Userpage.objects.filter(
             moduleid=module.moduleid,
             showpage=True
-        ).order_by('displayorder')
+        ).order_by('displayorder', 'pageid')
+
+        if not is_admin:
+            page_qs = page_qs.filter(pageid__in=allowed_page_ids)
+
+        pages = list(page_qs)
+        # If user has no accessible pages in this module, do not show this module in sidebar
+        if not pages:
+            continue
 
         page_list = []
         for page in pages:
@@ -643,12 +656,8 @@ def user_management(request):
     user_id = request.session.get('user_id')
     user_role = request.session.get('user_role', '')
 
-    # Ensure admin has full catalog
-    if str(user_role).lower() == 'admin':
-        sync_user_catalog_permissions(user_id, is_admin=True)
-
     sidebar = get_sidebar_data(user_id)
-    total_system_pages = sum(len(m['pages']) for m in SYSTEM_CATALOG)
+    total_system_pages = Userpage.objects.count()
 
     if request.method == 'GET':
         action = request.GET.get('action')
@@ -659,31 +668,41 @@ def user_management(request):
             target_user = get_object_or_404(CoreUsers, id=target_id)
             is_target_admin = str(target_user.role).lower() == 'admin'
 
-            # Ensure user catalog rows exist
+            # Ensure user permissions rows exist in user_permissions table
             sync_user_catalog_permissions(target_id, is_admin=is_target_admin)
 
-            # Get granted URLs
+            # Get granted URLs from Permission table
             granted_urls = set(
-                Userpage.objects.filter(userid=target_id, showpage=True).values_list('pageurl', flat=True)
+                Permission.objects.filter(user_id=target_id, can_view=True).values_list('page_url', flat=True)
             )
 
+            # Load master modules & pages
+            master_modules = Usermodule.objects.all().order_by('displayorder', 'moduleid')
             catalog_data = []
-            for m in SYSTEM_CATALOG:
+            for m in master_modules:
                 pages_data = []
-                for p in m['pages']:
-                    is_granted = True if is_target_admin else (p['pageurl'] in granted_urls)
+                pages = Userpage.objects.filter(moduleid=m.moduleid).order_by('displayorder', 'pageid')
+                for p in pages:
+                    clean_purl = (p.pageurl or '').strip().lstrip('/')
+                    clean_purl = clean_purl if clean_purl.endswith('/') or not clean_purl else clean_purl + '/'
+                    page_icon = PAGE_ICONS.get(clean_purl, PAGE_ICONS.get(p.pageurl, 'bi-circle'))
+
+                    is_granted = True if is_target_admin else (p.pageurl in granted_urls)
                     pages_data.append({
-                        'name': p['pagename'],
-                        'pagename': p['pagename'],
-                        'url': p['pageurl'],
-                        'pageurl': p['pageurl'],
-                        'icon': p.get('icon', 'bi-circle'),
+                        'page_id': p.pageid,
+                        'name': p.pagename,
+                        'pagename': p.pagename,
+                        'url': p.pageurl,
+                        'pageurl': p.pageurl,
+                        'icon': page_icon,
                         'granted': is_granted
                     })
+                mod_icon = CATALOG_ICONS.get(m.modulename, 'bi-folder')
                 catalog_data.append({
-                    'module_name': m['modulename'],
-                    'module_url': m['module_url'],
-                    'icon': m.get('icon', 'bi-folder'),
+                    'module_id': m.moduleid,
+                    'module_name': m.modulename,
+                    'module_url': m.module_url,
+                    'icon': mod_icon,
                     'pages': pages_data
                 })
 
@@ -704,7 +723,7 @@ def user_management(request):
             if is_adm:
                 allowed_count = total_system_pages
             else:
-                allowed_count = Userpage.objects.filter(userid=u.id, showpage=True).count()
+                allowed_count = Permission.objects.filter(user_id=u.id, can_view=True).count()
 
             user_list.append({
                 'id': u.id,
@@ -765,7 +784,7 @@ def user_management(request):
                         email=email,
                         address=address,
                     )
-                    # Initialize permissions
+                    # Initialize permissions in user_permissions table
                     sync_user_catalog_permissions(new_user.id, is_admin=(role.lower() == 'admin'))
                     return JsonResponse({'status': 'success', 'message': f'User "{new_user.name}" created successfully!'})
 
@@ -776,51 +795,41 @@ def user_management(request):
                 target_user = get_object_or_404(CoreUsers, id=target_id)
                 is_target_admin = str(target_user.role).lower() == 'admin'
 
-                for m in SYSTEM_CATALOG:
-                    has_module_access = is_target_admin or any(p['pageurl'] in selected_urls for p in m['pages'])
-                    um = Usermodule.objects.filter(userid=target_id, modulename=m['modulename']).first()
-                    if not um:
-                        um = Usermodule.objects.create(
-                            userid=target_id,
-                            modulename=m['modulename'],
-                            module_url=m['module_url'],
-                            showmodule=has_module_access,
-                            can_module_add=is_target_admin,
-                            can_module_edit=is_target_admin,
-                            can_module_delete=is_target_admin,
-                            is_admin=is_target_admin,
-                            displayorder=m['displayorder']
+                # Update or create in Permission table for each master page
+                all_pages = Userpage.objects.select_related('moduleid').all()
+                for p in all_pages:
+                    p_url = p.pageurl or ''
+                    can_access = is_target_admin or (p_url in selected_urls)
+                    perm = Permission.objects.filter(user_id=target_id, page_id=p.pageid).first()
+                    if not perm:
+                        url_variants = [p_url, p_url.rstrip('/'), p_url.lstrip('/')]
+                        perm = Permission.objects.filter(user_id=target_id, page_url__in=url_variants).first()
+
+                    if not perm:
+                        Permission.objects.create(
+                            user=target_user,
+                            module=p.moduleid,
+                            page=p,
+                            module_name=p.modulename or (p.moduleid.modulename if p.moduleid else ''),
+                            page_name=p.pagename,
+                            page_url=p.pageurl,
+                            can_view=can_access,
+                            can_add=is_target_admin,
+                            can_edit=is_target_admin,
+                            can_delete=is_target_admin,
                         )
                     else:
-                        um.showmodule = has_module_access
-                        um.save()
-
-                    for idx, p in enumerate(m['pages'], 1):
-                        p_url = p['pageurl']
-                        url_variants = [p_url, p_url.rstrip('/'), p_url.lstrip('/')]
-                        up = Userpage.objects.filter(userid=target_id, pageurl__in=url_variants).first()
-                        if not up:
-                            up = Userpage.objects.create(
-                                moduleid=um,
-                                userid=target_id,
-                                modulename=m['modulename'],
-                                pagename=p['pagename'],
-                                pageurl=p_url,
-                                showpage=is_target_admin or (p_url in selected_urls),
-                                can_page_add=is_target_admin,
-                                can_page_edit=is_target_admin,
-                                can_page_delete=is_target_admin,
-                                is_admin=is_target_admin,
-                                displayorder=idx
-                            )
-                        else:
-                            up.moduleid = um
-                            up.modulename = m['modulename']
-                            up.pagename = p['pagename']
-                            up.pageurl = p_url
-                            up.showpage = is_target_admin or (p_url in selected_urls)
-                            up.displayorder = idx
-                            up.save()
+                        perm.module = p.moduleid
+                        perm.page = p
+                        perm.module_name = p.modulename or (p.moduleid.modulename if p.moduleid else '')
+                        perm.page_name = p.pagename
+                        perm.page_url = p.pageurl
+                        perm.can_view = can_access
+                        if is_target_admin:
+                            perm.can_add = True
+                            perm.can_edit = True
+                            perm.can_delete = True
+                        perm.save()
 
                 return JsonResponse({'status': 'success', 'message': f'Permissions for "{target_user.name}" saved successfully!'})
 
@@ -831,8 +840,7 @@ def user_management(request):
 
                 user = get_object_or_404(CoreUsers, id=del_id)
                 u_name = user.name
-                Userpage.objects.filter(userid=del_id).delete()
-                Usermodule.objects.filter(userid=del_id).delete()
+                Permission.objects.filter(user_id=del_id).delete()
                 user.delete()
                 return JsonResponse({'status': 'success', 'message': f'User "{u_name}" deleted successfully!'})
 
@@ -867,10 +875,10 @@ def hierarchy_management(request):
 
             if action == 'get_modules':
                 modules = Usermodule.objects.all().values(
-                    'moduleid', 'userid', 'modulename', 'module_url',
+                    'moduleid', 'modulename', 'module_url',
                     'showmodule', 'can_module_add', 'can_module_edit',
                     'can_module_delete', 'is_admin', 'displayorder'
-                ).order_by('displayorder')
+                ).order_by('displayorder', 'moduleid')
                 clean = []
                 for m in modules:
                     cm = {}
@@ -885,10 +893,10 @@ def hierarchy_management(request):
             elif action == 'get_pages':
                 module_id = request.GET.get('module_id')
                 pages = Userpage.objects.filter(moduleid=module_id).values(
-                    'pageid', 'moduleid', 'userid', 'modulename', 'pagename',
+                    'pageid', 'moduleid', 'modulename', 'pagename',
                     'pageurl', 'showpage', 'can_page_add', 'can_page_edit',
                     'can_page_delete', 'is_admin', 'displayorder'
-                ).order_by('displayorder')
+                ).order_by('displayorder', 'pageid')
                 clean = []
                 for p in pages:
                     cp = {}
@@ -900,19 +908,6 @@ def hierarchy_management(request):
                     clean.append(cp)
                 return JsonResponse({'pages': clean})
 
-            elif action == 'get_all_users':
-                users = CoreUsers.objects.all().values('id', 'name')
-                clean = []
-                for u in users:
-                    cu = {}
-                    for k, v in u.items():
-                        if isinstance(v, Decimal):
-                            cu[k] = str(v)
-                        else:
-                            cu[k] = v
-                    clean.append(cu)
-                return JsonResponse({'users': clean})
-
         return render(request, 'hierarchy.html', {'sidebar': sidebar})
 
     if request.method == 'POST':
@@ -922,36 +917,38 @@ def hierarchy_management(request):
 
             if action == 'save_module':
                 module_id = data.get('moduleid')
+                modulename = (data.get('modulename') or '').strip()
+                displayorder = int(data.get('displayorder') or 0)
+                if not modulename:
+                    return JsonResponse({'status': 'error', 'message': 'Module name is required!'})
+
                 if module_id:
                     module = get_object_or_404(Usermodule, moduleid=module_id)
-                    module.userid = data.get('userid')
-                    module.modulename = data.get('modulename')
-                    module.module_url = data.get('module_url')
-                    module.showmodule = data.get('showmodule', True)
-                    module.can_module_add = data.get('can_module_add', False)
-                    module.can_module_edit = data.get('can_module_edit', False)
-                    module.can_module_delete = data.get('can_module_delete', False)
-                    module.is_admin = data.get('is_admin', False)
-                    module.displayorder = data.get('displayorder', 0)
+                    module.modulename = modulename
+                    module.displayorder = displayorder
+                    module.showmodule = True
                     module.save()
+                    # Keep module name in sync in Userpage and Permission
+                    Userpage.objects.filter(moduleid=module).update(modulename=module.modulename)
+                    Permission.objects.filter(module=module).update(module_name=module.modulename)
                     return JsonResponse({'status': 'success', 'message': 'Module updated successfully!'})
                 else:
-                    Usermodule.objects.create(
-                        userid=data.get('userid'),
-                        modulename=data.get('modulename'),
-                        module_url=data.get('module_url'),
-                        showmodule=data.get('showmodule', True),
-                        can_module_add=data.get('can_module_add', False),
-                        can_module_edit=data.get('can_module_edit', False),
-                        can_module_delete=data.get('can_module_delete', False),
-                        is_admin=data.get('is_admin', False),
-                        displayorder=data.get('displayorder', 0),
+                    module = Usermodule.objects.create(
+                        modulename=modulename,
+                        module_url='',
+                        showmodule=True,
+                        can_module_add=True,
+                        can_module_edit=True,
+                        can_module_delete=True,
+                        is_admin=False,
+                        displayorder=displayorder,
                     )
                     return JsonResponse({'status': 'success', 'message': 'Module saved successfully!'})
 
             elif action == 'delete_module':
                 module_id = data.get('moduleid')
                 module = get_object_or_404(Usermodule, moduleid=module_id)
+                Permission.objects.filter(module=module).delete()
                 Userpage.objects.filter(moduleid=module_id).delete()
                 module.delete()
                 return JsonResponse({'status': 'success', 'message': 'Module and its pages deleted!'})
@@ -959,40 +956,68 @@ def hierarchy_management(request):
             elif action == 'save_page':
                 page_id = data.get('pageid')
                 module_obj = get_object_or_404(Usermodule, moduleid=data.get('moduleid'))
+                pagename = (data.get('pagename') or '').strip()
+                pageurl = (data.get('pageurl') or '').strip()
+
+                if not pagename or not pageurl:
+                    return JsonResponse({'status': 'error', 'message': 'Page name and URL are required!'})
+
                 if page_id:
                     page = get_object_or_404(Userpage, pageid=page_id)
                     page.moduleid = module_obj
-                    page.userid = data.get('userid')
                     page.modulename = module_obj.modulename
-                    page.pagename = data.get('pagename')
-                    page.pageurl = data.get('pageurl')
-                    page.showpage = data.get('showpage', True)
-                    page.can_page_add = data.get('can_page_add', False)
-                    page.can_page_edit = data.get('can_page_edit', False)
-                    page.can_page_delete = data.get('can_page_delete', False)
-                    page.is_admin = data.get('is_admin', False)
-                    page.displayorder = data.get('displayorder', 0)
+                    page.pagename = pagename
+                    page.pageurl = pageurl
+                    page.showpage = True
                     page.save()
+
+                    # Keep permissions table up to date for this page
+                    Permission.objects.filter(page=page).update(
+                        module=module_obj,
+                        module_name=module_obj.modulename,
+                        page_name=page.pagename,
+                        page_url=page.pageurl
+                    )
                     return JsonResponse({'status': 'success', 'message': 'Page updated successfully!'})
                 else:
-                    Userpage.objects.create(
+                    # Calculate next displayorder for page in this module
+                    max_order = Userpage.objects.filter(moduleid=module_obj).count() + 1
+                    new_page = Userpage.objects.create(
                         moduleid=module_obj,
-                        userid=data.get('userid'),
                         modulename=module_obj.modulename,
-                        pagename=data.get('pagename'),
-                        pageurl=data.get('pageurl'),
-                        showpage=data.get('showpage', True),
-                        can_page_add=data.get('can_page_add', False),
-                        can_page_edit=data.get('can_page_edit', False),
-                        can_page_delete=data.get('can_page_delete', False),
-                        is_admin=data.get('is_admin', False),
-                        displayorder=data.get('displayorder', 0),
+                        pagename=pagename,
+                        pageurl=pageurl,
+                        showpage=True,
+                        can_page_add=True,
+                        can_page_edit=True,
+                        can_page_delete=True,
+                        is_admin=False,
+                        displayorder=max_order,
                     )
+                    # Automatically grant access to admins
+                    admin_users = CoreUsers.objects.filter(role__iexact='admin')
+                    for adm in admin_users:
+                        Permission.objects.get_or_create(
+                            user=adm,
+                            page=new_page,
+                            defaults={
+                                'module': module_obj,
+                                'module_name': module_obj.modulename,
+                                'page_name': new_page.pagename,
+                                'page_url': new_page.pageurl,
+                                'can_view': True,
+                                'can_add': True,
+                                'can_edit': True,
+                                'can_delete': True,
+                            }
+                        )
+
                     return JsonResponse({'status': 'success', 'message': 'Page saved successfully!'})
 
             elif action == 'delete_page':
                 page_id = data.get('pageid')
                 page = get_object_or_404(Userpage, pageid=page_id)
+                Permission.objects.filter(page=page).delete()
                 page.delete()
                 return JsonResponse({'status': 'success', 'message': 'Page deleted successfully!'})
 
@@ -1000,6 +1025,7 @@ def hierarchy_management(request):
             return JsonResponse({'status': 'error', 'message': str(e)})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
 
 from decimal import Decimal, InvalidOperation
 from datetime import datetime

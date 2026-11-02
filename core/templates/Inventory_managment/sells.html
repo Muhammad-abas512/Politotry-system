@@ -298,20 +298,7 @@
     <!-- CURRENT / LATEST PURCHASE -->
     <!-- ================================================= -->
 
-    {% if active_purchases_list and active_purchases_list|length > 1 %}
-    <div class="card mb-3 border-0 shadow-sm p-2 bg-white rounded-3">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <span class="small fw-bold text-muted"><i class="bi bi-arrow-left-right text-primary me-1"></i> Active Purchases (Click to switch):</span>
-            <div class="d-flex gap-2 flex-wrap">
-                {% for ap in active_purchases_list %}
-                <a href="?purchase_id={{ ap.id }}" class="btn btn-sm {% if ap.id == active_purchase.id %}btn-primary fw-bold text-white{% else %}btn-outline-secondary{% endif %}" style="font-size: 0.75rem;">
-                    #{{ ap.purchase_number }} - {{ ap.vendor_name }} ({{ ap.date|date:'d-M-Y' }}) [Rem: {{ ap.remaining_weight }}kg]
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
+
 
     {% if active_purchase %}
 
@@ -361,11 +348,7 @@
                 </span>
 
             </div>
-
-
-
             <!-- PURCHASED WEIGHT -->
-
             <div class="col-6 col-sm-3 col-lg-2">
 
                 <div class="stock-label">

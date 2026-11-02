@@ -110,50 +110,13 @@
         <form id="moduleForm">
             <input type="hidden" id="moduleId" value="">
             <div class="row g-3">
-                <div class="col-lg-4 col-md-6 col-12">
-                    <label class="form-label fw-semibold">User <span class="text-danger">*</span></label>
-                    <select class="form-select" id="moduleUserId" required>
-                        <option value="">Select User</option>
-                    </select>
-                </div>
-                <div class="col-lg-4 col-md-6 col-12">
+                <div class="col-lg-6 col-md-6 col-12">
                     <label class="form-label fw-semibold">Module Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="moduleName" placeholder="e.g. Settings" required>
+                    <input type="text" class="form-control" id="moduleName" placeholder="e.g. Accounts & Vouchers" required>
                 </div>
-                <div class="col-lg-4 col-md-6 col-12">
-                    <label class="form-label fw-semibold">Module URL</label>
-                    <input type="text" class="form-control" id="moduleUrl" placeholder="e.g. settings/">
-                </div>
-                <div class="col-lg-3 col-md-6 col-12">
-                    <label class="form-label fw-semibold">Display Order</label>
-                    <input type="number" class="form-control" id="moduleOrder" value="0" min="0">
-                </div>
-
-                <!-- Checkboxes -->
-                <div class="col-lg-9 col-12">
-                    <label class="form-label fw-semibold d-block">Permissions</label>
-                    <div class="d-flex flex-wrap gap-3 mt-1">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="moduleShow" checked>
-                            <label class="form-check-label" for="moduleShow">Show Module</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="moduleCanAdd">
-                            <label class="form-check-label" for="moduleCanAdd">Can Add</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="moduleCanEdit">
-                            <label class="form-check-label" for="moduleCanEdit">Can Edit</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="moduleCanDelete">
-                            <label class="form-check-label" for="moduleCanDelete">Can Delete</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="moduleIsAdmin">
-                            <label class="form-check-label" for="moduleIsAdmin">Is Admin</label>
-                        </div>
-                    </div>
+                <div class="col-lg-6 col-md-6 col-12">
+                    <label class="form-label fw-semibold">Display Order / Order No <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="moduleOrder" value="1" min="0" required>
                 </div>
 
                 <div class="col-12 d-flex gap-2 mt-3 flex-wrap">
@@ -183,48 +146,12 @@
                     </select>
                 </div>
                 <div class="col-lg-4 col-md-6 col-12">
-                    <label class="form-label fw-semibold">User <span class="text-danger">*</span></label>
-                    <select class="form-select" id="pageUserId" required>
-                        <option value="">Select User</option>
-                    </select>
-                </div>
-                <div class="col-lg-4 col-md-6 col-12">
                     <label class="form-label fw-semibold">Page Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="pageName" placeholder="e.g. User Management" required>
+                    <input type="text" class="form-control" id="pageName" placeholder="e.g. Voucher Entry" required>
                 </div>
                 <div class="col-lg-4 col-md-6 col-12">
                     <label class="form-label fw-semibold">Page URL <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="pageUrl" placeholder="e.g. user-management/" required>
-                </div>
-                <div class="col-lg-3 col-md-6 col-12">
-                    <label class="form-label fw-semibold">Display Order</label>
-                    <input type="number" class="form-control" id="pageOrder" value="0" min="0">
-                </div>
-
-                <div class="col-lg-5 col-12">
-                    <label class="form-label fw-semibold d-block">Permissions</label>
-                    <div class="d-flex flex-wrap gap-3 mt-1">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pageShow" checked>
-                            <label class="form-check-label" for="pageShow">Show Page</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pageCanAdd">
-                            <label class="form-check-label" for="pageCanAdd">Can Add</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pageCanEdit">
-                            <label class="form-check-label" for="pageCanEdit">Can Edit</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pageCanDelete">
-                            <label class="form-check-label" for="pageCanDelete">Can Delete</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="pageIsAdmin">
-                            <label class="form-check-label" for="pageIsAdmin">Is Admin</label>
-                        </div>
-                    </div>
+                    <input type="text" class="form-control" id="pageUrl" placeholder="e.g. voucher-entry/" required>
                 </div>
 
                 <div class="col-12 d-flex gap-2 mt-3 flex-wrap">
@@ -287,24 +214,8 @@
         document.getElementById('tabPage').classList.toggle('active', tab === 'page');
         document.getElementById('tabView').classList.toggle('active', tab === 'view');
 
-        if (tab === 'page') { loadModulesDropdown('pageModuleId'); loadUsersDropdown('pageUserId'); }
-        if (tab === 'module') { loadUsersDropdown('moduleUserId'); }
+        if (tab === 'page') { loadModulesDropdown('pageModuleId'); }
         if (tab === 'view') { loadHierarchy(); }
-    }
-
-    // Load users dropdown
-    function loadUsersDropdown(selectId) {
-        fetch(API_URL + '?action=get_all_users', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(r => r.json())
-        .then(r => {
-            const sel = document.getElementById(selectId);
-            const currentVal = sel.value;
-            sel.innerHTML = '<option value="">Select User</option>';
-            r.users.forEach(u => {
-                sel.innerHTML += `<option value="${u.id}">${u.name || 'User #'+u.id}</option>`;
-            });
-            if (currentVal) sel.value = currentVal;
-        });
     }
 
     // Load modules dropdown
@@ -322,20 +233,16 @@
         });
     }
 
-    // Init load
-    loadUsersDropdown('moduleUserId');
-
     // Reset forms
     function resetModuleForm() {
         document.getElementById('moduleForm').reset();
         document.getElementById('moduleId').value = '';
-        document.getElementById('moduleShow').checked = true;
+        document.getElementById('moduleOrder').value = '1';
         document.getElementById('moduleSaveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Save Module';
     }
     function resetPageForm() {
         document.getElementById('pageForm').reset();
         document.getElementById('pageId').value = '';
-        document.getElementById('pageShow').checked = true;
         document.getElementById('pageSaveBtn').innerHTML = '<i class="bi bi-check-circle"></i> Save Page';
     }
 
@@ -345,18 +252,11 @@
         const moduleId = document.getElementById('moduleId').value;
         const data = {
             action: 'save_module',
-            userid: document.getElementById('moduleUserId').value,
             modulename: document.getElementById('moduleName').value.trim(),
-            module_url: document.getElementById('moduleUrl').value.trim(),
             displayorder: parseInt(document.getElementById('moduleOrder').value) || 0,
-            showmodule: document.getElementById('moduleShow').checked,
-            can_module_add: document.getElementById('moduleCanAdd').checked,
-            can_module_edit: document.getElementById('moduleCanEdit').checked,
-            can_module_delete: document.getElementById('moduleCanDelete').checked,
-            is_admin: document.getElementById('moduleIsAdmin').checked,
         };
         if (moduleId) data.moduleid = moduleId;
-        if (!data.userid || !data.modulename) { showToast('Please fill required fields!', 'warning'); return; }
+        if (!data.modulename) { showToast('Please enter module name!', 'warning'); return; }
 
         fetch(API_URL, {
             method: 'POST',
@@ -378,18 +278,11 @@
         const data = {
             action: 'save_page',
             moduleid: document.getElementById('pageModuleId').value,
-            userid: document.getElementById('pageUserId').value,
             pagename: document.getElementById('pageName').value.trim(),
             pageurl: document.getElementById('pageUrl').value.trim(),
-            displayorder: parseInt(document.getElementById('pageOrder').value) || 0,
-            showpage: document.getElementById('pageShow').checked,
-            can_page_add: document.getElementById('pageCanAdd').checked,
-            can_page_edit: document.getElementById('pageCanEdit').checked,
-            can_page_delete: document.getElementById('pageCanDelete').checked,
-            is_admin: document.getElementById('pageIsAdmin').checked,
         };
         if (pageId) data.pageid = pageId;
-        if (!data.moduleid || !data.userid || !data.pagename || !data.pageurl) {
+        if (!data.moduleid || !data.pagename || !data.pageurl) {
             showToast('Please fill all required fields!', 'warning'); return;
         }
 
@@ -487,18 +380,9 @@
     function editModule(m) {
         switchTab('module');
         document.getElementById('moduleId').value = m.moduleid;
-        document.getElementById('moduleUserId').value = m.userid || '';
         document.getElementById('moduleName').value = m.modulename || '';
-        document.getElementById('moduleUrl').value = m.module_url || '';
-        document.getElementById('moduleOrder').value = m.displayorder || 0;
-        document.getElementById('moduleShow').checked = m.showmodule;
-        document.getElementById('moduleCanAdd').checked = m.can_module_add;
-        document.getElementById('moduleCanEdit').checked = m.can_module_edit;
-        document.getElementById('moduleCanDelete').checked = m.can_module_delete;
-        document.getElementById('moduleIsAdmin').checked = m.is_admin;
+        document.getElementById('moduleOrder').value = m.displayorder || 1;
         document.getElementById('moduleSaveBtn').innerHTML = '<i class="bi bi-arrow-repeat"></i> Update Module';
-        loadUsersDropdown('moduleUserId');
-        setTimeout(() => { document.getElementById('moduleUserId').value = m.userid || ''; }, 500);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -508,19 +392,11 @@
         document.getElementById('pageId').value = p.pageid;
         document.getElementById('pageName').value = p.pagename || '';
         document.getElementById('pageUrl').value = p.pageurl || '';
-        document.getElementById('pageOrder').value = p.displayorder || 0;
-        document.getElementById('pageShow').checked = p.showpage;
-        document.getElementById('pageCanAdd').checked = p.can_page_add;
-        document.getElementById('pageCanEdit').checked = p.can_page_edit;
-        document.getElementById('pageCanDelete').checked = p.can_page_delete;
-        document.getElementById('pageIsAdmin').checked = p.is_admin;
         document.getElementById('pageSaveBtn').innerHTML = '<i class="bi bi-arrow-repeat"></i> Update Page';
         loadModulesDropdown('pageModuleId');
-        loadUsersDropdown('pageUserId');
         setTimeout(() => {
             document.getElementById('pageModuleId').value = modId || p.moduleid || '';
-            document.getElementById('pageUserId').value = p.userid || '';
-        }, 500);
+        }, 300);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
