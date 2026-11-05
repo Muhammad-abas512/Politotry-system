@@ -85,12 +85,14 @@ def seed_default_chart_of_accounts():
         ('030101', 'Capital Account', l2_map['0301']),
         ('040101', 'Poultry & Broiler Sales', l2_map['0401']),
         ('040102', 'By-Product Sales', l2_map['0401']),
+        ('040103', 'Discount & Rebates Received', l2_map['0401']),
         ('050101', 'Broiler Purchase Cost', l2_map['0501']),
         ('050102', 'Mortality Loss', l2_map['0501']),
         ('050201', 'Vehicle & Transport Expenses', l2_map['0502']),
         ('050202', 'Utilities & Bills', l2_map['0502']),
         ('050203', 'Salaries & Wages', l2_map['0502']),
         ('050204', 'Office & General Expenses', l2_map['0502']),
+        ('050205', 'Discount & Rebates Allowed', l2_map['0502']),
     ]
     l3_map = {}
     for code, name, parent in l3_data:
@@ -116,6 +118,7 @@ def seed_default_chart_of_accounts():
         ('040101001', 'Broiler Sales', l3_map['040101']),
         ('040102001', 'Fat Sales', l3_map['040102']),
         ('040102002', 'Waste Sales', l3_map['040102']),
+        ('040103001', 'Discount Received', l3_map['040103']),
         ('050101001', 'Broiler Purchases', l3_map['050101']),
         ('050102001', 'Mortality Loss', l3_map['050102']),
         ('050201001', 'Diesel & Fuel Expense', l3_map['050201']),
@@ -128,6 +131,7 @@ def seed_default_chart_of_accounts():
         ('050204002', 'Office Rent', l3_map['050204']),
         ('050204003', 'Stationery & Printing', l3_map['050204']),
         ('050204004', 'Miscellaneous Expense', l3_map['050204']),
+        ('050205001', 'Discount Allowed', l3_map['050205']),
     ]
     for code, name, parent in l4_data:
         ChartOfAccount.objects.get_or_create(
@@ -665,18 +669,65 @@ def voucher_entry(request):
 
             actual_v_type = 'JV' if v_type in ['CASH_TO_BANK', 'BANK_TO_CASH'] else v_type
             user_name = request.session.get('user_name', 'Admin')
-            voucher_no = generate_voucher_no(actual_v_type)
+
+            editing_voucher_id = data.get('editing_id')
+            existing_voucher = None
+            if editing_voucher_id:
+                try:
+                    existing_voucher = Voucher.objects.get(id=int(editing_voucher_id))
+                except (Voucher.DoesNotExist, ValueError):
+                    return JsonResponse({'success': False, 'message': 'Editing voucher not found.'})
 
             with transaction.atomic():
-                voucher = Voucher.objects.create(
-                    voucher_no=voucher_no,
-                    voucher_type=actual_v_type,
-                    date=voucher_date,
-                    reference_no=reference_no or voucher_no,
-                    total_amount=total_voucher_amt,
-                    remarks=remarks or (f"Cash Deposit: Cash in Hand to {dr_acc.name}" if v_type == 'CASH_TO_BANK' else (f"Cash Withdrawal: {cr_acc.name} to Cash in Hand" if v_type == 'BANK_TO_CASH' else '')),
-                    created_by=user_name,
-                )
+                # If editing, first reverse the old voucher's lines and cash records
+                if existing_voucher:
+                    for line in existing_voucher.details.all():
+                        _update_account_balance(line.account, line.credit, line.debit)
+
+                    net_old_cash_hand = Decimal('0')
+                    net_old_cash_bank = Decimal('0')
+                    for line in existing_voucher.details.all():
+                        acc_code = str(line.account.code)
+                        acc_name_lower = line.account.name.lower()
+                        if acc_code in ['010101001', '1110001'] or 'cash in hand' in acc_name_lower:
+                            net_old_cash_hand += (line.credit - line.debit)
+                        elif acc_code.startswith('010101') or acc_code.startswith('1110') or 'bank' in acc_name_lower:
+                            net_old_cash_bank += (line.credit - line.debit)
+
+                    if net_old_cash_hand != 0 or net_old_cash_bank != 0:
+                        last_c = CashRecord.objects.order_by('-id').first()
+                        p_hand = int(last_c.cash_in_hand or 0) if last_c else 0
+                        p_bank = int(last_c.cash_in_bank or 0) if last_c else 0
+                        max_cid = CashRecord.objects.aggregate(Max('id'))['id__max']
+                        nxt_cid = 1 if max_cid is None else max_cid + 1
+                        CashRecord.objects.create(
+                            id=nxt_cid,
+                            cash_in_hand=p_hand + int(net_old_cash_hand),
+                            cash_in_bank=p_bank + int(net_old_cash_bank),
+                            date=_get_pk_now(),
+                            discription=f"Reversal before Edit: Voucher #{existing_voucher.voucher_no}",
+                        )
+
+                    existing_voucher.details.all().delete()
+                    voucher = existing_voucher
+                    voucher_no = voucher.voucher_no
+                    voucher.voucher_type = actual_v_type
+                    voucher.date = voucher_date
+                    voucher.reference_no = reference_no or voucher_no
+                    voucher.total_amount = total_voucher_amt
+                    voucher.remarks = remarks or (f"Cash Deposit: Cash in Hand to {dr_acc.name}" if v_type == 'CASH_TO_BANK' else (f"Cash Withdrawal: {cr_acc.name} to Cash in Hand" if v_type == 'BANK_TO_CASH' else ''))
+                    voucher.save()
+                else:
+                    voucher_no = generate_voucher_no(actual_v_type)
+                    voucher = Voucher.objects.create(
+                        voucher_no=voucher_no,
+                        voucher_type=actual_v_type,
+                        date=voucher_date,
+                        reference_no=reference_no or voucher_no,
+                        total_amount=total_voucher_amt,
+                        remarks=remarks or (f"Cash Deposit: Cash in Hand to {dr_acc.name}" if v_type == 'CASH_TO_BANK' else (f"Cash Withdrawal: {cr_acc.name} to Cash in Hand" if v_type == 'BANK_TO_CASH' else '')),
+                        created_by=user_name,
+                    )
 
                 # CASH RECORD SYNC
                 net_cash_hand_change = Decimal('0')
@@ -745,33 +796,67 @@ def voucher_entry(request):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
 
-    # ------------ AJAX: GET VOUCHER DETAILS FOR PRINT / VIEW ------------
+    # ------------ AJAX: GET VOUCHER DETAILS FOR PRINT / VIEW / EDIT ------------
     if request.method == 'GET' and action == 'get_voucher':
         v_id = request.GET.get('id')
         voucher = get_object_or_404(Voucher, id=v_id)
         details = []
+        dr_line = None
+        cr_line = None
         for line in voucher.details.all().select_related('account', 'party'):
             details.append({
+                'account_id': line.account.id,
                 'account_code': line.account.code,
                 'account_name': line.account.name,
                 'account_type': line.account.account_type,
+                'party_id': line.party_id or (line.account.party_id if line.account.party else None),
                 'party_name': line.party.company_name if line.party else (line.account.party.company_name if line.account.party else ''),
                 'debit': str(line.debit),
                 'credit': str(line.credit),
                 'narration': line.narration or '',
             })
+            if line.debit > 0 and not dr_line:
+                dr_line = line
+            if line.credit > 0 and not cr_line:
+                cr_line = line
+
+        # Infer party_id
+        party_id = (dr_line.party_id if dr_line and dr_line.party_id else None) or (cr_line.party_id if cr_line and cr_line.party_id else None)
+
+        # Detect if this voucher is a Discount voucher
+        is_discount = False
+        discount_type = None
+        ref_no = voucher.reference_no or ''
+        remarks_lower = (voucher.remarks or '').lower()
+        if ref_no.startswith('DISC-') or 'discount' in remarks_lower:
+            is_discount = True
+            # Check whether it is given (Cr to party) or received (Dr to party)
+            if cr_line and cr_line.party_id:
+                discount_type = 'given'
+            elif dr_line and dr_line.party_id:
+                discount_type = 'received'
+            else:
+                discount_type = 'given'
+
         return JsonResponse({
             'success': True,
             'voucher': {
                 'id': voucher.id,
                 'voucher_no': voucher.voucher_no,
                 'voucher_type': voucher.voucher_type,
+                'is_discount': is_discount,
+                'discount_type': discount_type,
                 'date': voucher.date.strftime('%d-%b-%Y'),
+                'raw_date': voucher.date.strftime('%Y-%m-%d'),
                 'reference_no': voucher.reference_no or '',
                 'total_amount': f"{voucher.total_amount:,.2f}",
+                'raw_amount': str(voucher.total_amount),
                 'remarks': voucher.remarks or '',
                 'created_by': voucher.created_by or '',
                 'created_at': voucher.created_at.strftime('%d-%b-%Y %I:%M %p') if voucher.created_at else '',
+                'debit_account_id': dr_line.account.id if dr_line else None,
+                'credit_account_id': cr_line.account.id if cr_line else None,
+                'party_id': party_id,
                 'details': details,
             }
         })
@@ -823,6 +908,54 @@ def voucher_entry(request):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
 
+    # ------------ AJAX: GET FILTERED VOUCHERS LIST BY DATE ------------
+    if request.method == 'GET' and action == 'filter_vouchers':
+        filter_date_str = (request.GET.get('date') or '').strip()
+        v_qs = Voucher.objects.all().prefetch_related('details__account', 'details__party')
+        if filter_date_str:
+            try:
+                f_date = datetime.strptime(filter_date_str, '%Y-%m-%d').date()
+                v_qs = v_qs.filter(date=f_date)
+            except ValueError:
+                pass
+        else:
+            v_qs = v_qs.filter(date=date.today())
+
+        v_list = []
+        for v in v_qs.order_by('-id')[:100]:
+            debit_lines = []
+            credit_lines = []
+            for d in v.details.all():
+                p_name = d.party.company_name if d.party else (d.account.party.company_name if d.account.party else '')
+                if d.debit > 0:
+                    debit_lines.append({
+                        'account_name': d.account.name,
+                        'party_name': p_name,
+                        'amount': f"{d.debit:,.2f}",
+                    })
+                if d.credit > 0:
+                    credit_lines.append({
+                        'account_name': d.account.name,
+                        'party_name': p_name,
+                        'amount': f"{d.credit:,.2f}",
+                    })
+
+            is_disc = (v.reference_no and v.reference_no.startswith('DISC-')) or 'discount' in (v.remarks or '').lower()
+            v_list.append({
+                'id': v.id,
+                'voucher_no': v.voucher_no,
+                'voucher_type': v.voucher_type,
+                'is_discount': is_disc,
+                'reference_no': v.reference_no or '',
+                'date': v.date.strftime('%d-%b-%Y'),
+                'total_amount': f"{v.total_amount:,.2f}",
+                'remarks': v.remarks or '-',
+                'debit_lines': debit_lines,
+                'credit_lines': credit_lines,
+            })
+
+        return JsonResponse({'success': True, 'vouchers': v_list, 'count': len(v_list)})
+
     # ------------ DEFAULT PAGE DATA ------------
     level4_accounts = ChartOfAccount.objects.filter(level=4, is_active=True).order_by('code')
 
@@ -847,10 +980,11 @@ def voucher_entry(request):
     # All parties (unified: customer, vendor, trader)
     parties = Parties.objects.all().order_by('company_name')
 
-    # Recent Vouchers
-    recent_vouchers = Voucher.objects.all().prefetch_related('details__account', 'details__party').order_by('-id')[:30]
-
     pk_now = _get_pk_now()
+    today_dt = pk_now.date()
+
+    # Recent Vouchers: By default show ONLY current date's vouchers
+    recent_vouchers = list(Voucher.objects.filter(date=today_dt).prefetch_related('details__account', 'details__party').order_by('-id'))
 
     context = {
         'level4_accounts': level4_accounts,
@@ -868,6 +1002,149 @@ def voucher_entry(request):
         'next_jv': generate_voucher_no('JV'),
     }
     return render(request, 'accounts/voucher_entry.html', context)
+
+
+# ===================================================================
+# 2.5 SPECIAL DISCOUNT ENTRY HANDLER (DISCOUNT GIVEN / RECEIVED)
+# ===================================================================
+def save_discount(request):
+    """
+    Saves a Discount transaction (Discount Given / Allowed or Discount Received).
+    - Creates a double-entry Journal Voucher (JV).
+    - Updates Party account and Discount account in Chart of Accounts.
+    - Pure non-cash accounting entry (no cash/bank deduction or addition).
+    - Reflected seamlessly in Party Ledger with exact Dr/Cr.
+    """
+    if not request.session.get('user_id'):
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        party_id = data.get('party_id')
+        discount_type = (data.get('discount_type') or 'given').strip().lower()  # 'given' (party CR) or 'received' (party DR)
+        amount = _to_decimal(data.get('amount'))
+        date_str = (data.get('date') or '').strip()
+        remarks = (data.get('remarks') or '').strip()
+
+        if not party_id:
+            return JsonResponse({'success': False, 'message': 'Party lazmi select karein!'})
+        if amount <= 0:
+            return JsonResponse({'success': False, 'message': 'Discount amount 0 se barhi honi chahiye!'})
+
+        party = get_object_or_404(Parties, id=party_id)
+        party_name = (party.company_name or party.owner_name or f"Party #{party.id}").strip()
+
+        # Parse date
+        if date_str:
+            try:
+                discount_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                discount_date = date.today()
+        else:
+            discount_date = date.today()
+
+        # Ensure seed accounts exist
+        seed_default_chart_of_accounts()
+
+        # Find or create Party COA account
+        party_acc = ChartOfAccount.objects.filter(party=party, level=4).first()
+        if not party_acc and party.code:
+            party_acc = ChartOfAccount.objects.filter(code=party.code, level=4).first()
+        if not party_acc:
+            party_acc = sync_single_party_to_coa(party)
+        if not party_acc:
+            # Fallback to general party receivables
+            party_acc = ChartOfAccount.objects.filter(code='010102000', level=4).first()
+
+        # Discount Accounts:
+        # Discount Allowed (Expense, Code 050205001)
+        disc_allowed_acc = ChartOfAccount.objects.filter(code='050205001', level=4).first() or ChartOfAccount.objects.filter(name__icontains='Discount Allowed', level=4).first()
+        # Discount Received (Revenue, Code 040103001)
+        disc_received_acc = ChartOfAccount.objects.filter(code='040103001', level=4).first() or ChartOfAccount.objects.filter(name__icontains='Discount Received', level=4).first()
+
+        user_name = request.session.get('user_name', 'Admin')
+        editing_id = data.get('editing_id')
+        existing_voucher = None
+        if editing_id:
+            try:
+                existing_voucher = Voucher.objects.get(id=int(editing_id))
+            except (Voucher.DoesNotExist, ValueError):
+                return JsonResponse({'success': False, 'message': 'Editing voucher not found.'})
+
+        with transaction.atomic():
+            # If editing existing discount voucher, reverse previous balances and clean lines
+            if existing_voucher:
+                for line in existing_voucher.details.all():
+                    _update_account_balance(line.account, line.credit, line.debit)
+                existing_voucher.details.all().delete()
+                voucher = existing_voucher
+                voucher_no = voucher.voucher_no
+            else:
+                voucher_no = generate_voucher_no('JV')
+                voucher = Voucher(voucher_no=voucher_no, created_by=user_name)
+
+            if discount_type == 'given':
+                # DISCOUNT GIVEN / ALLOWED TO PARTY:
+                # Party Account is CREDITED (Party balance decreases / credit entry)
+                # Discount Allowed Account is DEBITED (Expense increases)
+                dr_acc = disc_allowed_acc
+                cr_acc = party_acc
+                dr_party_id = None
+                cr_party_id = party.id
+                narration = remarks or f"Discount Allowed to {party_name}"
+                auto_desc = f"Discount Given / Allowed - {party_name}"
+            else:
+                # DISCOUNT RECEIVED FROM PARTY / VENDOR:
+                # Party Account is DEBITED (Vendor liability decreases / debit entry)
+                # Discount Received Account is CREDITED (Revenue increases)
+                dr_acc = party_acc
+                cr_acc = disc_received_acc
+                dr_party_id = party.id
+                cr_party_id = None
+                narration = remarks or f"Discount Received from {party_name}"
+                auto_desc = f"Discount Received - {party_name}"
+
+            voucher.voucher_type = 'JV'
+            voucher.date = discount_date
+            voucher.reference_no = f"DISC-{party.id}"
+            voucher.total_amount = amount
+            voucher.remarks = auto_desc
+            voucher.save()
+
+            # 1. Debit Entry
+            VoucherDetail.objects.create(
+                voucher=voucher,
+                account=dr_acc,
+                debit=amount,
+                credit=Decimal('0'),
+                narration=narration,
+                party_id=dr_party_id,
+            )
+            _update_account_balance(dr_acc, amount, Decimal('0'))
+
+            # 2. Credit Entry
+            VoucherDetail.objects.create(
+                voucher=voucher,
+                account=cr_acc,
+                debit=Decimal('0'),
+                credit=amount,
+                narration=narration,
+                party_id=cr_party_id,
+            )
+            _update_account_balance(cr_acc, Decimal('0'), amount)
+
+        type_label = "Discount Given (Cr to Party)" if discount_type == 'given' else "Discount Received (Dr to Party)"
+        return JsonResponse({
+            'success': True,
+            'message': f"Rs. {amount:,.2f} ka {type_label} kamyabi se save ho gaya! (Voucher #{voucher_no})",
+            'voucher_no': voucher_no,
+            'voucher_id': voucher.id,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f"Error: {str(e)}"}, status=500)
 
 
 # ===================================================================

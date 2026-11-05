@@ -207,7 +207,9 @@ def get_party_ledger(request):
                     clean_desc = clean_desc[len(pfx):].strip()
 
             clean_lower = clean_desc.lower()
-            if not clean_desc or clean_lower.startswith('debit to') or clean_lower.startswith('credit from') or clean_lower.startswith('expense:'):
+            if 'discount' in clean_lower or 'disc' in clean_lower:
+                pass  # Keep exact discount description as-is!
+            elif not clean_desc or clean_lower.startswith('debit to') or clean_lower.startswith('credit from') or clean_lower.startswith('expense:'):
                 clean_desc = default_v_label
 
             combined.append({
@@ -498,7 +500,9 @@ def export_ledger_pdf(request):
                 clean_desc = clean_desc[len(pfx):].strip()
 
         clean_lower = clean_desc.lower()
-        if not clean_desc or clean_lower.startswith('debit to') or clean_lower.startswith('credit from') or clean_lower.startswith('expense:'):
+        if 'discount' in clean_lower or 'disc' in clean_lower:
+            pass  # Preserve discount description
+        elif not clean_desc or clean_lower.startswith('debit to') or clean_lower.startswith('credit from') or clean_lower.startswith('expense:'):
             clean_desc = default_v_label
 
         combined.append({

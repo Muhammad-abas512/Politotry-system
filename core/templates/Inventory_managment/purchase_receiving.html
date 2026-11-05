@@ -105,10 +105,10 @@
             <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2 small rounded-3">
                 <div>
                     <i class="bi bi-info-circle-fill text-primary me-1"></i>
-                    Is purchase me se <strong>{{ edit_sold_weight }} kg</strong> pehle hi sell ho chuka hai.
+                    Is purchase me se <strong>{{ edit_sold_weight }} kg</strong> sell ho chuka hai.
                     Mojooda Remaining Stock: <strong>{{ edit_obj.remaining_weight }} kg</strong>.
                 </div>
-                <span class="badge bg-primary text-white">New Weight kam az kam {{ edit_sold_weight }} kg se zyada hona zaroori hai</span>
+                <span class="badge bg-secondary text-white">Purchase Weight kam/zyada editable hai</span>
             </div>
             {% endif %}
             <form method="POST" id="purchaseForm">
@@ -272,10 +272,12 @@
                             <td>{{ row.weight }} kg</td>
                             <td>
                                 {% if row.remaining_weight %}
-                                    {% if row.remaining_weight|floatformat:2 >= "0" %}
+                                    {% if row.remaining_weight|floatformat:2 > "0" %}
                                         <span class="badge bg-info">{{ row.remaining_weight }} kg</span>
+                                    {% elif row.remaining_weight|floatformat:2 == "0" or row.remaining_weight == "0" %}
+                                        <span class="badge bg-secondary">{{ row.remaining_weight }} kg</span>
                                     {% else %}
-                                        <span class="badge bg-danger">{{ row.remaining_weight }} kg</span>
+                                        <span class="badge bg-danger" title="Wadya maal / Extra sold">{{ row.remaining_weight }} kg</span>
                                     {% endif %}
                                 {% else %}
                                     -
@@ -289,25 +291,16 @@
                                 <span class="badge bg-secondary">Done</span>
                                 {% endif %}
                                 {% if row.has_mortality %}
-                                <span class="badge bg-danger ms-1" title="Mortality dali ja chuki hai (Locked)"><i class="bi bi-x-octagon"></i> Mortality</span>
-                                {% elif not row.can_edit %}
-                                <span class="badge bg-dark ms-1" title="Stock mukammal sell ho chuka hai (Locked)"><i class="bi bi-lock-fill"></i> Locked</span>
-                                {% elif row.sold_weight_num > 0 %}
+                                <span class="badge bg-warning text-dark ms-1" title="Mortality dali ja chuki hai"><i class="bi bi-heart-pulse"></i> Mortality</span>
+                                {% endif %}
+                                {% if row.sold_weight_num > 0 %}
                                 <span class="badge bg-info text-dark ms-1" title="Sold: {{ row.sold_weight }} kg"><i class="bi bi-pie-chart-fill"></i> Sold: {{ row.sold_weight }}kg</span>
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                {% if row.can_edit %}
                                 <a href="?edit_id={{ row.id }}" class="btn btn-warning btn-action text-white" title="Edit Purchase (Remaining: {{ row.remaining_weight }} kg)">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
-                                {% else %}
-                                <span class="d-inline-block" tabindex="0" title="{% if row.has_mortality %}🔒 Mortality dali ja chuki hai. Edit locked hai.{% else %}🔒 Stock mukammal ({{ row.weight }}/{{ row.weight }} kg) sell ho chuka hai. Edit locked hai.{% endif %}">
-                                    <button type="button" class="btn btn-secondary btn-action" disabled>
-                                        <i class="bi bi-lock-fill"></i>
-                                    </button>
-                                </span>
-                                {% endif %}
 
                                 {% if row.can_delete %}
                                 <a href="?delete_id={{ row.id }}" class="btn btn-danger btn-action"
@@ -315,7 +308,7 @@
                                     <i class="bi bi-trash"></i>
                                 </a>
                                 {% else %}
-                                <span class="d-inline-block" tabindex="0" title="🔒 Is purchase me se sale ya mortality ho chuki hai. Delete locked hai.">
+                                <span class="d-inline-block" tabindex="0" title="🔒 Is purchase me se sale ho chuki hai. Delete locked hai.">
                                     <button type="button" class="btn btn-secondary btn-action" disabled>
                                         <i class="bi bi-trash"></i>
                                     </button>

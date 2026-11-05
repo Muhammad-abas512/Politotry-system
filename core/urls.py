@@ -12,6 +12,7 @@ urlpatterns = [
     # Chart of Accounts & Vouchers Module
     path('chart-of-accounts/', accounts_views.chart_of_accounts, name='chart_of_accounts'),
     path('voucher-entry/', accounts_views.voucher_entry, name='voucher_entry'),
+    path('save-discount/', accounts_views.save_discount, name='save_discount'),
     path('account-ledger/', accounts_views.account_ledger, name='account_ledger'),
     path('account-ledger/print/', accounts_views.account_ledger_print, name='account_ledger_print'),
 

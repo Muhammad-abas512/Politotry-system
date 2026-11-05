@@ -99,6 +99,67 @@
         margin-bottom: 15px;
     }
 
+    /* 📱 Mobile & Responsive Tweaks (Optimized for Web & APK) */
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+        .voucher-banner {
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-bottom: 14px;
+        }
+        .voucher-banner h4 {
+            font-size: 1.2rem;
+        }
+        .voucher-banner .d-flex.gap-2 {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px !important;
+        }
+        .voucher-banner .d-flex.gap-2 .btn {
+            flex: 1 1 calc(50% - 6px);
+            font-size: 0.76rem !important;
+            padding: 6px 8px !important;
+            text-align: center;
+            justify-content: center;
+        }
+        .voucher-selector-bar {
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 14px;
+        }
+        .entry-card {
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+        #currentFormTitle {
+            font-size: 1rem;
+        }
+        #currentFormSubTitle {
+            font-size: 0.75rem;
+        }
+        .table-responsive {
+            border: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table th, .table td {
+            white-space: nowrap;
+            padding: 8px 6px !important;
+            font-size: 0.78rem;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
+        .filter-date-group {
+            width: 100% !important;
+        }
+    }
+
     /* Print Preview Layout */
     @media print {
         body * { visibility: hidden; }
@@ -123,6 +184,9 @@
             </small>
         </div>
         <div class="d-flex gap-2">
+            <button type="button" class="btn btn-warning btn-sm fw-bold px-3 py-2 text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#discountModal">
+                <i class="bi bi-tag-fill me-1 text-danger"></i> Add Discount / ڈسکاؤنٹ
+            </button>
             <a href="{% url 'chart_of_accounts' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
                 <i class="bi bi-diagram-3 me-1"></i> Chart of Accounts
             </a>
@@ -175,7 +239,24 @@
     </div>
 
     <!-- ENTRY CARD -->
-    <div class="entry-card">
+    <div class="entry-card" id="voucherEntryCard">
+        <!-- Edit Mode Banner -->
+        <div id="editModeBanner" class="alert alert-warning border border-warning-subtle shadow-sm d-none mb-3 py-2 px-3 align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-pencil-square fs-4 text-warning me-2"></i>
+                <div>
+                    <strong class="text-dark">Editing Voucher Mode / واؤچر میں ترمیم کا موڈ:</strong>
+                    <span id="editingVoucherLabel" class="badge bg-dark font-monospace ms-2"></span>
+                    <div class="small text-muted">Voucher update krne par sabhi previous balances reverse ho kar nayi values save hon gi.</div>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="cancelEditVoucher()">
+                    <i class="bi bi-x-circle me-1"></i> Cancel Edit (کینسل کریں)
+                </button>
+            </div>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
             <div>
                 <h5 class="fw-bold mb-0 text-dark" id="currentFormTitle">
@@ -199,6 +280,7 @@
         <!-- ========================================== -->
         <form id="quickVoucherForm">
             <input type="hidden" id="selectedVoucherType" value="CPV">
+            <input type="hidden" id="editingVoucherId" value="">
 
             <div class="row g-3">
                 <!-- DATE -->
@@ -290,12 +372,27 @@
         <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-1 text-primary"></i> Recently Posted Vouchers</h6>
-                <small class="text-muted">Showing latest CPV, CRV, BPV, BRV, and JV entries.</small>
+                <small class="text-muted">Showing vouchers for selected date. (Default: Today)</small>
             </div>
-            <span class="badge bg-secondary px-3 py-2">Total Listed: {{ recent_vouchers|length }}</span>
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <!-- Date Filter Input -->
+                <div class="input-group input-group-sm filter-date-group shadow-sm" style="width: auto;">
+                    <span class="input-group-text bg-white border-primary text-primary fw-bold">
+                        <i class="bi bi-calendar-event me-1"></i> Filter Date:
+                    </span>
+                    <input type="date" class="form-control border-primary" id="tableFilterDate" value="{{ today_date }}" onchange="onDateFilterChanged(this.value)">
+                    <button class="btn btn-outline-primary" type="button" title="Reload / Refresh" onclick="reloadVouchersTable()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" title="Clear Date (Show All Recent)" onclick="clearDateFilter()">
+                        <i class="bi bi-x-circle"></i> All
+                    </button>
+                </div>
+                <span class="badge bg-secondary px-3 py-2" id="totalVouchersCountBadge">Total Listed: {{ recent_vouchers|length }}</span>
+            </div>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+            <table class="table table-hover mb-0 align-middle" style="font-size: 0.85rem;" id="vouchersHistoryTable">
                 <thead class="table-light">
                     <tr>
                         <th>Voucher #</th>
@@ -308,7 +405,7 @@
                         <th style="text-align: center;">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="vouchersTableBody">
                     {% for v in recent_vouchers %}
                     <tr>
                         <td>
@@ -356,6 +453,9 @@
                         <td class="fw-bold fs-6">Rs. {{ v.total_amount|floatformat:2 }}</td>
                         <td><small class="text-muted">{{ v.remarks|default:"-" }}</small></td>
                         <td class="text-center">
+                            <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit Voucher / واؤچر میں ترمیم کریں" onclick="editVoucher({{ v.id }})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
                             <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Voucher" onclick="viewVoucher({{ v.id }})">
                                 <i class="bi bi-printer"></i>
                             </button>
@@ -367,7 +467,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="8" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-2 d-block mb-1"></i> No vouchers posted yet. Post your first voucher above!
+                            <i class="bi bi-inbox fs-2 d-block mb-1"></i> No vouchers posted yet for this date.
                         </td>
                     </tr>
                     {% endfor %}
@@ -443,6 +543,100 @@
                     <i class="bi bi-printer me-1"></i> Print Voucher Slip
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 🏷️ DISCOUNT ENTRY MODAL -->
+<!-- ========================================== -->
+<div class="modal fade" id="discountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-3 overflow-hidden">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <h5 class="modal-title fw-bold" id="discountModalTitle">
+                    <i class="bi bi-percent me-2"></i> Add Discount / ڈسکاؤنٹ شامل کریں
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="discountForm" onsubmit="submitDiscountForm(event)">
+                <input type="hidden" id="editingDiscountVoucherId" value="">
+                <div class="modal-body p-4 bg-light">
+                    <!-- Party Selection with Search -->
+                    <div class="mb-3">
+                        <label for="discPartyId" class="form-label fw-bold text-dark">
+                            <i class="bi bi-person-fill text-primary me-1"></i> Select Party / پارٹی منتخب کریں <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select select2-basic" id="discPartyId" required style="width: 100%;">
+                            <option value="">-- Search & Select Party --</option>
+                            {% for p in parties %}
+                            <option value="{{ p.id }}">{{ p.company_name|default:p.owner_name }} {% if p.code %}({{ p.code }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Party name ya code type kar ke search karein.</small>
+                    </div>
+
+                    <!-- Date Selection -->
+                    <div class="mb-3">
+                        <label for="discDate" class="form-label fw-bold text-dark">
+                            <i class="bi bi-calendar-event text-primary me-1"></i> Date / تاریخ <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" class="form-control" id="discDate" value="{{ today_date }}" required>
+                    </div>
+
+                    <!-- Discount Type (Given vs Received) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark d-block">
+                            <i class="bi bi-arrow-left-right text-primary me-1"></i> Discount Type (Cr / Dr to Party) <span class="text-danger">*</span>
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="discountType" id="discTypeGiven" value="given" checked onchange="updateDiscountHint()">
+                                <label class="btn btn-outline-success w-100 py-2 fw-bold text-start small" for="discTypeGiven">
+                                    <i class="bi bi-arrow-down-circle-fill me-1"></i> Discount Given (Cr)<br>
+                                    <span class="fw-normal text-muted" style="font-size: 0.75rem;">پارٹی کو ڈسکاؤنٹ دیا (Ledger CR)</span>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="discountType" id="discTypeReceived" value="received" onchange="updateDiscountHint()">
+                                <label class="btn btn-outline-primary w-100 py-2 fw-bold text-start small" for="discTypeReceived">
+                                    <i class="bi bi-arrow-up-circle-fill me-1"></i> Discount Received (Dr)<br>
+                                    <span class="fw-normal text-muted" style="font-size: 0.75rem;">پارٹی سے ڈسکاؤنٹ ملا (Ledger DR)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="alert alert-info py-2 px-3 mt-2 mb-0 small" id="discountHintAlert">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong>Discount Given:</strong> Party ke ledger mein <strong>Credit (Cr)</strong> hoga (party ka baqaya kam hoga). Cash mein koi change nahi hoga.
+                        </div>
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="mb-3">
+                        <label for="discAmount" class="form-label fw-bold text-dark">
+                            <i class="bi bi-cash me-1 text-success"></i> Discount Amount (Rs.) <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white fw-bold">Rs.</span>
+                            <input type="number" step="0.01" min="0.01" class="form-control form-control-lg fw-bold text-danger" id="discAmount" placeholder="0.00" required>
+                        </div>
+                    </div>
+
+                    <!-- Remarks / Reason -->
+                    <div class="mb-2">
+                        <label for="discRemarks" class="form-label fw-bold text-dark">
+                            <i class="bi bi-chat-left-text text-secondary me-1"></i> Description / Remarks / تفصیل
+                        </label>
+                        <input type="text" class="form-control" id="discRemarks" placeholder="e.g. Special Settlement Discount / چھوٹ">
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark px-4" id="btnSaveDiscount">
+                        <i class="bi bi-check-circle-fill me-1"></i> Post Discount / ڈسکاؤنٹ محفوظ کریں
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -769,6 +963,7 @@
 
         const payload = {
             mode: 'quick',
+            editing_id: document.getElementById('editingVoucherId').value || null,
             voucher_type: vType,
             date: document.getElementById('vDate').value,
             reference_no: document.getElementById('vRef').value.trim(),
@@ -781,7 +976,7 @@
 
         const btn = document.getElementById('btnSaveQuick');
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Posting...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> ' + (payload.editing_id ? 'Updating...' : 'Posting...');
 
         fetch("{% url 'voucher_entry' %}?action=save_voucher", {
             method: 'POST',
@@ -794,7 +989,7 @@
         .then(res => res.json())
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher';
+            btn.innerHTML = payload.editing_id ? '<i class="bi bi-pencil-square me-1"></i> Update Voucher' : '<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher';
             if (data.success) {
                 alert(data.message);
                 window.location.reload();
@@ -804,12 +999,111 @@
         })
         .catch(err => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher';
+            btn.innerHTML = payload.editing_id ? '<i class="bi bi-pencil-square me-1"></i> Update Voucher' : '<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher';
             alert('Request failed: ' + err);
         });
     });
 
 
+
+    // EDIT VOUCHER IN PLACE OR IN DISCOUNT MODAL
+    function editVoucher(voucherId) {
+        fetch("{% url 'voucher_entry' %}?action=get_voucher&id=" + voucherId)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Error: ' + data.message);
+                    return;
+                }
+                const v = data.voucher;
+
+                // 🏷️ CHECK IF THIS IS A DISCOUNT VOUCHER:
+                // If yes, load it directly into the Discount Modal for editing!
+                if (v.is_discount) {
+                    $('#editingDiscountVoucherId').val(v.id);
+                    $('#discountModalTitle').html(`<i class="bi bi-pencil-square me-2"></i> Edit Discount / ڈسکاؤنٹ میں ترمیم (#${v.voucher_no})`);
+                    $('#btnSaveDiscount').html('<i class="bi bi-pencil-square me-1"></i> Update Discount / محفوظ کریں');
+
+                    if (v.party_id) {
+                        $('#discPartyId').val(v.party_id).trigger('change');
+                    }
+                    $('#discDate').val(v.raw_date || '');
+                    $('#discAmount').val(v.raw_amount || '');
+                    $('#discRemarks').val(v.remarks || '');
+
+                    if (v.discount_type === 'received') {
+                        document.getElementById('discTypeReceived').checked = true;
+                    } else {
+                        document.getElementById('discTypeGiven').checked = true;
+                    }
+                    updateDiscountHint();
+
+                    const discModal = new bootstrap.Modal(document.getElementById('discountModal'));
+                    discModal.show();
+                    return;
+                }
+
+                // OTHERWISE: REGULAR VOUCHER ENTRY FORM (CPV, CRV, BPV, BRV, JV)
+                // 1. Set editing ID & Display
+                $('#editingVoucherId').val(v.id);
+                $('#editingVoucherLabel').text(`${v.voucher_no} (${v.voucher_type})`);
+                $('#editModeBanner').removeClass('d-none').addClass('d-flex');
+
+                // 2. Switch Voucher Type UI
+                let targetType = v.voucher_type;
+                if (!['CPV', 'CRV', 'BPV', 'BRV', 'JV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(targetType)) {
+                    targetType = 'CPV';
+                }
+                switchVoucherType(targetType);
+
+                // 3. Fill in fields
+                $('#displayVoucherNo').text(v.voucher_no);
+                $('#vDate').val(v.raw_date || '');
+                $('#vRef').val(v.reference_no || v.voucher_no);
+                $('#vAmount').val(v.raw_amount || '');
+                $('#vRemarks').val(v.remarks || '');
+
+                if (v.party_id) {
+                    $('#vParty').val(v.party_id).trigger('change');
+                } else {
+                    $('#vParty').val('').trigger('change');
+                }
+
+                if (v.credit_account_id) {
+                    $('#vCreditAccount').val(v.credit_account_id).trigger('change');
+                }
+                if (v.debit_account_id) {
+                    $('#vDebitAccount').val(v.debit_account_id).trigger('change');
+                }
+
+                // 4. Update save button
+                $('#btnSaveQuick').html('<i class="bi bi-pencil-square me-1"></i> Update Voucher #' + v.voucher_no);
+                $('#btnSaveQuick').removeClass('btn-primary').addClass('btn-warning text-dark');
+
+                // 5. Scroll smoothly up to the form
+                const el = document.getElementById('voucherEntryCard');
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            })
+            .catch(err => {
+                alert('Failed to load voucher for editing: ' + err);
+            });
+    }
+
+    function cancelEditVoucher() {
+        $('#editingVoucherId').val('');
+        $('#editModeBanner').removeClass('d-flex').addClass('d-none');
+        $('#btnSaveQuick').html('<i class="bi bi-check-circle-fill me-1"></i> Post & Save Voucher');
+        $('#btnSaveQuick').removeClass('btn-warning text-dark').addClass('btn-primary');
+
+        const currentType = $('#selectedVoucherType').val() || 'CPV';
+        switchVoucherType(currentType);
+
+        $('#vAmount').val('');
+        $('#vRemarks').val('');
+        $('#vParty').val('').trigger('change');
+    }
 
     // VIEW / PRINT VOUCHER MODAL
     function viewVoucher(voucherId) {
@@ -887,5 +1181,206 @@
             alert('Request failed: ' + err);
         });
     }
+
+    // ==========================================
+    // 🏷️ DISCOUNT MODAL LOGIC
+    // ==========================================
+    function updateDiscountHint() {
+        const isGiven = document.getElementById('discTypeGiven').checked;
+        const alertBox = document.getElementById('discountHintAlert');
+        if (isGiven) {
+            alertBox.className = 'alert alert-info py-2 px-3 mt-2 mb-0 small';
+            alertBox.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i> <strong>Discount Given:</strong> Party ke ledger mein <strong>Credit (Cr)</strong> hoga (party ka baqaya kam hoga). Cash mein koi change nahi hoga.';
+        } else {
+            alertBox.className = 'alert alert-warning py-2 px-3 mt-2 mb-0 small';
+            alertBox.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i> <strong>Discount Received:</strong> Party ke ledger mein <strong>Debit (Dr)</strong> hoga (vendor liability kam hogi). Cash mein koi change nahi hoga.';
+        }
+    }
+
+    function submitDiscountForm(event) {
+        event.preventDefault();
+        const editingId = document.getElementById('editingDiscountVoucherId').value || null;
+        const partyId = document.getElementById('discPartyId').value;
+        const discDate = document.getElementById('discDate').value;
+        const discountType = document.getElementById('discTypeGiven').checked ? 'given' : 'received';
+        const amount = parseFloat(document.getElementById('discAmount').value) || 0;
+        const remarks = document.getElementById('discRemarks').value.trim();
+
+        if (!partyId) {
+            alert('Meharbani karke Party select karein!');
+            return;
+        }
+        if (amount <= 0) {
+            alert('Discount amount 0 se barhi honi chahiye!');
+            return;
+        }
+
+        const btn = document.getElementById('btnSaveDiscount');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> ' + (editingId ? 'Updating...' : 'Posting...');
+
+        fetch("{% url 'save_discount' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                editing_id: editingId,
+                party_id: partyId,
+                date: discDate,
+                discount_type: discountType,
+                amount: amount,
+                remarks: remarks
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = editingId ? '<i class="bi bi-pencil-square me-1"></i> Update Discount / محفوظ کریں' : '<i class="bi bi-check-circle-fill me-1"></i> Post Discount / ڈسکاؤنٹ محفوظ کریں';
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = editingId ? '<i class="bi bi-pencil-square me-1"></i> Update Discount / محفوظ کریں' : '<i class="bi bi-check-circle-fill me-1"></i> Post Discount / ڈسکاؤنٹ محفوظ کریں';
+            alert('Request failed: ' + err);
+        });
+    }
+
+    // Reset discount modal on close
+    $('#discountModal').on('hidden.bs.modal', function () {
+        $('#editingDiscountVoucherId').val('');
+        $('#discountModalTitle').html('<i class="bi bi-percent me-2"></i> Add Discount / ڈسکاؤنٹ شامل کریں');
+        $('#btnSaveDiscount').html('<i class="bi bi-check-circle-fill me-1"></i> Post Discount / ڈسکاؤنٹ محفوظ کریں');
+        $('#discPartyId').val('').trigger('change');
+        $('#discAmount').val('');
+        $('#discRemarks').val('');
+        document.getElementById('discTypeGiven').checked = true;
+        updateDiscountHint();
+    });
+
+    // ==========================================
+    // 📅 DATE FILTER FOR VOUCHERS TABLE
+    // ==========================================
+    function onDateFilterChanged(selectedDate) {
+        reloadVouchersTable(selectedDate);
+    }
+
+    function clearDateFilter() {
+        $('#tableFilterDate').val('');
+        reloadVouchersTable('');
+    }
+
+    function reloadVouchersTable(filterDate) {
+        if (filterDate === undefined) {
+            filterDate = $('#tableFilterDate').val() || '';
+        }
+
+        const tbody = document.getElementById('vouchersTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4 text-muted">
+                    <span class="spinner-border spinner-border-sm me-2"></span> Loading vouchers...
+                </td>
+            </tr>
+        `;
+
+        fetch("{% url 'voucher_entry' %}?action=filter_vouchers&date=" + encodeURIComponent(filterDate))
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Error: ${data.message}</td></tr>`;
+                    return;
+                }
+
+                $('#totalVouchersCountBadge').text('Total Listed: ' + data.vouchers.length);
+
+                if (data.vouchers.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-1"></i> No vouchers found for ${filterDate || 'selected criteria'}.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                data.vouchers.forEach(v => {
+                    let badgeClass = 'badge-jv';
+                    let badgeText = v.voucher_type;
+                    if (v.voucher_type === 'CPV' || v.voucher_type === 'Payment Voucher') {
+                        badgeClass = 'badge-cpv'; badgeText = 'CPV';
+                    } else if (v.voucher_type === 'CRV' || v.voucher_type === 'Receipt Voucher') {
+                        badgeClass = 'badge-crv'; badgeText = 'CRV';
+                    } else if (v.voucher_type === 'BPV') {
+                        badgeClass = 'badge-bpv'; badgeText = 'BPV';
+                    } else if (v.voucher_type === 'BRV') {
+                        badgeClass = 'badge-brv'; badgeText = 'BRV';
+                    } else if (v.is_discount) {
+                        badgeClass = 'badge-jv'; badgeText = 'DISCOUNT';
+                    }
+
+                    let drHtml = '';
+                    v.debit_lines.forEach(l => {
+                        drHtml += `<div class="text-danger fw-semibold">${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                    });
+
+                    let crHtml = '';
+                    v.credit_lines.forEach(l => {
+                        crHtml += `<div class="text-success fw-semibold">${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                    });
+
+                    html += `
+                        <tr>
+                            <td>
+                                <span class="font-monospace fw-bold text-primary">${v.voucher_no}</span>
+                                ${v.reference_no && v.reference_no !== v.voucher_no ? `<small class="text-muted d-block font-monospace">Ref: ${v.reference_no}</small>` : ''}
+                            </td>
+                            <td><span class="badge badge-voucher ${badgeClass}">${badgeText}</span></td>
+                            <td>${v.date}</td>
+                            <td>${drHtml || '-'}</td>
+                            <td>${crHtml || '-'}</td>
+                            <td class="fw-bold fs-6">Rs. ${v.total_amount}</td>
+                            <td><small class="text-muted">${v.remarks || '-'}</small></td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit Voucher / واؤچر میں ترمیم کریں" onclick="editVoucher(${v.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Voucher" onclick="viewVoucher(${v.id})">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="Reverse & Delete Voucher" onclick="deleteVoucher(${v.id}, '${v.voucher_no}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+            })
+            .catch(err => {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Failed to load vouchers: ${err}</td></tr>`;
+            });
+    }
+
+    // Initialize Select2 in Discount Modal if available
+    $(document).ready(function() {
+        if ($.fn.select2) {
+            $('#discPartyId').select2({
+                dropdownParent: $('#discountModal'),
+                placeholder: "-- Search & Select Party --",
+                allowClear: true,
+                width: '100%'
+            });
+        }
+    });
 </script>
 {% endblock %}

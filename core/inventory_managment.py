@@ -310,36 +310,11 @@ def purchase_receiving(request):
         if record_id:
             purchase = PurchaseReceiving.objects.filter(id=record_id).first()
             if purchase:
-                # 1. Mortality check: if mortality is entered, purchase cannot be edited
-                has_mortality = Mortality.objects.filter(purchase_no=purchase.purchase_number).exists()
-                if has_mortality:
-                    messages.error(
-                        request,
-                        f"❌ Purchase #{purchase.purchase_number} edit nahi ho sakti kyunke iski mortality dali ja chuki hai!"
-                    )
-                    return redirect('purchase_receiving')
-
-                # 2. Remaining stock check: if remaining stock <= 0 (e.g. 500/500 sold), cannot edit
-                curr_rem = sell_decimal(purchase.remaining_weight)
-                if curr_rem <= 0:
-                    messages.error(
-                        request,
-                        f"❌ Purchase #{purchase.purchase_number} edit nahi ho sakti kyunke iska stock mukammal sell ho chuka hai (Remaining: {curr_rem} kg)!"
-                    )
-                    return redirect('purchase_receiving')
-
-                # 3. Calculate already sold weight from sales invoices
+                # Calculate already sold weight from sales invoices
                 sales_qs = SellsInvoice.objects.filter(purchase_number=purchase.purchase_number)
                 sold_weight = sum(sell_decimal(s.weight) for s in sales_qs)
 
-                # 4. Check if new weight entered is greater than already sold weight
-                if sold_weight > 0 and weight <= sold_weight:
-                    messages.error(
-                        request,
-                        f"❌ Purchase weight ({sell_number(weight)} kg) pehle se sold weight ({sell_number(sold_weight)} kg) se zyada hona zaroori hai!"
-                    )
-                    return redirect(f"{request.path}?edit_id={purchase.id}")
-
+                # Negative remaining weight represents extra/wadya maal sold beyond purchase weight
                 new_remaining = weight - sold_weight
                 new_status = 'Active' if new_remaining > 0 else 'Done'
 
@@ -523,23 +498,6 @@ def purchase_receiving(request):
     if edit_id:
         edit_obj = PurchaseReceiving.objects.filter(id=edit_id).first()
         if edit_obj:
-            has_mortality = Mortality.objects.filter(purchase_no=edit_obj.purchase_number).exists()
-            rem = sell_decimal(edit_obj.remaining_weight)
-
-            if has_mortality:
-                messages.error(
-                    request,
-                    f"❌ Purchase #{edit_obj.purchase_number} edit nahi ho sakti kyunke iski mortality dali ja chuki hai!"
-                )
-                return redirect('purchase_receiving')
-
-            if rem <= 0:
-                messages.error(
-                    request,
-                    f"❌ Purchase #{edit_obj.purchase_number} edit nahi ho sakti kyunke iska stock mukammal (500/500 ya zyada) sell ho chuka hai (Remaining: {rem} kg)!"
-                )
-                return redirect('purchase_receiving')
-
             sales_qs = SellsInvoice.objects.filter(purchase_number=edit_obj.purchase_number)
             edit_sold_weight = sum(sell_decimal(s.weight) for s in sales_qs)
 
@@ -592,13 +550,11 @@ def purchase_receiving(request):
         item.sold_weight_num = sold_w
 
         # User rules:
-        # 1. Mortality entered -> cannot edit
-        # 2. Remaining stock <= 0 (e.g. 500/500 sold) -> cannot edit
-        # 3. As long as remaining stock > 0 and no mortality -> CAN EDIT!
-        item.can_edit = (not has_mort) and (rem > 0)
-        item.is_locked = not item.can_edit
+        # All purchases can always be edited, even if sold or mortality entered!
+        item.can_edit = True
+        item.is_locked = False
 
-        # Cannot delete if sales or mortality exist
+        # Cannot delete if even 1 kg has been sold or mortality exists
         item.can_delete = (not has_mort) and (sold_w == 0) and (rem >= w)
 
     next_purchase_number = generate_purchase_number()
