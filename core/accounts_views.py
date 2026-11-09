@@ -453,8 +453,8 @@ def voucher_entry(request):
             'type': a.account_type,
             'balance': str(a.current_balance),
             'party_id': a.party_id,
-        } for a in accs[:30]]
-        return JsonResponse({'success': True, 'accounts': res})
+        } for a in accs[:50]]
+        return JsonResponse({'success': True, 'accounts': res, 'results': res})
 
     # ------------ AJAX: GET LEVEL 4 ACCOUNTS ------------
     if request.method == 'GET' and action == 'get_level4_accounts':
@@ -1217,33 +1217,31 @@ def jv_voucher(request):
     sync_all_parties_to_coa()
     action = request.GET.get('action') or request.POST.get('action')
 
-    # ------------ 1. AJAX: PARTY AUTOCOMPLETE SEARCH ------------
-    if request.method == 'GET' and action == 'search_parties':
+    # ------------ 1. AJAX: ACCOUNT / PARTY AUTOCOMPLETE SEARCH ------------
+    if request.method == 'GET' and action in ['search_parties', 'search_jv_accounts']:
         query = (request.GET.get('q') or '').strip()
-        parties_qs = Parties.objects.all()
+        accs_qs = ChartOfAccount.objects.filter(level=4, is_active=True)
         if query:
-            parties_qs = parties_qs.filter(
-                Q(company_name__icontains=query) |
-                Q(owner_name__icontains=query) |
-                Q(code__icontains=query)
+            accs_qs = accs_qs.filter(
+                Q(name__icontains=query) |
+                Q(code__icontains=query) |
+                Q(party__company_name__icontains=query) |
+                Q(party__owner_name__icontains=query)
             )
-        parties_data = []
-        for p in parties_qs[:30]:
-            acc = ChartOfAccount.objects.filter(party=p, level=4).first()
-            if not acc and p.code:
-                acc = ChartOfAccount.objects.filter(code=p.code, level=4).first()
-            if not acc:
-                acc = sync_single_party_to_coa(p)
-
-            parties_data.append({
-                'party_id': p.id,
-                'party_name': p.company_name or p.owner_name or f"Party #{p.id}",
-                'party_code': p.code or (acc.code if acc else ''),
-                'account_id': acc.id if acc else None,
-                'account_code': acc.code if acc else (p.code or ''),
-                'current_balance': str(acc.current_balance) if acc else '0.00',
+        results = []
+        for a in accs_qs[:40]:
+            p_obj = a.party
+            results.append({
+                'account_id': a.id,
+                'account_code': a.code,
+                'account_name': a.name,
+                'party_id': p_obj.id if p_obj else None,
+                'party_name': p_obj.company_name if p_obj else a.name,
+                'party_code': p_obj.code if p_obj else a.code,
+                'current_balance': str(a.current_balance),
+                'type': a.account_type,
             })
-        return JsonResponse({'success': True, 'results': parties_data})
+        return JsonResponse({'success': True, 'results': results, 'accounts': results})
 
     # ------------ 2. AJAX: GET JV DETAILS FOR EDIT / PRINT SLIP ------------
     if request.method == 'GET' and action == 'get_jv':

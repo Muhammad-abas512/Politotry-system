@@ -4,45 +4,63 @@
 
 {% block extra_css %}
 <style>
+    /* ============================================
+       BASE DESKTOP STYLES
+       ============================================ */
     .jv-banner {
         background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
         color: #fff;
-        border-radius: 14px;
-        padding: 20px 24px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        border-radius: 12px;
+        padding: 18px 22px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.08);
         margin-bottom: 20px;
     }
 
     .jv-card {
         background: #fff;
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid #e2e8f0;
         box-shadow: 0 4px 14px rgba(0,0,0,0.04);
         padding: 22px;
         margin-bottom: 25px;
     }
 
-    .form-label-bold {
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: #334155;
-        margin-bottom: 5px;
-    }
-
     .history-card {
         background: #fff;
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid #e2e8f0;
         box-shadow: 0 4px 14px rgba(0,0,0,0.04);
         overflow: hidden;
     }
 
-    /* Autocomplete Suggestions Box */
-    .party-search-wrap {
-        position: relative;
+    .form-label-bold {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 5px;
     }
 
-    .party-suggestions-box {
+    .jv-grid-table th {
+        background: #1e293b !important;
+        color: #ffffff !important;
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 10px 12px;
+        vertical-align: middle;
+        border: 1px solid #334155;
+    }
+
+    .jv-grid-table td {
+        padding: 8px 12px;
+        vertical-align: middle;
+        border: 1px solid #e2e8f0;
+        font-size: 0.86rem;
+    }
+
+    /* Autocomplete */
+    .acc-search-wrap { position: relative; }
+
+    .acc-suggestions-box {
         position: absolute;
         top: 100%;
         left: 0;
@@ -58,8 +76,8 @@
         display: none;
     }
 
-    .party-suggestion-item {
-        padding: 10px 14px;
+    .acc-suggestion-item {
+        padding: 9px 14px;
         cursor: pointer;
         border-bottom: 1px solid #f1f5f9;
         transition: background 0.15s ease;
@@ -68,33 +86,287 @@
         align-items: center;
     }
 
-    .party-suggestion-item:last-child {
-        border-bottom: none;
-    }
+    .acc-suggestion-item:last-child { border-bottom: none; }
+    .acc-suggestion-item:hover, .acc-suggestion-item.active { background-color: #e0e7ff; }
 
-    .party-suggestion-item:hover, .party-suggestion-item.active {
-        background-color: #e0e7ff;
-    }
-
-    .party-suggestion-title {
+    .acc-suggestion-title {
         font-weight: 600;
         color: #1e293b;
         font-size: 0.88rem;
     }
 
-    .party-suggestion-code {
+    .acc-suggestion-code {
         font-size: 0.75rem;
         color: #64748b;
         font-family: monospace;
     }
 
-    /* Table styling */
-    .jv-grid-table th {
-        background: #f8fafc;
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        color: #64748b;
-        font-weight: 700;
+    /* Mobile Card View (for JV Lines & History) - hidden on desktop */
+    .mobile-card-view { display: none; }
+
+    /* ============================================
+       📱 MOBILE / TABLET RESPONSIVE (≤ 768px)
+       App-like feel
+       ============================================ */
+    @media (max-width: 768px) {
+        body {
+            background: #f1f5f9 !important;
+        }
+
+        .container-fluid {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            padding-top: 6px !important;
+        }
+
+        /* Sleek banner like mobile app header */
+        .jv-banner {
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+        }
+        .jv-banner h4 {
+            font-size: 1rem;
+            margin-bottom: 0 !important;
+        }
+
+        /* Card padding tighter */
+        .jv-card {
+            padding: 12px;
+            margin-bottom: 14px;
+            border-radius: 10px;
+        }
+
+        /* Form labels smaller */
+        .form-label-bold {
+            font-size: 0.75rem;
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+
+        .form-control, .input-group-text {
+            font-size: 0.88rem !important;
+            padding: 8px 10px !important;
+            border-radius: 8px !important;
+        }
+
+        /* 🎯 Voucher#, Type, Date, Ref -> 2 columns on mobile */
+        .mobile-2col > [class*="col-"] {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+        .mobile-2col .col-ref {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        /* Entry section: stack properly */
+        .entry-section {
+            padding: 10px !important;
+            border-radius: 10px !important;
+        }
+
+        /* Input entry: 2 col grid for Dr/Cr, full width for others */
+        .entry-row-mobile > .col-full {
+            flex: 0 0 100%;
+            max-width: 100%;
+            margin-bottom: 8px;
+        }
+        .entry-row-mobile > .col-half {
+            flex: 0 0 50%;
+            max-width: 50%;
+            margin-bottom: 8px;
+        }
+
+        /* Hide the desktop JV lines table, show cards */
+        #jvLinesDesktopTable { display: none; }
+        #jvLinesMobile.mobile-card-view { display: block; }
+
+        /* Hide desktop history table, show cards */
+        #jvHistoryDesktopTable { display: none; }
+        #jvHistoryMobile.mobile-card-view { display: block; }
+
+        /* Mobile JV Line Card */
+        .jv-line-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #4f46e5;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .jv-line-card .line-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+        .jv-line-card .line-title {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        .jv-line-card .line-code {
+            font-size: 0.7rem;
+            color: #64748b;
+            font-family: monospace;
+        }
+        .jv-line-card .line-narration {
+            font-size: 0.78rem;
+            color: #475569;
+            margin-bottom: 6px;
+            font-style: italic;
+        }
+        .jv-line-card .line-amounts {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 6px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .jv-line-card .amt-dr {
+            color: #dc2626;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .jv-line-card .amt-cr {
+            color: #16a34a;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .jv-line-card .btn-remove-mobile {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        /* Totals bar (sticky bottom like mobile app) */
+        .totals-mobile-bar {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .totals-mobile-bar .dr-box { color: #fca5a5; }
+        .totals-mobile-bar .cr-box { color: #86efac; }
+
+        /* Mobile History Card */
+        .jv-hist-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .jv-hist-card .hist-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .jv-hist-card .hist-vno {
+            font-family: monospace;
+            font-weight: 700;
+            color: #4f46e5;
+            font-size: 0.9rem;
+        }
+        .jv-hist-card .hist-date {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .jv-hist-card .hist-amt {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 6px;
+            margin-bottom: 6px;
+            text-align: center;
+            background: #f8fafc;
+            padding: 6px;
+            border-radius: 6px;
+        }
+        .jv-hist-card .hist-details {
+            font-size: 0.78rem;
+            margin-bottom: 4px;
+        }
+        .jv-hist-card .hist-details strong { color: #334155; }
+        .jv-hist-card .hist-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .jv-hist-card .hist-actions .btn {
+            flex: 1;
+            font-size: 0.75rem;
+            padding: 6px 8px;
+            font-weight: 600;
+        }
+
+        /* Save button bigger & sticky feel */
+        #btnSaveJV {
+            width: 100%;
+            padding: 12px !important;
+            font-size: 0.95rem !important;
+            border-radius: 10px !important;
+        }
+        .save-row {
+            flex-direction: column;
+            gap: 10px !important;
+        }
+        #balanceMessage {
+            text-align: center;
+            font-size: 0.78rem;
+        }
+
+        /* History filter stack */
+        .filter-date-group {
+            width: 100% !important;
+        }
+        .history-header-mobile {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        .history-header-mobile h6 { font-size: 0.9rem; }
+
+        /* Modal fits mobile */
+        .modal-lg { max-width: 98% !important; }
+        #printableVoucher .border { padding: 12px !important; }
+        #printableVoucher h4 { font-size: 1.1rem; }
+        #printableVoucher h5 { font-size: 0.95rem; }
+        #printableVoucher table { font-size: 0.72rem; }
+
+        /* Entry button mobile */
+        #btnAddEntry {
+            padding: 10px !important;
+            font-size: 0.9rem !important;
+            border-radius: 10px !important;
+        }
+    }
+
+    /* Extra small devices */
+    @media (max-width: 400px) {
+        .jv-banner h4 { font-size: 0.9rem; }
+        .form-control { font-size: 0.82rem !important; }
     }
 
     /* Print Preview Layout */
@@ -103,31 +375,6 @@
         #printableVoucher, #printableVoucher * { visibility: visible; }
         #printableVoucher { position: absolute; left: 0; top: 0; width: 100%; }
         .modal-footer, .btn-close { display: none !important; }
-    }
-
-    @media (max-width: 768px) {
-        .container-fluid {
-            padding-left: 8px !important;
-            padding-right: 8px !important;
-        }
-        .jv-banner {
-            padding: 14px 16px;
-            margin-bottom: 14px;
-        }
-        .jv-card {
-            padding: 14px;
-            margin-bottom: 16px;
-        }
-        .table-responsive {
-            border: 0;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .table th, .table td {
-            white-space: nowrap;
-            padding: 8px 6px !important;
-            font-size: 0.78rem;
-        }
     }
 </style>
 {% endblock %}
@@ -141,71 +388,46 @@
             <h4 class="mb-1 fw-bold">
                 <i class="bi bi-arrow-left-right text-warning me-2"></i> Journal Voucher (JV)
             </h4>
-            <small class="text-white-50">
-                Direct head-to-head adjustments, party-to-party transfers, and double-entry adjustments without cash/bank involvement.
-            </small>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'voucher_entry' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="bi bi-receipt-cutoff me-1"></i> Cash / Bank Vouchers
-            </a>
-            <a href="{% url 'chart_of_accounts' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="bi bi-diagram-3 me-1"></i> Chart of Accounts
-            </a>
-            <a href="{% url 'party_ledger' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="bi bi-people me-1"></i> Party Ledger
-            </a>
         </div>
     </div>
 
-    <!-- ENTRY CARD -->
+    <!-- MAIN JV CARD -->
     <div class="jv-card" id="jvEntryCard">
-        <!-- Edit Mode Banner -->
-        <div id="editModeBanner" class="alert alert-warning border border-warning-subtle shadow-sm d-none mb-3 py-2 px-3 align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-pencil-square fs-4 text-warning me-2"></i>
-                <div>
-                    <strong class="text-dark">Editing JV Mode / جرنل واؤچر میں ترمیم:</strong>
-                    <span id="editingVoucherLabel" class="badge bg-dark font-monospace ms-2"></span>
-                    <div class="small text-muted">Voucher update krne par sabhi previous balances reverse ho kar nayi values save hon gi.</div>
-                </div>
-            </div>
-            <div>
-                <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="cancelEditJV()">
-                    <i class="bi bi-x-circle me-1"></i> Cancel Edit (کینسل کریں)
-                </button>
-            </div>
-        </div>
+        <input type="hidden" id="editingVoucherId" value="">
 
-        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-            <div>
-                <h5 class="fw-bold mb-0 text-dark">
-                    <i class="bi bi-journal-check text-primary me-2"></i> New Journal Entry (JV)
-                </h5>
-                <small class="text-muted">
-                    Party select karein, Narration likhein, Debit ya Credit amount daal kar "Add Entry" karein. Jab Dr = Cr barabar hon ge to Save Voucher enable ho jayega.
-                </small>
-            </div>
-            <span class="badge bg-dark font-monospace fs-6 px-3 py-2" id="displayVoucherNo">{{ next_jv }}</span>
-        </div>
-
-        <!-- Master Fields: Date & Overall Remarks -->
-        <div class="row g-3 mb-4">
+        <!-- ROW: Voucher#, Type, Date, Ref# (Desktop: 1 row of 4, Mobile: 2x2 + full) -->
+        <div class="row g-2 mb-3 mobile-2col">
             <div class="col-md-3 col-12">
-                <label class="form-label-bold">Voucher Date <span class="text-danger">*</span></label>
+                <label class="form-label-bold">
+                    <i class="bi bi-hash text-secondary me-1"></i> Voucher#
+                </label>
+                <input type="text" class="form-control font-monospace fw-bold bg-light text-dark" id="jvVoucherNo" value="{{ next_jv }}" readonly>
+            </div>
+            <div class="col-md-3 col-12">
+                <label class="form-label-bold">
+                    <i class="bi bi-tag text-primary me-1"></i> Type
+                </label>
+                <input type="text" class="form-control fw-bold bg-light text-dark" id="jvType" value="JV" readonly>
+            </div>
+            <div class="col-md-3 col-12">
+                <label class="form-label-bold">
+                    <i class="bi bi-calendar3 text-primary me-1"></i> Date <span class="text-danger">*</span>
+                </label>
                 <input type="date" class="form-control" id="jvDate" value="{{ today_date }}" required>
             </div>
-            <div class="col-md-9 col-12">
-                <label class="form-label-bold">Voucher Description / عمومی تفصیل</label>
-                <input type="text" class="form-control" id="jvRemarks" placeholder="Enter general description / adjustment reason (e.g. Balance transfer from Party A to Party B)">
+            <div class="col-md-3 col-12 col-ref">
+                <label class="form-label-bold">
+                    <i class="bi bi-file-text text-secondary me-1"></i> Ref#
+                </label>
+                <input type="text" class="form-control" id="jvRefNo" placeholder="Ref# / Description">
             </div>
         </div>
 
-        <!-- INPUT ENTRY ROW (As requested by user) -->
-        <div class="p-3 bg-light rounded-3 border mb-3">
-            <div class="row g-2 align-items-end">
-                <!-- Account ID (Auto-filled on party select) -->
-                <div class="col-md-2 col-12">
+        <!-- INPUT ENTRY ROW -->
+        <div class="p-3 bg-light rounded-3 border mb-3 entry-section">
+            <div class="row g-2 align-items-end entry-row-mobile">
+                <!-- Account ID -->
+                <div class="col-md-2 col-full">
                     <label class="form-label-bold">
                         <i class="bi bi-123 text-secondary me-1"></i> Account ID
                     </label>
@@ -214,39 +436,38 @@
                     <input type="hidden" id="inpHiddenPartyId" value="">
                 </div>
 
-                <!-- Party Search (Replaces Account Title as requested) -->
-                <div class="col-md-4 col-12 party-search-wrap">
+                <!-- Account Title -->
+                <div class="col-md-4 col-full acc-search-wrap">
                     <label class="form-label-bold">
-                        <i class="bi bi-person-fill text-primary me-1"></i> Search Party / پارٹی تلاش کریں <span class="text-danger">*</span>
+                        <i class="bi bi-person-fill text-primary me-1"></i> Account Title <span class="text-danger">*</span>
                     </label>
                     <div class="input-group">
-                        <input type="text" class="form-control" id="inpPartySearch" placeholder="Type party name or code..." autocomplete="off">
-                        <button class="btn btn-outline-secondary" type="button" id="btnClearParty" title="Clear Search" onclick="clearPartyInput()">
+                        <input type="text" class="form-control" id="inpAccountTitle" placeholder="Search account title..." autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="btnClearAccount" title="Clear" onclick="clearAccountInput()">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
-                    <!-- Auto-suggestions dropdown -->
-                    <div class="party-suggestions-box" id="partySuggestionsBox"></div>
+                    <div class="acc-suggestions-box" id="accSuggestionsBox"></div>
                 </div>
 
                 <!-- Narration -->
-                <div class="col-md-3 col-12">
+                <div class="col-md-3 col-full">
                     <label class="form-label-bold">
                         <i class="bi bi-card-text text-secondary me-1"></i> Narration
                     </label>
-                    <input type="text" class="form-control" id="inpNarration" placeholder="Line narration / تفصیل">
+                    <input type="text" class="form-control" id="inpNarration" placeholder="Line narration">
                 </div>
 
-                <!-- Dr Amount -->
-                <div class="col-md-1 col-6">
+                <!-- Dr -->
+                <div class="col-md-1 col-half">
                     <label class="form-label-bold text-danger">
                         <i class="bi bi-arrow-down-left-circle me-1"></i> Dr
                     </label>
                     <input type="number" step="0.01" min="0" class="form-control text-end fw-bold text-danger" id="inpDr" placeholder="0" oninput="onDrInput(this.value)">
                 </div>
 
-                <!-- Cr Amount -->
-                <div class="col-md-1 col-6">
+                <!-- Cr -->
+                <div class="col-md-1 col-half">
                     <label class="form-label-bold text-success">
                         <i class="bi bi-arrow-up-right-circle me-1"></i> Cr
                     </label>
@@ -254,31 +475,31 @@
                 </div>
 
                 <!-- Add Entry Button -->
-                <div class="col-md-1 col-12 text-end">
-                    <button type="button" class="btn btn-primary w-100 fw-bold py-2" id="btnAddEntry" onclick="addEntryRow()">
-                        <i class="bi bi-plus-lg me-1"></i> Add Entry
+                <div class="col-md-1 col-full text-end">
+                    <button type="button" class="btn btn-primary w-100 fw-bold py-2 shadow-sm" id="btnAddEntry" onclick="addEntryRow()">
+                        <i class="bi bi-plus-lg me-1"></i> Add
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- JOURNAL VOUCHER LINES TABLE -->
-        <div class="table-responsive mb-3">
+        <!-- DESKTOP JV LINES TABLE -->
+        <div class="table-responsive mb-3" id="jvLinesDesktopTable">
             <table class="table table-bordered align-middle jv-grid-table mb-0">
                 <thead>
                     <tr>
                         <th style="width: 15%;"># AccID</th>
-                        <th style="width: 30%;">👤 AccName / Party</th>
+                        <th style="width: 30%;">👤 AccName</th>
                         <th style="width: 25%;">📋 Narration</th>
-                        <th style="width: 12%; text-align: right;">Dr (Rs.)</th>
-                        <th style="width: 12%; text-align: right;">Cr (Rs.)</th>
+                        <th style="width: 12%; text-align: right;">Dr</th>
+                        <th style="width: 12%; text-align: right;">Cr</th>
                         <th style="width: 6%; text-align: center;">Action</th>
                     </tr>
                 </thead>
                 <tbody id="jvLinesBody">
                     <tr id="emptyLinesRow">
                         <td colspan="6" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-3 d-block mb-1"></i> Koi entry add nahi hui. Upar form se party select kar ke <strong>+ Add Entry</strong> par click karein.
+                            <i class="bi bi-inbox fs-3 d-block mb-1"></i> No entries added yet.
                         </td>
                     </tr>
                 </tbody>
@@ -295,45 +516,69 @@
             </table>
         </div>
 
-        <!-- Action / Save Section -->
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-2 border-top">
-            <div id="balanceMessage" class="small fw-semibold text-muted">
-                Add at least one Debit and one Credit line. Total Debit must equal Total Credit.
+        <!-- MOBILE JV LINES CARD VIEW -->
+        <div class="mobile-card-view" id="jvLinesMobile">
+            <div id="jvLinesCards">
+                <div class="text-center py-4 text-muted" id="emptyLinesMobile">
+                    <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                    <small>No entries. Search account & tap <strong>+ Add</strong>.</small>
+                </div>
             </div>
-            <div>
-                <button type="button" class="btn btn-success fw-bold px-4 py-2" id="btnSaveJV" onclick="saveJV()" disabled>
+            <!-- Mobile Totals Bar -->
+            <div class="totals-mobile-bar" id="mobileTotalsBar" style="display: none;">
+                <div>
+                    <div style="font-size:0.7rem;opacity:0.7;">DEBIT</div>
+                    <div class="dr-box" id="mobTotalDr">0.00</div>
+                </div>
+                <div class="text-center">
+                    <span id="mobBalanceIndicator" class="badge bg-secondary">Empty</span>
+                </div>
+                <div class="text-end">
+                    <div style="font-size:0.7rem;opacity:0.7;">CREDIT</div>
+                    <div class="cr-box" id="mobTotalCr">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Section -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-2 border-top save-row">
+            <div id="balanceMessage" class="small fw-semibold text-muted">
+                Add Debit & Credit lines. Total Debit must equal Total Credit.
+            </div>
+            <div class="w-100-mobile">
+                <button type="button" class="btn btn-success fw-bold px-4 py-2 shadow-sm" id="btnSaveJV" onclick="saveJV()" disabled>
                     <i class="bi bi-check-circle-fill me-1"></i> Save Voucher
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- RECENT JV VOUCHERS LIST -->
-    <div class="history-card">
-        <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <!-- HISTORY CARD -->
+    <div class="history-card" id="historyCardSection">
+        <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 history-header-mobile">
             <div>
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-1 text-primary"></i> Journal Voucher (JV) History</h6>
-                <small class="text-muted">Showing JV vouchers for selected date. (Default: Today)</small>
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-1 text-primary"></i> JV History</h6>
             </div>
             <div class="d-flex align-items-center flex-wrap gap-2">
-                <!-- Date Filter Input -->
                 <div class="input-group input-group-sm filter-date-group shadow-sm" style="width: auto;">
                     <span class="input-group-text bg-white border-primary text-primary fw-bold">
-                        <i class="bi bi-calendar-event me-1"></i> Filter Date:
+                        <i class="bi bi-calendar-event"></i>
                     </span>
                     <input type="date" class="form-control border-primary" id="tableFilterDate" value="{{ today_date }}" onchange="onDateFilterChanged(this.value)">
-                    <button class="btn btn-outline-primary" type="button" title="Reload / Refresh" onclick="reloadJVTable()">
+                    <button class="btn btn-outline-primary" type="button" title="Reload" onclick="reloadJVTable()">
                         <i class="bi bi-arrow-clockwise"></i>
                     </button>
-                    <button class="btn btn-outline-secondary" type="button" title="Clear Date (Show All Recent)" onclick="clearDateFilter()">
-                        <i class="bi bi-x-circle"></i> All
+                    <button class="btn btn-outline-secondary" type="button" title="Show All" onclick="clearDateFilter()">
+                        <i class="bi bi-x-circle"></i>
                     </button>
                 </div>
-                <span class="badge bg-secondary px-3 py-2" id="totalJVCountBadge">Total Listed: {{ recent_jvs|length }}</span>
+                <span class="badge bg-secondary px-3 py-2" id="totalJVCountBadge">Total: {{ recent_jvs|length }}</span>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle" style="font-size: 0.85rem;" id="jvHistoryTable">
+
+        <!-- DESKTOP HISTORY TABLE -->
+        <div class="table-responsive" id="jvHistoryDesktopTable">
+            <table class="table table-hover mb-0 align-middle" style="font-size: 0.85rem;">
                 <thead class="table-light">
                     <tr>
                         <th>Voucher #</th>
@@ -348,9 +593,7 @@
                 <tbody id="jvTableBody">
                     {% for v in recent_jvs %}
                     <tr>
-                        <td>
-                            <span class="font-monospace fw-bold text-primary">{{ v.voucher_no }}</span>
-                        </td>
+                        <td><span class="font-monospace fw-bold text-primary">{{ v.voucher_no }}</span></td>
                         <td>{{ v.date|date:'d-M-Y' }}</td>
                         <td>
                             {% for line in v.details.all %}
@@ -377,13 +620,13 @@
                         <td class="fw-bold fs-6">Rs. {{ v.total_amount|floatformat:2 }}</td>
                         <td><small class="text-muted">{{ v.remarks|default:"-" }}</small></td>
                         <td class="text-center">
-                            <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit JV Voucher" onclick="editJV({{ v.id }})">
+                            <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit" onclick="editJV({{ v.id }})">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Slip" onclick="viewJV({{ v.id }})">
+                            <button class="btn btn-sm btn-outline-primary me-1" title="Print" onclick="viewJV({{ v.id }})">
                                 <i class="bi bi-printer"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" title="Reverse & Delete Voucher" onclick="deleteJV({{ v.id }}, '{{ v.voucher_no }}')">
+                            <button class="btn btn-sm btn-outline-danger" title="Delete" onclick="deleteJV({{ v.id }}, '{{ v.voucher_no }}')">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </td>
@@ -391,30 +634,73 @@
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center py-4 text-muted">
-                            <i class="bi bi-inbox fs-2 d-block mb-1"></i> No JV vouchers posted yet for this date.
+                            <i class="bi bi-inbox fs-2 d-block mb-1"></i> No JV vouchers yet.
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <!-- MOBILE HISTORY CARD VIEW -->
+        <div class="mobile-card-view p-2" id="jvHistoryMobile">
+            <div id="jvHistoryCards">
+                {% for v in recent_jvs %}
+                <div class="jv-hist-card">
+                    <div class="hist-head">
+                        <span class="hist-vno">{{ v.voucher_no }}</span>
+                        <span class="hist-date">{{ v.date|date:'d-M-Y' }}</span>
+                    </div>
+                    <div class="hist-amt">Rs. {{ v.total_amount|floatformat:2 }}</div>
+                    <div class="hist-details">
+                        <strong class="text-danger">Dr:</strong>
+                        {% for line in v.details.all %}{% if line.debit > 0 %}
+                            <span class="text-danger">{{ line.account.name }}{% if line.party %} ({{ line.party.company_name }}){% endif %}</span>{% if not forloop.last %}, {% endif %}
+                        {% endif %}{% endfor %}
+                    </div>
+                    <div class="hist-details">
+                        <strong class="text-success">Cr:</strong>
+                        {% for line in v.details.all %}{% if line.credit > 0 %}
+                            <span class="text-success">{{ line.account.name }}{% if line.party %} ({{ line.party.company_name }}){% endif %}</span>{% if not forloop.last %}, {% endif %}
+                        {% endif %}{% endfor %}
+                    </div>
+                    {% if v.remarks %}
+                    <div class="hist-details"><strong>Ref:</strong> <small class="text-muted">{{ v.remarks }}</small></div>
+                    {% endif %}
+                    <div class="hist-actions">
+                        <button class="btn btn-outline-warning text-dark" onclick="editJV({{ v.id }})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="viewJV({{ v.id }})">
+                            <i class="bi bi-printer"></i> Print
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteJV({{ v.id }}, '{{ v.voucher_no }}')">
+                            <i class="bi bi-trash"></i> Del
+                        </button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox fs-2 d-block mb-1"></i>
+                    <small>No JV vouchers yet.</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 
 </div>
 
-<!-- ========================================== -->
-<!-- PRINT / VIEW VOUCHER MODAL SLIP -->
-<!-- ========================================== -->
+<!-- PRINT MODAL -->
 <div class="modal fade" id="voucherModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title fw-bold"><i class="bi bi-receipt me-2"></i> Journal Voucher Details</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-receipt me-2"></i> JV Details</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4" id="printableVoucher">
                 <div class="border p-4 bg-white" style="min-height: 400px;">
-                    <!-- Voucher Header -->
                     <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
                         <div>
                             <h4 class="fw-bold mb-0 text-primary">MJ POULTRIES</h4>
@@ -425,47 +711,42 @@
                             <span class="font-monospace fw-bold fs-6 text-danger" id="pvVoucherNo">-</span>
                         </div>
                     </div>
-
-                    <!-- Meta Information -->
                     <div class="row g-2 mb-3 small">
                         <div class="col-6"><strong>Date:</strong> <span id="pvDate">-</span></div>
                         <div class="col-6 text-end"><strong>Reference #:</strong> <span id="pvRef">-</span></div>
-                        <div class="col-12"><strong>Remarks / Reason:</strong> <span id="pvRemarks">-</span></div>
+                        <div class="col-12"><strong>Remarks:</strong> <span id="pvRemarks">-</span></div>
                     </div>
-
-                    <!-- Details Table -->
                     <table class="table table-bordered align-middle small mb-4">
                         <thead class="table-light">
                             <tr>
                                 <th>#</th>
-                                <th>Account Code & Title</th>
-                                <th>Party Name</th>
+                                <th>Account</th>
+                                <th>Party</th>
                                 <th>Narration</th>
-                                <th class="text-end" style="width: 120px;">Debit (Rs.)</th>
-                                <th class="text-end" style="width: 120px;">Credit (Rs.)</th>
+                                <th class="text-end">Debit</th>
+                                <th class="text-end">Credit</th>
                             </tr>
                         </thead>
                         <tbody id="pvDetailsBody"></tbody>
                         <tfoot class="fw-bold table-light">
                             <tr>
-                                <td colspan="4" class="text-end">Total Amount:</td>
+                                <td colspan="4" class="text-end">Total:</td>
                                 <td class="text-end text-danger" id="pvTotalDebit">0.00</td>
                                 <td class="text-end text-success" id="pvTotalCredit">0.00</td>
                             </tr>
                         </tfoot>
                     </table>
-
                     <div class="row mt-5 pt-4 text-center small text-muted">
                         <div class="col-4 border-top pt-2">Prepared By</div>
                         <div class="col-4 border-top pt-2">Checked By</div>
-                        <div class="col-4 border-top pt-2">Authorized Signature</div>
+                        <div class="col-4 border-top pt-2">Authorized</div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary fw-bold" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i> Print Voucher Slip
+                    <i class="bi bi-printer me-1"></i> Print
                 </button>
             </div>
         </div>
@@ -476,47 +757,41 @@
 
 {% block extra_js %}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
 <script>
-    // State management for JV lines
     let jvLines = [];
     let editingVoucherId = null;
-    let selectedParty = null;
+    let selectedAccountObj = null;
 
-    // ----------------------------------------------------
-    // 1. Party Autocomplete Search
-    // ----------------------------------------------------
+    // ---------- Account Autocomplete ----------
     let searchDebounceTimer = null;
-    const inpPartySearch = document.getElementById('inpPartySearch');
-    const suggestionsBox = document.getElementById('partySuggestionsBox');
+    const inpAccountTitle = document.getElementById('inpAccountTitle');
+    const suggestionsBox = document.getElementById('accSuggestionsBox');
 
-    inpPartySearch.addEventListener('input', function() {
+    inpAccountTitle.addEventListener('input', function() {
         const query = this.value.trim();
         clearTimeout(searchDebounceTimer);
-
         if (!query) {
             suggestionsBox.style.display = 'none';
             suggestionsBox.innerHTML = '';
             return;
         }
-
         searchDebounceTimer = setTimeout(() => {
-            fetch("{% url 'jv_voucher' %}?action=search_parties&q=" + encodeURIComponent(query))
+            fetch("{% url 'jv_voucher' %}?action=search_jv_accounts&q=" + encodeURIComponent(query))
                 .then(res => res.json())
                 .then(data => {
-                    if (!data.success || data.results.length === 0) {
-                        suggestionsBox.innerHTML = '<div class="p-3 text-muted small text-center">Koi party nahi mili</div>';
+                    const list = data.results || data.accounts || [];
+                    if (!data.success || list.length === 0) {
+                        suggestionsBox.innerHTML = '<div class="p-3 text-muted small text-center">No account found</div>';
                         suggestionsBox.style.display = 'block';
                         return;
                     }
-
                     let html = '';
-                    data.results.forEach((item, idx) => {
+                    list.forEach((item) => {
                         html += `
-                            <div class="party-suggestion-item" onclick='selectParty(${JSON.stringify(item)})'>
+                            <div class="acc-suggestion-item" onclick='selectAccount(${JSON.stringify(item)})'>
                                 <div>
-                                    <div class="party-suggestion-title">${item.party_name}</div>
-                                    <div class="party-suggestion-code">Code: ${item.party_code || item.account_code || '-'}</div>
+                                    <div class="acc-suggestion-title">${item.account_name}</div>
+                                    <div class="acc-suggestion-code">Code: ${item.account_code || item.party_code || '-'} | ${item.type || 'Account'}</div>
                                 </div>
                                 <div class="text-end">
                                     <span class="badge bg-light text-dark font-monospace">${item.account_code || ''}</span>
@@ -528,22 +803,19 @@
                     suggestionsBox.innerHTML = html;
                     suggestionsBox.style.display = 'block';
                 })
-                .catch(() => {
-                    suggestionsBox.style.display = 'none';
-                });
-        }, 200);
+                .catch(() => { suggestionsBox.style.display = 'none'; });
+        }, 180);
     });
 
-    // Close suggestions on outside click
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.party-search-wrap')) {
+        if (!e.target.closest('.acc-search-wrap')) {
             suggestionsBox.style.display = 'none';
         }
     });
 
-    function selectParty(item) {
-        selectedParty = item;
-        document.getElementById('inpPartySearch').value = item.party_name;
+    function selectAccount(item) {
+        selectedAccountObj = item;
+        document.getElementById('inpAccountTitle').value = item.account_name;
         document.getElementById('inpAccountId').value = item.account_code || item.party_code || '';
         document.getElementById('inpHiddenAccId').value = item.account_id || '';
         document.getElementById('inpHiddenPartyId').value = item.party_id || '';
@@ -551,33 +823,22 @@
         document.getElementById('inpNarration').focus();
     }
 
-    function clearPartyInput() {
-        selectedParty = null;
-        document.getElementById('inpPartySearch').value = '';
+    function clearAccountInput() {
+        selectedAccountObj = null;
+        document.getElementById('inpAccountTitle').value = '';
         document.getElementById('inpAccountId').value = '';
         document.getElementById('inpHiddenAccId').value = '';
         document.getElementById('inpHiddenPartyId').value = '';
         suggestionsBox.style.display = 'none';
-        document.getElementById('inpPartySearch').focus();
+        document.getElementById('inpAccountTitle').focus();
     }
 
-    // Single input enforcement: either Dr or Cr
-    function onDrInput(val) {
-        if (parseFloat(val) > 0) {
-            document.getElementById('inpCr').value = '';
-        }
-    }
-    function onCrInput(val) {
-        if (parseFloat(val) > 0) {
-            document.getElementById('inpDr').value = '';
-        }
-    }
+    function onDrInput(val) { if (parseFloat(val) > 0) document.getElementById('inpCr').value = ''; }
+    function onCrInput(val) { if (parseFloat(val) > 0) document.getElementById('inpDr').value = ''; }
 
-    // ----------------------------------------------------
-    // 2. Add / Remove Line in JV Table
-    // ----------------------------------------------------
+    // ---------- Add / Remove Line ----------
     function addEntryRow() {
-        const partyName = document.getElementById('inpPartySearch').value.trim();
+        const accountName = document.getElementById('inpAccountTitle').value.trim();
         const accountCode = document.getElementById('inpAccountId').value.trim();
         const accountId = document.getElementById('inpHiddenAccId').value;
         const partyId = document.getElementById('inpHiddenPartyId').value;
@@ -585,162 +846,172 @@
         const dr = parseFloat(document.getElementById('inpDr').value) || 0;
         const cr = parseFloat(document.getElementById('inpCr').value) || 0;
 
-        if (!partyName) {
-            alert('Meharbani karke pehle Party select karein!');
-            document.getElementById('inpPartySearch').focus();
+        if (!accountName || !accountId) {
+            alert('Please select an Account Title first!');
+            document.getElementById('inpAccountTitle').focus();
             return;
         }
-
         if (dr <= 0 && cr <= 0) {
-            alert('Debit ya Credit mein se kisi aik mein raqam darj karein!');
+            alert('Enter either Debit or Credit amount!');
             document.getElementById('inpDr').focus();
             return;
         }
-
         if (dr > 0 && cr > 0) {
-            alert('Aik waqt mein sirf Debit YA Credit mein raqam darj ho sakti hai!');
+            alert('A single entry cannot have both Debit and Credit!');
             return;
         }
 
         jvLines.push({
-            party_name: partyName,
-            account_code: accountCode,
             account_id: accountId,
-            party_id: partyId,
+            account_code: accountCode,
+            party_name: accountName,
+            party_id: partyId || null,
             narration: narration,
             debit: dr,
             credit: cr,
         });
 
-        // Reset input fields
-        clearPartyInput();
+        clearAccountInput();
         document.getElementById('inpNarration').value = '';
         document.getElementById('inpDr').value = '';
         document.getElementById('inpCr').value = '';
-
-        renderLines();
-        document.getElementById('inpPartySearch').focus();
+        renderJVLines();
+        document.getElementById('inpAccountTitle').focus();
     }
 
-    function removeLine(index) {
+    function removeEntryRow(index) {
         jvLines.splice(index, 1);
-        renderLines();
+        renderJVLines();
     }
 
-    function renderLines() {
+    // ---------- Render Lines ----------
+    function renderJVLines() {
         const tbody = document.getElementById('jvLinesBody');
+        const mobileWrap = document.getElementById('jvLinesCards');
+        const mobTotalsBar = document.getElementById('mobileTotalsBar');
+
         if (jvLines.length === 0) {
-            tbody.innerHTML = `
-                <tr id="emptyLinesRow">
-                    <td colspan="6" class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox fs-3 d-block mb-1"></i> Koi entry add nahi hui. Upar form se party select kar ke <strong>+ Add Entry</strong> par click karein.
-                    </td>
-                </tr>
-            `;
-            updateTotals();
+            tbody.innerHTML = `<tr id="emptyLinesRow"><td colspan="6" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-1"></i> No entries added yet.</td></tr>`;
+            mobileWrap.innerHTML = `<div class="text-center py-4 text-muted" id="emptyLinesMobile"><i class="bi bi-inbox fs-3 d-block mb-1"></i><small>No entries. Search account & tap <strong>+ Add</strong>.</small></div>`;
+            mobTotalsBar.style.display = 'none';
+            document.getElementById('totalDebitCell').innerText = '0.00';
+            document.getElementById('totalCreditCell').innerText = '0.00';
+            document.getElementById('balanceIndicator').className = 'badge bg-secondary';
+            document.getElementById('balanceIndicator').innerText = 'Empty';
+            document.getElementById('btnSaveJV').disabled = true;
+            document.getElementById('balanceMessage').innerHTML = 'Add Debit & Credit lines. Total Debit must equal Total Credit.';
             return;
         }
 
         let html = '';
+        let mobHtml = '';
+        let totalDr = 0;
+        let totalCr = 0;
+
         jvLines.forEach((line, idx) => {
+            totalDr += line.debit;
+            totalCr += line.credit;
+
             html += `
                 <tr>
-                    <td><span class="font-monospace fw-bold text-dark">[${line.account_code || '-'}]</span></td>
-                    <td><strong>${line.party_name}</strong></td>
-                    <td>${line.narration || '<span class="text-muted">-</span>'}</td>
-                    <td class="text-end fw-bold text-danger">${line.debit > 0 ? line.debit.toFixed(2) : '-'}</td>
-                    <td class="text-end fw-bold text-success">${line.credit > 0 ? line.credit.toFixed(2) : '-'}</td>
+                    <td class="font-monospace text-primary fw-bold">${line.account_code || '-'}</td>
+                    <td><strong class="text-dark">${line.party_name}</strong></td>
+                    <td class="text-muted small">${line.narration || '-'}</td>
+                    <td class="text-end text-danger fw-bold">${line.debit > 0 ? line.debit.toFixed(2) : '-'}</td>
+                    <td class="text-end text-success fw-bold">${line.credit > 0 ? line.credit.toFixed(2) : '-'}</td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-danger px-2 py-1" title="Remove" onclick="removeLine(${idx})">
-                            <i class="bi bi-trash-fill"></i> Remove
+                        <button type="button" class="btn btn-sm btn-danger py-0 px-2" onclick="removeEntryRow(${idx})">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
             `;
+
+            mobHtml += `
+                <div class="jv-line-card">
+                    <div class="line-head">
+                        <div>
+                            <div class="line-title">${line.party_name}</div>
+                            <div class="line-code">Code: ${line.account_code || '-'}</div>
+                        </div>
+                        <button type="button" class="btn-remove-mobile" onclick="removeEntryRow(${idx})">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    ${line.narration ? `<div class="line-narration"><i class="bi bi-card-text"></i> ${line.narration}</div>` : ''}
+                    <div class="line-amounts">
+                        <div>
+                            <small class="text-muted">Dr:</small>
+                            <span class="amt-dr">${line.debit > 0 ? 'Rs. ' + line.debit.toFixed(2) : '-'}</span>
+                        </div>
+                        <div>
+                            <small class="text-muted">Cr:</small>
+                            <span class="amt-cr">${line.credit > 0 ? 'Rs. ' + line.credit.toFixed(2) : '-'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
         });
+
         tbody.innerHTML = html;
-        updateTotals();
-    }
-
-    function updateTotals() {
-        let totalDr = 0;
-        let totalCr = 0;
-
-        jvLines.forEach(l => {
-            totalDr += (parseFloat(l.debit) || 0);
-            totalCr += (parseFloat(l.credit) || 0);
-        });
+        mobileWrap.innerHTML = mobHtml;
+        mobTotalsBar.style.display = 'flex';
 
         document.getElementById('totalDebitCell').innerText = totalDr.toFixed(2);
         document.getElementById('totalCreditCell').innerText = totalCr.toFixed(2);
+        document.getElementById('mobTotalDr').innerText = totalDr.toFixed(2);
+        document.getElementById('mobTotalCr').innerText = totalCr.toFixed(2);
 
-        const btnSave = document.getElementById('btnSaveJV');
+        const diff = Math.abs(totalDr - totalCr);
         const indicator = document.getElementById('balanceIndicator');
+        const mobIndicator = document.getElementById('mobBalanceIndicator');
+        const saveBtn = document.getElementById('btnSaveJV');
         const msg = document.getElementById('balanceMessage');
 
-        if (jvLines.length === 0) {
-            indicator.className = 'badge bg-secondary';
-            indicator.innerText = 'Empty';
-            msg.className = 'small fw-semibold text-muted';
-            msg.innerText = 'Add at least one Debit and one Credit line. Total Debit must equal Total Credit.';
-            btnSave.disabled = true;
-        } else if (Math.abs(totalDr - totalCr) < 0.001 && totalDr > 0 && jvLines.length >= 2) {
+        if (totalDr > 0 && totalCr > 0 && diff < 0.001) {
             indicator.className = 'badge bg-success';
-            indicator.innerText = 'Balanced ✓';
-            msg.className = 'small fw-semibold text-success';
-            msg.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Perfect! Voucher balanced hai (Rs. ' + totalDr.toFixed(2) + '). Aap save kar saktay hain.';
-            btnSave.disabled = false;
+            indicator.innerText = 'Balanced';
+            mobIndicator.className = 'badge bg-success';
+            mobIndicator.innerText = '✓ Balanced';
+            saveBtn.disabled = false;
+            msg.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Balanced! Total: Rs. ${totalDr.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>`;
         } else {
             indicator.className = 'badge bg-danger';
-            indicator.innerText = 'Unbalanced ✗';
-            const diff = Math.abs(totalDr - totalCr).toFixed(2);
-            msg.className = 'small fw-semibold text-danger';
-            msg.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> Farq: Rs. ${diff}. Total Debit aur Total Credit barabar hona zaroori hain!`;
-            btnSave.disabled = true;
+            indicator.innerText = 'Unbalanced';
+            mobIndicator.className = 'badge bg-danger';
+            mobIndicator.innerText = '✗ Unbalanced';
+            saveBtn.disabled = true;
+            if (totalDr === 0 || totalCr === 0) {
+                msg.innerHTML = '<span class="text-warning text-dark fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Add at least one Debit and one Credit line.</span>';
+            } else {
+                msg.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-octagon-fill me-1"></i> Diff: Rs. ${diff.toFixed(2)}</span>`;
+            }
         }
     }
 
-    // ----------------------------------------------------
-    // 3. Save / Update JV Voucher
-    // ----------------------------------------------------
+    // ---------- Save JV ----------
     function saveJV() {
+        const date = document.getElementById('jvDate').value;
+        const remarks = document.getElementById('jvRefNo').value.trim();
         if (jvLines.length < 2) {
-            alert('Kam az kam 2 lines hona zaroori hain!');
+            alert('At least 2 lines are required!');
             return;
         }
-
-        const date = document.getElementById('jvDate').value;
-        const remarks = document.getElementById('jvRemarks').value.trim();
-
         const btn = document.getElementById('btnSaveJV');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
 
-        const payload = {
-            editing_id: editingVoucherId,
-            date: date,
-            remarks: remarks,
-            entries: jvLines,
-        };
-
         fetch("{% url 'jv_voucher' %}?action=save_jv", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify(payload)
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ editing_id: editingVoucherId, date: date, remarks: remarks, entries: jvLines })
         })
         .then(res => res.json())
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Save Voucher';
-            if (data.success) {
-                alert(data.message);
-                window.location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
+            if (data.success) { alert(data.message); window.location.reload(); }
+            else { alert('Error: ' + data.message); }
         })
         .catch(err => {
             btn.disabled = false;
@@ -749,207 +1020,134 @@
         });
     }
 
-    // ----------------------------------------------------
-    // 4. Edit JV Voucher
-    // ----------------------------------------------------
+    // ---------- Edit JV ----------
     function editJV(voucherId) {
         fetch("{% url 'jv_voucher' %}?action=get_jv&id=" + voucherId)
             .then(res => res.json())
             .then(data => {
-                if (!data.success) {
-                    alert('Error: ' + data.message);
-                    return;
-                }
+                if (!data.success) { alert('Error: ' + data.message); return; }
                 const v = data.voucher;
-
                 editingVoucherId = v.id;
-                document.getElementById('editingVoucherLabel').innerText = v.voucher_no;
-                document.getElementById('editModeBanner').classList.remove('d-none');
-                document.getElementById('editModeBanner').classList.add('d-flex');
-
-                document.getElementById('displayVoucherNo').innerText = v.voucher_no;
-                document.getElementById('jvDate').value = v.raw_date || '';
-                document.getElementById('jvRemarks').value = v.remarks || '';
+                $('#editingVoucherId').val(v.id);
+                $('#jvVoucherNo').val(v.voucher_no);
+                $('#jvDate').val(v.raw_date || '');
+                $('#jvRefNo').val(v.remarks || v.reference_no || '');
 
                 jvLines = [];
-                v.details.forEach(d => {
+                v.details.forEach(item => {
                     jvLines.push({
-                        party_name: d.party_name,
-                        account_code: d.account_code,
-                        account_id: d.account_id,
-                        party_id: d.party_id,
-                        narration: d.narration,
-                        debit: d.debit,
-                        credit: d.credit,
+                        account_id: item.account_id,
+                        account_code: item.account_code,
+                        party_name: item.party_name || item.account_name,
+                        party_id: item.party_id || null,
+                        narration: item.narration || '',
+                        debit: item.debit || 0,
+                        credit: item.credit || 0,
                     });
                 });
-
-                renderLines();
-
-                const btn = document.getElementById('btnSaveJV');
-                btn.innerHTML = '<i class="bi bi-pencil-square me-1"></i> Update Voucher #' + v.voucher_no;
-                btn.className = 'btn btn-warning text-dark fw-bold px-4 py-2';
+                renderJVLines();
+                $('#btnSaveJV').html('<i class="bi bi-pencil-square me-1"></i> Update #' + v.voucher_no);
+                $('#btnSaveJV').removeClass('btn-success').addClass('btn-warning text-dark');
 
                 const el = document.getElementById('jvEntryCard');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             })
-            .catch(err => {
-                alert('Failed to load JV for editing: ' + err);
-            });
+            .catch(err => alert('Failed to load JV: ' + err));
     }
 
-    function cancelEditJV() {
-        editingVoucherId = null;
-        document.getElementById('editModeBanner').classList.remove('d-flex');
-        document.getElementById('editModeBanner').classList.add('d-none');
-        document.getElementById('displayVoucherNo').innerText = '{{ next_jv }}';
-        document.getElementById('jvRemarks').value = '';
-
-        const btn = document.getElementById('btnSaveJV');
-        btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Save Voucher';
-        btn.className = 'btn btn-success fw-bold px-4 py-2';
-
-        jvLines = [];
-        renderLines();
-    }
-
-    // ----------------------------------------------------
-    // 5. Delete JV Voucher
-    // ----------------------------------------------------
+    // ---------- Delete JV ----------
     function deleteJV(voucherId, voucherNo) {
-        if (!confirm(`Are you sure you want to REVERSE and DELETE Journal Voucher ${voucherNo}?\n\nThis will reverse all associated account balances.`)) {
-            return;
-        }
-
+        if (!confirm(`Reverse and DELETE Voucher ${voucherNo}?\nAll balances will be reversed.`)) return;
         fetch("{% url 'jv_voucher' %}?action=delete_jv", {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
             body: JSON.stringify({ id: voucherId })
         })
         .then(res => res.json())
         .then(data => {
-            if (data.success) {
-                alert(data.message);
-                window.location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
+            if (data.success) { alert(data.message); window.location.reload(); }
+            else { alert('Error: ' + data.message); }
         })
-        .catch(err => {
-            alert('Request failed: ' + err);
-        });
+        .catch(err => alert('Request failed: ' + err));
     }
 
-    // ----------------------------------------------------
-    // 6. View / Print Voucher Slip Modal
-    // ----------------------------------------------------
+    // ---------- View / Print ----------
     function viewJV(voucherId) {
         fetch("{% url 'jv_voucher' %}?action=get_jv&id=" + voucherId)
             .then(res => res.json())
             .then(data => {
-                if (!data.success) {
-                    alert('Error: ' + data.message);
-                    return;
-                }
+                if (!data.success) { alert('Error: ' + data.message); return; }
                 const v = data.voucher;
-                document.getElementById('pvVoucherNo').innerText = v.voucher_no;
-                document.getElementById('pvDate').innerText = v.date;
-                document.getElementById('pvRef').innerText = v.reference_no || v.voucher_no;
-                document.getElementById('pvRemarks').innerText = v.remarks || '-';
+                $('#pvVoucherNo').text(v.voucher_no);
+                $('#pvDate').text(v.date);
+                $('#pvRef').text(v.reference_no || v.voucher_no || '-');
+                $('#pvRemarks').text(v.remarks || '-');
 
                 let rowsHtml = '';
-                let totalDr = 0;
-                let totalCr = 0;
-
+                let totalDr = 0, totalCr = 0;
                 v.details.forEach((line, idx) => {
                     const dr = parseFloat(line.debit) || 0;
                     const cr = parseFloat(line.credit) || 0;
-                    totalDr += dr;
-                    totalCr += cr;
-
+                    totalDr += dr; totalCr += cr;
                     rowsHtml += `
                         <tr>
                             <td>${idx + 1}</td>
-                            <td>
-                                <strong>[${line.account_code}]</strong> ${line.account_name}
-                            </td>
+                            <td><strong>[${line.account_code}]</strong> ${line.account_name}</td>
                             <td>${line.party_name || '-'}</td>
-                            <td>${line.narration || '-'}</td>
+                            <td><small class="text-muted">${line.narration || ''}</small></td>
                             <td class="text-end text-danger">${dr > 0 ? dr.toFixed(2) : '-'}</td>
                             <td class="text-end text-success">${cr > 0 ? cr.toFixed(2) : '-'}</td>
                         </tr>
                     `;
                 });
-
-                document.getElementById('pvDetailsBody').innerHTML = rowsHtml;
-                document.getElementById('pvTotalDebit').innerText = totalDr.toFixed(2);
-                document.getElementById('pvTotalCredit').innerText = totalCr.toFixed(2);
-
-                const modal = new bootstrap.Modal(document.getElementById('voucherModal'));
-                modal.show();
+                $('#pvDetailsBody').html(rowsHtml);
+                $('#pvTotalDebit').text(totalDr.toFixed(2));
+                $('#pvTotalCredit').text(totalCr.toFixed(2));
+                new bootstrap.Modal(document.getElementById('voucherModal')).show();
             });
     }
 
-    // ----------------------------------------------------
-    // 7. Filter JV History Table by Date
-    // ----------------------------------------------------
-    function onDateFilterChanged(selectedDate) {
-        reloadJVTable(selectedDate);
-    }
-
-    function clearDateFilter() {
-        document.getElementById('tableFilterDate').value = '';
-        reloadJVTable('');
-    }
+    // ---------- Filter / Reload ----------
+    function onDateFilterChanged(selectedDate) { reloadJVTable(selectedDate); }
+    function clearDateFilter() { $('#tableFilterDate').val(''); reloadJVTable(''); }
 
     function reloadJVTable(filterDate) {
-        if (filterDate === undefined) {
-            filterDate = document.getElementById('tableFilterDate').value || '';
-        }
-
+        if (filterDate === undefined) filterDate = $('#tableFilterDate').val() || '';
         const tbody = document.getElementById('jvTableBody');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center py-4 text-muted">
-                    <span class="spinner-border spinner-border-sm me-2"></span> Loading JV vouchers...
-                </td>
-            </tr>
-        `;
+        const mobWrap = document.getElementById('jvHistoryCards');
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Loading...</td></tr>`;
+        mobWrap.innerHTML = `<div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Loading...</div>`;
 
         fetch("{% url 'jv_voucher' %}?action=filter_jv&date=" + encodeURIComponent(filterDate))
             .then(res => res.json())
             .then(data => {
                 if (!data.success) {
                     tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Error: ${data.message}</td></tr>`;
+                    mobWrap.innerHTML = `<div class="text-center py-4 text-danger">Error: ${data.message}</div>`;
                     return;
                 }
-
-                document.getElementById('totalJVCountBadge').innerText = 'Total Listed: ' + data.vouchers.length;
+                $('#totalJVCountBadge').text('Total: ' + data.vouchers.length);
 
                 if (data.vouchers.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">
-                                <i class="bi bi-inbox fs-2 d-block mb-1"></i> No JV vouchers found for ${filterDate || 'selected criteria'}.
-                            </td>
-                        </tr>
-                    `;
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-2 d-block mb-1"></i> No vouchers found.</td></tr>`;
+                    mobWrap.innerHTML = `<div class="text-center py-4 text-muted"><i class="bi bi-inbox fs-2 d-block mb-1"></i><small>No vouchers found.</small></div>`;
                     return;
                 }
 
                 let html = '';
+                let mobHtml = '';
                 data.vouchers.forEach(v => {
                     let drHtml = '';
-                    v.debit_lines.forEach(l => {
-                        drHtml += `<div class="text-danger fw-semibold">[${l.account_code}] ${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                    let drInline = '';
+                    v.debit_lines.forEach((l, i) => {
+                        drHtml += `<div class="text-danger fw-semibold">${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                        drInline += `${l.account_name}${l.party_name ? ` (${l.party_name})` : ''}${i < v.debit_lines.length - 1 ? ', ' : ''}`;
                     });
-
                     let crHtml = '';
-                    v.credit_lines.forEach(l => {
-                        crHtml += `<div class="text-success fw-semibold">[${l.account_code}] ${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                    let crInline = '';
+                    v.credit_lines.forEach((l, i) => {
+                        crHtml += `<div class="text-success fw-semibold">${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                        crInline += `${l.account_name}${l.party_name ? ` (${l.party_name})` : ''}${i < v.credit_lines.length - 1 ? ', ' : ''}`;
                     });
 
                     html += `
@@ -961,26 +1159,38 @@
                             <td class="fw-bold fs-6">Rs. ${v.total_amount}</td>
                             <td><small class="text-muted">${v.remarks || '-'}</small></td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit JV Voucher" onclick="editJV(${v.id})">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Slip" onclick="viewJV(${v.id})">
-                                    <i class="bi bi-printer"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" title="Reverse & Delete Voucher" onclick="deleteJV(${v.id}, '${v.voucher_no}')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <button class="btn btn-sm btn-outline-warning text-dark me-1" onclick="editJV(${v.id})"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewJV(${v.id})"><i class="bi bi-printer"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteJV(${v.id}, '${v.voucher_no}')"><i class="bi bi-trash"></i></button>
                             </td>
                         </tr>
                     `;
-                });
 
+                    mobHtml += `
+                        <div class="jv-hist-card">
+                            <div class="hist-head">
+                                <span class="hist-vno">${v.voucher_no}</span>
+                                <span class="hist-date">${v.date}</span>
+                            </div>
+                            <div class="hist-amt">Rs. ${v.total_amount}</div>
+                            <div class="hist-details"><strong class="text-danger">Dr:</strong> <span class="text-danger">${drInline || '-'}</span></div>
+                            <div class="hist-details"><strong class="text-success">Cr:</strong> <span class="text-success">${crInline || '-'}</span></div>
+                            ${v.remarks ? `<div class="hist-details"><strong>Ref:</strong> <small class="text-muted">${v.remarks}</small></div>` : ''}
+                            <div class="hist-actions">
+                                <button class="btn btn-outline-warning text-dark" onclick="editJV(${v.id})"><i class="bi bi-pencil"></i> Edit</button>
+                                <button class="btn btn-outline-primary" onclick="viewJV(${v.id})"><i class="bi bi-printer"></i> Print</button>
+                                <button class="btn btn-outline-danger" onclick="deleteJV(${v.id}, '${v.voucher_no}')"><i class="bi bi-trash"></i> Del</button>
+                            </div>
+                        </div>
+                    `;
+                });
                 tbody.innerHTML = html;
+                mobWrap.innerHTML = mobHtml;
             })
             .catch(err => {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Failed to load vouchers: ${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Failed: ${err}</td></tr>`;
+                mobWrap.innerHTML = `<div class="text-center py-4 text-danger">Failed: ${err}</div>`;
             });
     }
 </script>
 {% endblock %}
-
