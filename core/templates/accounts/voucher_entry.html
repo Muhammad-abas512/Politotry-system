@@ -187,15 +187,6 @@
             <button type="button" class="btn btn-warning btn-sm fw-bold px-3 py-2 text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#discountModal">
                 <i class="bi bi-tag-fill me-1 text-danger"></i> Add Discount / ڈسکاؤنٹ
             </button>
-            <a href="{% url 'chart_of_accounts' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="bi bi-diagram-3 me-1"></i> Chart of Accounts
-            </a>
-            <a href="{% url 'party_ledger' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="bi bi-people me-1"></i> Party Ledger
-            </a>
-            <a href="{% url 'cash_ledger' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="bi bi-cash-stack me-1"></i> Cash Ledger
-            </a>
         </div>
     </div>
 
@@ -218,7 +209,6 @@
                         <option value="BRV">BRV — Bank Receipt Voucher (بینک وصولی)</option>
                         <option value="CASH_TO_BANK">💵➔🏦 Cash Deposit to Bank (کیش بینک میں جمع)</option>
                         <option value="BANK_TO_CASH">🏦➔💵 Cash Withdrawal from Bank (بینک سے کیش نکلوایا)</option>
-                        <option value="JV">JV — Journal / Transfer Voucher (کھاتہ ٹرانسفر)</option>
                     </select>
                 </div>
             </div>
@@ -670,7 +660,7 @@
         // Check URL Query Param ?type=CPV|CRV|BPV|BRV|JV|CASH_TO_BANK|BANK_TO_CASH
         const urlParams = new URLSearchParams(window.location.search);
         const reqType = (urlParams.get('type') || 'CPV').toUpperCase();
-        if (['CPV', 'CRV', 'BPV', 'BRV', 'JV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(reqType)) {
+        if (['CPV', 'CRV', 'BPV', 'BRV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(reqType)) {
             switchVoucherType(reqType);
         } else {
             switchVoucherType('CPV');
@@ -772,7 +762,7 @@
 
     function switchVoucherType(type) {
         type = (type || 'CPV').toUpperCase();
-        if (!['CPV', 'CRV', 'BPV', 'BRV', 'JV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(type)) {
+        if (!['CPV', 'CRV', 'BPV', 'BRV', 'CASH_TO_BANK', 'BANK_TO_CASH'].includes(type)) {
             type = 'CPV';
         }
 

@@ -1,0 +1,986 @@
+{% extends 'base.html' %}
+
+{% block title %}JV Voucher - MJ Poultries{% endblock %}
+
+{% block extra_css %}
+<style>
+    .jv-banner {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        color: #fff;
+        border-radius: 14px;
+        padding: 20px 24px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+
+    .jv-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        padding: 22px;
+        margin-bottom: 25px;
+    }
+
+    .form-label-bold {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 5px;
+    }
+
+    .history-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+    /* Autocomplete Suggestions Box */
+    .party-search-wrap {
+        position: relative;
+    }
+
+    .party-suggestions-box {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        max-height: 250px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .party-suggestion-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .party-suggestion-item:last-child {
+        border-bottom: none;
+    }
+
+    .party-suggestion-item:hover, .party-suggestion-item.active {
+        background-color: #e0e7ff;
+    }
+
+    .party-suggestion-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.88rem;
+    }
+
+    .party-suggestion-code {
+        font-size: 0.75rem;
+        color: #64748b;
+        font-family: monospace;
+    }
+
+    /* Table styling */
+    .jv-grid-table th {
+        background: #f8fafc;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    /* Print Preview Layout */
+    @media print {
+        body * { visibility: hidden; }
+        #printableVoucher, #printableVoucher * { visibility: visible; }
+        #printableVoucher { position: absolute; left: 0; top: 0; width: 100%; }
+        .modal-footer, .btn-close { display: none !important; }
+    }
+
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+        .jv-banner {
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+        .jv-card {
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+        .table-responsive {
+            border: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table th, .table td {
+            white-space: nowrap;
+            padding: 8px 6px !important;
+            font-size: 0.78rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-2">
+
+    <!-- BANNER -->
+    <div class="jv-banner d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h4 class="mb-1 fw-bold">
+                <i class="bi bi-arrow-left-right text-warning me-2"></i> Journal Voucher (JV)
+            </h4>
+            <small class="text-white-50">
+                Direct head-to-head adjustments, party-to-party transfers, and double-entry adjustments without cash/bank involvement.
+            </small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'voucher_entry' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-receipt-cutoff me-1"></i> Cash / Bank Vouchers
+            </a>
+            <a href="{% url 'chart_of_accounts' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-diagram-3 me-1"></i> Chart of Accounts
+            </a>
+            <a href="{% url 'party_ledger' %}" class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
+                <i class="bi bi-people me-1"></i> Party Ledger
+            </a>
+        </div>
+    </div>
+
+    <!-- ENTRY CARD -->
+    <div class="jv-card" id="jvEntryCard">
+        <!-- Edit Mode Banner -->
+        <div id="editModeBanner" class="alert alert-warning border border-warning-subtle shadow-sm d-none mb-3 py-2 px-3 align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-pencil-square fs-4 text-warning me-2"></i>
+                <div>
+                    <strong class="text-dark">Editing JV Mode / جرنل واؤچر میں ترمیم:</strong>
+                    <span id="editingVoucherLabel" class="badge bg-dark font-monospace ms-2"></span>
+                    <div class="small text-muted">Voucher update krne par sabhi previous balances reverse ho kar nayi values save hon gi.</div>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="cancelEditJV()">
+                    <i class="bi bi-x-circle me-1"></i> Cancel Edit (کینسل کریں)
+                </button>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-journal-check text-primary me-2"></i> New Journal Entry (JV)
+                </h5>
+                <small class="text-muted">
+                    Party select karein, Narration likhein, Debit ya Credit amount daal kar "Add Entry" karein. Jab Dr = Cr barabar hon ge to Save Voucher enable ho jayega.
+                </small>
+            </div>
+            <span class="badge bg-dark font-monospace fs-6 px-3 py-2" id="displayVoucherNo">{{ next_jv }}</span>
+        </div>
+
+        <!-- Master Fields: Date & Overall Remarks -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-12">
+                <label class="form-label-bold">Voucher Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="jvDate" value="{{ today_date }}" required>
+            </div>
+            <div class="col-md-9 col-12">
+                <label class="form-label-bold">Voucher Description / عمومی تفصیل</label>
+                <input type="text" class="form-control" id="jvRemarks" placeholder="Enter general description / adjustment reason (e.g. Balance transfer from Party A to Party B)">
+            </div>
+        </div>
+
+        <!-- INPUT ENTRY ROW (As requested by user) -->
+        <div class="p-3 bg-light rounded-3 border mb-3">
+            <div class="row g-2 align-items-end">
+                <!-- Account ID (Auto-filled on party select) -->
+                <div class="col-md-2 col-12">
+                    <label class="form-label-bold">
+                        <i class="bi bi-123 text-secondary me-1"></i> Account ID
+                    </label>
+                    <input type="text" class="form-control font-monospace bg-white" id="inpAccountId" placeholder="Acc ID" readonly>
+                    <input type="hidden" id="inpHiddenAccId" value="">
+                    <input type="hidden" id="inpHiddenPartyId" value="">
+                </div>
+
+                <!-- Party Search (Replaces Account Title as requested) -->
+                <div class="col-md-4 col-12 party-search-wrap">
+                    <label class="form-label-bold">
+                        <i class="bi bi-person-fill text-primary me-1"></i> Search Party / پارٹی تلاش کریں <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="inpPartySearch" placeholder="Type party name or code..." autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="btnClearParty" title="Clear Search" onclick="clearPartyInput()">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <!-- Auto-suggestions dropdown -->
+                    <div class="party-suggestions-box" id="partySuggestionsBox"></div>
+                </div>
+
+                <!-- Narration -->
+                <div class="col-md-3 col-12">
+                    <label class="form-label-bold">
+                        <i class="bi bi-card-text text-secondary me-1"></i> Narration
+                    </label>
+                    <input type="text" class="form-control" id="inpNarration" placeholder="Line narration / تفصیل">
+                </div>
+
+                <!-- Dr Amount -->
+                <div class="col-md-1 col-6">
+                    <label class="form-label-bold text-danger">
+                        <i class="bi bi-arrow-down-left-circle me-1"></i> Dr
+                    </label>
+                    <input type="number" step="0.01" min="0" class="form-control text-end fw-bold text-danger" id="inpDr" placeholder="0" oninput="onDrInput(this.value)">
+                </div>
+
+                <!-- Cr Amount -->
+                <div class="col-md-1 col-6">
+                    <label class="form-label-bold text-success">
+                        <i class="bi bi-arrow-up-right-circle me-1"></i> Cr
+                    </label>
+                    <input type="number" step="0.01" min="0" class="form-control text-end fw-bold text-success" id="inpCr" placeholder="0" oninput="onCrInput(this.value)">
+                </div>
+
+                <!-- Add Entry Button -->
+                <div class="col-md-1 col-12 text-end">
+                    <button type="button" class="btn btn-primary w-100 fw-bold py-2" id="btnAddEntry" onclick="addEntryRow()">
+                        <i class="bi bi-plus-lg me-1"></i> Add Entry
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- JOURNAL VOUCHER LINES TABLE -->
+        <div class="table-responsive mb-3">
+            <table class="table table-bordered align-middle jv-grid-table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;"># AccID</th>
+                        <th style="width: 30%;">👤 AccName / Party</th>
+                        <th style="width: 25%;">📋 Narration</th>
+                        <th style="width: 12%; text-align: right;">Dr (Rs.)</th>
+                        <th style="width: 12%; text-align: right;">Cr (Rs.)</th>
+                        <th style="width: 6%; text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="jvLinesBody">
+                    <tr id="emptyLinesRow">
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-3 d-block mb-1"></i> Koi entry add nahi hui. Upar form se party select kar ke <strong>+ Add Entry</strong> par click karein.
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot class="fw-bold table-light">
+                    <tr>
+                        <td colspan="3" class="text-end fs-6">Totals:</td>
+                        <td class="text-end text-danger fs-6" id="totalDebitCell">0.00</td>
+                        <td class="text-end text-success fs-6" id="totalCreditCell">0.00</td>
+                        <td class="text-center">
+                            <span id="balanceIndicator" class="badge bg-secondary">Empty</span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Action / Save Section -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-2 border-top">
+            <div id="balanceMessage" class="small fw-semibold text-muted">
+                Add at least one Debit and one Credit line. Total Debit must equal Total Credit.
+            </div>
+            <div>
+                <button type="button" class="btn btn-success fw-bold px-4 py-2" id="btnSaveJV" onclick="saveJV()" disabled>
+                    <i class="bi bi-check-circle-fill me-1"></i> Save Voucher
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT JV VOUCHERS LIST -->
+    <div class="history-card">
+        <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-1 text-primary"></i> Journal Voucher (JV) History</h6>
+                <small class="text-muted">Showing JV vouchers for selected date. (Default: Today)</small>
+            </div>
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <!-- Date Filter Input -->
+                <div class="input-group input-group-sm filter-date-group shadow-sm" style="width: auto;">
+                    <span class="input-group-text bg-white border-primary text-primary fw-bold">
+                        <i class="bi bi-calendar-event me-1"></i> Filter Date:
+                    </span>
+                    <input type="date" class="form-control border-primary" id="tableFilterDate" value="{{ today_date }}" onchange="onDateFilterChanged(this.value)">
+                    <button class="btn btn-outline-primary" type="button" title="Reload / Refresh" onclick="reloadJVTable()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" title="Clear Date (Show All Recent)" onclick="clearDateFilter()">
+                        <i class="bi bi-x-circle"></i> All
+                    </button>
+                </div>
+                <span class="badge bg-secondary px-3 py-2" id="totalJVCountBadge">Total Listed: {{ recent_jvs|length }}</span>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" style="font-size: 0.85rem;" id="jvHistoryTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Voucher #</th>
+                        <th>Date</th>
+                        <th>Debit Head(s)</th>
+                        <th>Credit Head(s)</th>
+                        <th>Total Amount</th>
+                        <th>Remarks</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="jvTableBody">
+                    {% for v in recent_jvs %}
+                    <tr>
+                        <td>
+                            <span class="font-monospace fw-bold text-primary">{{ v.voucher_no }}</span>
+                        </td>
+                        <td>{{ v.date|date:'d-M-Y' }}</td>
+                        <td>
+                            {% for line in v.details.all %}
+                                {% if line.debit > 0 %}
+                                <div class="text-danger fw-semibold">
+                                    {{ line.account.name }}
+                                    {% if line.party %} <small class="text-muted">({{ line.party.company_name }})</small>{% endif %}
+                                    (Rs. {{ line.debit|floatformat:2 }})
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for line in v.details.all %}
+                                {% if line.credit > 0 %}
+                                <div class="text-success fw-semibold">
+                                    {{ line.account.name }}
+                                    {% if line.party %} <small class="text-muted">({{ line.party.company_name }})</small>{% endif %}
+                                    (Rs. {{ line.credit|floatformat:2 }})
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="fw-bold fs-6">Rs. {{ v.total_amount|floatformat:2 }}</td>
+                        <td><small class="text-muted">{{ v.remarks|default:"-" }}</small></td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit JV Voucher" onclick="editJV({{ v.id }})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Slip" onclick="viewJV({{ v.id }})">
+                                <i class="bi bi-printer"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Reverse & Delete Voucher" onclick="deleteJV({{ v.id }}, '{{ v.voucher_no }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-2 d-block mb-1"></i> No JV vouchers posted yet for this date.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ========================================== -->
+<!-- PRINT / VIEW VOUCHER MODAL SLIP -->
+<!-- ========================================== -->
+<div class="modal fade" id="voucherModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-receipt me-2"></i> Journal Voucher Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="printableVoucher">
+                <div class="border p-4 bg-white" style="min-height: 400px;">
+                    <!-- Voucher Header -->
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <div>
+                            <h4 class="fw-bold mb-0 text-primary">MJ POULTRIES</h4>
+                            <small class="text-muted">Poultry ERP & Integrated Accounting</small>
+                        </div>
+                        <div class="text-end">
+                            <h5 class="fw-bold mb-0 text-dark">JOURNAL VOUCHER</h5>
+                            <span class="font-monospace fw-bold fs-6 text-danger" id="pvVoucherNo">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Meta Information -->
+                    <div class="row g-2 mb-3 small">
+                        <div class="col-6"><strong>Date:</strong> <span id="pvDate">-</span></div>
+                        <div class="col-6 text-end"><strong>Reference #:</strong> <span id="pvRef">-</span></div>
+                        <div class="col-12"><strong>Remarks / Reason:</strong> <span id="pvRemarks">-</span></div>
+                    </div>
+
+                    <!-- Details Table -->
+                    <table class="table table-bordered align-middle small mb-4">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Account Code & Title</th>
+                                <th>Party Name</th>
+                                <th>Narration</th>
+                                <th class="text-end" style="width: 120px;">Debit (Rs.)</th>
+                                <th class="text-end" style="width: 120px;">Credit (Rs.)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pvDetailsBody"></tbody>
+                        <tfoot class="fw-bold table-light">
+                            <tr>
+                                <td colspan="4" class="text-end">Total Amount:</td>
+                                <td class="text-end text-danger" id="pvTotalDebit">0.00</td>
+                                <td class="text-end text-success" id="pvTotalCredit">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="row mt-5 pt-4 text-center small text-muted">
+                        <div class="col-4 border-top pt-2">Prepared By</div>
+                        <div class="col-4 border-top pt-2">Checked By</div>
+                        <div class="col-4 border-top pt-2">Authorized Signature</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary fw-bold" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i> Print Voucher Slip
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<script>
+    // State management for JV lines
+    let jvLines = [];
+    let editingVoucherId = null;
+    let selectedParty = null;
+
+    // ----------------------------------------------------
+    // 1. Party Autocomplete Search
+    // ----------------------------------------------------
+    let searchDebounceTimer = null;
+    const inpPartySearch = document.getElementById('inpPartySearch');
+    const suggestionsBox = document.getElementById('partySuggestionsBox');
+
+    inpPartySearch.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(searchDebounceTimer);
+
+        if (!query) {
+            suggestionsBox.style.display = 'none';
+            suggestionsBox.innerHTML = '';
+            return;
+        }
+
+        searchDebounceTimer = setTimeout(() => {
+            fetch("{% url 'jv_voucher' %}?action=search_parties&q=" + encodeURIComponent(query))
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success || data.results.length === 0) {
+                        suggestionsBox.innerHTML = '<div class="p-3 text-muted small text-center">Koi party nahi mili</div>';
+                        suggestionsBox.style.display = 'block';
+                        return;
+                    }
+
+                    let html = '';
+                    data.results.forEach((item, idx) => {
+                        html += `
+                            <div class="party-suggestion-item" onclick='selectParty(${JSON.stringify(item)})'>
+                                <div>
+                                    <div class="party-suggestion-title">${item.party_name}</div>
+                                    <div class="party-suggestion-code">Code: ${item.party_code || item.account_code || '-'}</div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-light text-dark font-monospace">${item.account_code || ''}</span>
+                                    <small class="d-block text-muted" style="font-size:0.7rem;">Bal: Rs. ${parseFloat(item.current_balance || 0).toLocaleString()}</small>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    suggestionsBox.innerHTML = html;
+                    suggestionsBox.style.display = 'block';
+                })
+                .catch(() => {
+                    suggestionsBox.style.display = 'none';
+                });
+        }, 200);
+    });
+
+    // Close suggestions on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.party-search-wrap')) {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+
+    function selectParty(item) {
+        selectedParty = item;
+        document.getElementById('inpPartySearch').value = item.party_name;
+        document.getElementById('inpAccountId').value = item.account_code || item.party_code || '';
+        document.getElementById('inpHiddenAccId').value = item.account_id || '';
+        document.getElementById('inpHiddenPartyId').value = item.party_id || '';
+        suggestionsBox.style.display = 'none';
+        document.getElementById('inpNarration').focus();
+    }
+
+    function clearPartyInput() {
+        selectedParty = null;
+        document.getElementById('inpPartySearch').value = '';
+        document.getElementById('inpAccountId').value = '';
+        document.getElementById('inpHiddenAccId').value = '';
+        document.getElementById('inpHiddenPartyId').value = '';
+        suggestionsBox.style.display = 'none';
+        document.getElementById('inpPartySearch').focus();
+    }
+
+    // Single input enforcement: either Dr or Cr
+    function onDrInput(val) {
+        if (parseFloat(val) > 0) {
+            document.getElementById('inpCr').value = '';
+        }
+    }
+    function onCrInput(val) {
+        if (parseFloat(val) > 0) {
+            document.getElementById('inpDr').value = '';
+        }
+    }
+
+    // ----------------------------------------------------
+    // 2. Add / Remove Line in JV Table
+    // ----------------------------------------------------
+    function addEntryRow() {
+        const partyName = document.getElementById('inpPartySearch').value.trim();
+        const accountCode = document.getElementById('inpAccountId').value.trim();
+        const accountId = document.getElementById('inpHiddenAccId').value;
+        const partyId = document.getElementById('inpHiddenPartyId').value;
+        const narration = document.getElementById('inpNarration').value.trim();
+        const dr = parseFloat(document.getElementById('inpDr').value) || 0;
+        const cr = parseFloat(document.getElementById('inpCr').value) || 0;
+
+        if (!partyName) {
+            alert('Meharbani karke pehle Party select karein!');
+            document.getElementById('inpPartySearch').focus();
+            return;
+        }
+
+        if (dr <= 0 && cr <= 0) {
+            alert('Debit ya Credit mein se kisi aik mein raqam darj karein!');
+            document.getElementById('inpDr').focus();
+            return;
+        }
+
+        if (dr > 0 && cr > 0) {
+            alert('Aik waqt mein sirf Debit YA Credit mein raqam darj ho sakti hai!');
+            return;
+        }
+
+        jvLines.push({
+            party_name: partyName,
+            account_code: accountCode,
+            account_id: accountId,
+            party_id: partyId,
+            narration: narration,
+            debit: dr,
+            credit: cr,
+        });
+
+        // Reset input fields
+        clearPartyInput();
+        document.getElementById('inpNarration').value = '';
+        document.getElementById('inpDr').value = '';
+        document.getElementById('inpCr').value = '';
+
+        renderLines();
+        document.getElementById('inpPartySearch').focus();
+    }
+
+    function removeLine(index) {
+        jvLines.splice(index, 1);
+        renderLines();
+    }
+
+    function renderLines() {
+        const tbody = document.getElementById('jvLinesBody');
+        if (jvLines.length === 0) {
+            tbody.innerHTML = `
+                <tr id="emptyLinesRow">
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-3 d-block mb-1"></i> Koi entry add nahi hui. Upar form se party select kar ke <strong>+ Add Entry</strong> par click karein.
+                    </td>
+                </tr>
+            `;
+            updateTotals();
+            return;
+        }
+
+        let html = '';
+        jvLines.forEach((line, idx) => {
+            html += `
+                <tr>
+                    <td><span class="font-monospace fw-bold text-dark">[${line.account_code || '-'}]</span></td>
+                    <td><strong>${line.party_name}</strong></td>
+                    <td>${line.narration || '<span class="text-muted">-</span>'}</td>
+                    <td class="text-end fw-bold text-danger">${line.debit > 0 ? line.debit.toFixed(2) : '-'}</td>
+                    <td class="text-end fw-bold text-success">${line.credit > 0 ? line.credit.toFixed(2) : '-'}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-danger px-2 py-1" title="Remove" onclick="removeLine(${idx})">
+                            <i class="bi bi-trash-fill"></i> Remove
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalDr = 0;
+        let totalCr = 0;
+
+        jvLines.forEach(l => {
+            totalDr += (parseFloat(l.debit) || 0);
+            totalCr += (parseFloat(l.credit) || 0);
+        });
+
+        document.getElementById('totalDebitCell').innerText = totalDr.toFixed(2);
+        document.getElementById('totalCreditCell').innerText = totalCr.toFixed(2);
+
+        const btnSave = document.getElementById('btnSaveJV');
+        const indicator = document.getElementById('balanceIndicator');
+        const msg = document.getElementById('balanceMessage');
+
+        if (jvLines.length === 0) {
+            indicator.className = 'badge bg-secondary';
+            indicator.innerText = 'Empty';
+            msg.className = 'small fw-semibold text-muted';
+            msg.innerText = 'Add at least one Debit and one Credit line. Total Debit must equal Total Credit.';
+            btnSave.disabled = true;
+        } else if (Math.abs(totalDr - totalCr) < 0.001 && totalDr > 0 && jvLines.length >= 2) {
+            indicator.className = 'badge bg-success';
+            indicator.innerText = 'Balanced ✓';
+            msg.className = 'small fw-semibold text-success';
+            msg.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Perfect! Voucher balanced hai (Rs. ' + totalDr.toFixed(2) + '). Aap save kar saktay hain.';
+            btnSave.disabled = false;
+        } else {
+            indicator.className = 'badge bg-danger';
+            indicator.innerText = 'Unbalanced ✗';
+            const diff = Math.abs(totalDr - totalCr).toFixed(2);
+            msg.className = 'small fw-semibold text-danger';
+            msg.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> Farq: Rs. ${diff}. Total Debit aur Total Credit barabar hona zaroori hain!`;
+            btnSave.disabled = true;
+        }
+    }
+
+    // ----------------------------------------------------
+    // 3. Save / Update JV Voucher
+    // ----------------------------------------------------
+    function saveJV() {
+        if (jvLines.length < 2) {
+            alert('Kam az kam 2 lines hona zaroori hain!');
+            return;
+        }
+
+        const date = document.getElementById('jvDate').value;
+        const remarks = document.getElementById('jvRemarks').value.trim();
+
+        const btn = document.getElementById('btnSaveJV');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+
+        const payload = {
+            editing_id: editingVoucherId,
+            date: date,
+            remarks: remarks,
+            entries: jvLines,
+        };
+
+        fetch("{% url 'jv_voucher' %}?action=save_jv", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Save Voucher';
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Save Voucher';
+            alert('Request failed: ' + err);
+        });
+    }
+
+    // ----------------------------------------------------
+    // 4. Edit JV Voucher
+    // ----------------------------------------------------
+    function editJV(voucherId) {
+        fetch("{% url 'jv_voucher' %}?action=get_jv&id=" + voucherId)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Error: ' + data.message);
+                    return;
+                }
+                const v = data.voucher;
+
+                editingVoucherId = v.id;
+                document.getElementById('editingVoucherLabel').innerText = v.voucher_no;
+                document.getElementById('editModeBanner').classList.remove('d-none');
+                document.getElementById('editModeBanner').classList.add('d-flex');
+
+                document.getElementById('displayVoucherNo').innerText = v.voucher_no;
+                document.getElementById('jvDate').value = v.raw_date || '';
+                document.getElementById('jvRemarks').value = v.remarks || '';
+
+                jvLines = [];
+                v.details.forEach(d => {
+                    jvLines.push({
+                        party_name: d.party_name,
+                        account_code: d.account_code,
+                        account_id: d.account_id,
+                        party_id: d.party_id,
+                        narration: d.narration,
+                        debit: d.debit,
+                        credit: d.credit,
+                    });
+                });
+
+                renderLines();
+
+                const btn = document.getElementById('btnSaveJV');
+                btn.innerHTML = '<i class="bi bi-pencil-square me-1"></i> Update Voucher #' + v.voucher_no;
+                btn.className = 'btn btn-warning text-dark fw-bold px-4 py-2';
+
+                const el = document.getElementById('jvEntryCard');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            })
+            .catch(err => {
+                alert('Failed to load JV for editing: ' + err);
+            });
+    }
+
+    function cancelEditJV() {
+        editingVoucherId = null;
+        document.getElementById('editModeBanner').classList.remove('d-flex');
+        document.getElementById('editModeBanner').classList.add('d-none');
+        document.getElementById('displayVoucherNo').innerText = '{{ next_jv }}';
+        document.getElementById('jvRemarks').value = '';
+
+        const btn = document.getElementById('btnSaveJV');
+        btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Save Voucher';
+        btn.className = 'btn btn-success fw-bold px-4 py-2';
+
+        jvLines = [];
+        renderLines();
+    }
+
+    // ----------------------------------------------------
+    // 5. Delete JV Voucher
+    // ----------------------------------------------------
+    function deleteJV(voucherId, voucherNo) {
+        if (!confirm(`Are you sure you want to REVERSE and DELETE Journal Voucher ${voucherNo}?\n\nThis will reverse all associated account balances.`)) {
+            return;
+        }
+
+        fetch("{% url 'jv_voucher' %}?action=delete_jv", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ id: voucherId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(err => {
+            alert('Request failed: ' + err);
+        });
+    }
+
+    // ----------------------------------------------------
+    // 6. View / Print Voucher Slip Modal
+    // ----------------------------------------------------
+    function viewJV(voucherId) {
+        fetch("{% url 'jv_voucher' %}?action=get_jv&id=" + voucherId)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Error: ' + data.message);
+                    return;
+                }
+                const v = data.voucher;
+                document.getElementById('pvVoucherNo').innerText = v.voucher_no;
+                document.getElementById('pvDate').innerText = v.date;
+                document.getElementById('pvRef').innerText = v.reference_no || v.voucher_no;
+                document.getElementById('pvRemarks').innerText = v.remarks || '-';
+
+                let rowsHtml = '';
+                let totalDr = 0;
+                let totalCr = 0;
+
+                v.details.forEach((line, idx) => {
+                    const dr = parseFloat(line.debit) || 0;
+                    const cr = parseFloat(line.credit) || 0;
+                    totalDr += dr;
+                    totalCr += cr;
+
+                    rowsHtml += `
+                        <tr>
+                            <td>${idx + 1}</td>
+                            <td>
+                                <strong>[${line.account_code}]</strong> ${line.account_name}
+                            </td>
+                            <td>${line.party_name || '-'}</td>
+                            <td>${line.narration || '-'}</td>
+                            <td class="text-end text-danger">${dr > 0 ? dr.toFixed(2) : '-'}</td>
+                            <td class="text-end text-success">${cr > 0 ? cr.toFixed(2) : '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('pvDetailsBody').innerHTML = rowsHtml;
+                document.getElementById('pvTotalDebit').innerText = totalDr.toFixed(2);
+                document.getElementById('pvTotalCredit').innerText = totalCr.toFixed(2);
+
+                const modal = new bootstrap.Modal(document.getElementById('voucherModal'));
+                modal.show();
+            });
+    }
+
+    // ----------------------------------------------------
+    // 7. Filter JV History Table by Date
+    // ----------------------------------------------------
+    function onDateFilterChanged(selectedDate) {
+        reloadJVTable(selectedDate);
+    }
+
+    function clearDateFilter() {
+        document.getElementById('tableFilterDate').value = '';
+        reloadJVTable('');
+    }
+
+    function reloadJVTable(filterDate) {
+        if (filterDate === undefined) {
+            filterDate = document.getElementById('tableFilterDate').value || '';
+        }
+
+        const tbody = document.getElementById('jvTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    <span class="spinner-border spinner-border-sm me-2"></span> Loading JV vouchers...
+                </td>
+            </tr>
+        `;
+
+        fetch("{% url 'jv_voucher' %}?action=filter_jv&date=" + encodeURIComponent(filterDate))
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Error: ${data.message}</td></tr>`;
+                    return;
+                }
+
+                document.getElementById('totalJVCountBadge').innerText = 'Total Listed: ' + data.vouchers.length;
+
+                if (data.vouchers.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-1"></i> No JV vouchers found for ${filterDate || 'selected criteria'}.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                data.vouchers.forEach(v => {
+                    let drHtml = '';
+                    v.debit_lines.forEach(l => {
+                        drHtml += `<div class="text-danger fw-semibold">[${l.account_code}] ${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                    });
+
+                    let crHtml = '';
+                    v.credit_lines.forEach(l => {
+                        crHtml += `<div class="text-success fw-semibold">[${l.account_code}] ${l.account_name} ${l.party_name ? `<small class="text-muted">(${l.party_name})</small>` : ''} (Rs. ${l.amount})</div>`;
+                    });
+
+                    html += `
+                        <tr>
+                            <td><span class="font-monospace fw-bold text-primary">${v.voucher_no}</span></td>
+                            <td>${v.date}</td>
+                            <td>${drHtml || '-'}</td>
+                            <td>${crHtml || '-'}</td>
+                            <td class="fw-bold fs-6">Rs. ${v.total_amount}</td>
+                            <td><small class="text-muted">${v.remarks || '-'}</small></td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-warning text-dark me-1" title="Edit JV Voucher" onclick="editJV(${v.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary me-1" title="View / Print Slip" onclick="viewJV(${v.id})">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="Reverse & Delete Voucher" onclick="deleteJV(${v.id}, '${v.voucher_no}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+            })
+            .catch(err => {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Failed to load vouchers: ${err}</td></tr>`;
+            });
+    }
+</script>
+{% endblock %}
+

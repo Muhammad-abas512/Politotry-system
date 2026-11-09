@@ -440,6 +440,22 @@ def voucher_entry(request):
         v_type = request.GET.get('voucher_type', 'CPV')
         return JsonResponse({'success': True, 'voucher_no': generate_voucher_no(v_type)})
 
+    # ------------ AJAX: SEARCH LEVEL 4 ACCOUNTS FOR VOUCHER ENTRY ------------
+    if request.method == 'GET' and action == 'search_voucher_accounts':
+        q = (request.GET.get('q') or '').strip()
+        accs = ChartOfAccount.objects.filter(level=4, is_active=True).exclude(code__in=['010101001', '1110001'])
+        if q:
+            accs = accs.filter(Q(name__icontains=q) | Q(code__icontains=q))
+        res = [{
+            'id': a.id,
+            'code': a.code,
+            'name': a.name,
+            'type': a.account_type,
+            'balance': str(a.current_balance),
+            'party_id': a.party_id,
+        } for a in accs[:30]]
+        return JsonResponse({'success': True, 'accounts': res})
+
     # ------------ AJAX: GET LEVEL 4 ACCOUNTS ------------
     if request.method == 'GET' and action == 'get_level4_accounts':
         accounts = ChartOfAccount.objects.filter(level=4, is_active=True).order_by('code')
@@ -488,7 +504,7 @@ def voucher_entry(request):
                 seed_default_chart_of_accounts()
                 cash_acc = ChartOfAccount.objects.filter(code='010101001', level=4).first()
 
-            # QUICK MODE: CPV, CRV, BPV, BRV, JV
+            # QUICK MODE: CPV, CRV, BPV, BRV
             if mode == 'quick':
                 amount = _to_decimal(data.get('amount'))
                 if amount <= 0:
@@ -497,6 +513,12 @@ def voucher_entry(request):
                 dr_acc_id = data.get('debit_account_id')
                 cr_acc_id = data.get('credit_account_id')
                 party_id = data.get('party_id') or None
+                bank_id = data.get('bank_id')
+
+                # Bank account for BPV / BRV
+                selected_bank = None
+                if bank_id:
+                    selected_bank = ChartOfAccount.objects.filter(id=bank_id, level=4).first()
 
                 # AUTO-CONFIGURE BASED ON VOUCHER TYPE:
                 if v_type == 'CPV':
@@ -507,15 +529,29 @@ def voucher_entry(request):
                     # Cash Receipt: Cash in Hand is DEBIT
                     if not dr_acc_id and cash_acc:
                         dr_acc_id = cash_acc.id
+                elif v_type == 'BPV':
+                    # Bank Payment: Selected Bank is CREDIT
+                    if not selected_bank:
+                        return JsonResponse({'success': False, 'message': 'Bank Payment (BPV) ke liye Bank lazmi select karein!'})
+                    cr_acc_id = selected_bank.id
+                elif v_type == 'BRV':
+                    # Bank Receipt: Selected Bank is DEBIT
+                    if not selected_bank:
+                        return JsonResponse({'success': False, 'message': 'Bank Receipt (BRV) ke liye Bank lazmi select karein!'})
+                    dr_acc_id = selected_bank.id
                 elif v_type == 'CASH_TO_BANK':
                     # Cash Deposit: Cash in Hand is CREDIT, Selected Bank is DEBIT
                     if not cr_acc_id and cash_acc:
                         cr_acc_id = cash_acc.id
+                    if selected_bank and not dr_acc_id:
+                        dr_acc_id = selected_bank.id
                     party_id = None
                 elif v_type == 'BANK_TO_CASH':
                     # Cash Withdrawal: Selected Bank is CREDIT, Cash in Hand is DEBIT
                     if not dr_acc_id and cash_acc:
                         dr_acc_id = cash_acc.id
+                    if selected_bank and not cr_acc_id:
+                        cr_acc_id = selected_bank.id
                     party_id = None
 
                 if not dr_acc_id or not cr_acc_id:
@@ -608,6 +644,11 @@ def voucher_entry(request):
                 if len(raw_entries) < 2:
                     return JsonResponse({'success': False, 'message': 'At least 2 line items are required in a voucher'})
 
+                bank_id = data.get('bank_id')
+                bank_acc = None
+                if bank_id:
+                    bank_acc = ChartOfAccount.objects.filter(id=bank_id, level=4).first()
+
                 total_dr = Decimal('0')
                 total_cr = Decimal('0')
                 from collections import defaultdict
@@ -648,22 +689,6 @@ def voucher_entry(request):
                         'success': False,
                         'message': f'Voucher is unbalanced! Total Debit (Rs. {total_dr:,}) != Total Credit (Rs. {total_cr:,})'
                     })
-
-                # Check credit balances for cash and bank in grid mode
-                for acc, cr_sum in credits_per_acc.items():
-                    a_code = str(acc.code)
-                    a_name_lower = acc.name.lower()
-                    is_cash_hand = (a_code in ['010101001', '1110001'] or 'cash in hand' in a_name_lower)
-                    is_bank = ((a_code.startswith('010101') or a_code.startswith('1110')) and not is_cash_hand) or ('bank' in a_name_lower and not is_cash_hand)
-                    if is_cash_hand or is_bank:
-                        if acc.current_balance < cr_sum:
-                            return JsonResponse({
-                                'success': False,
-                                'message': (
-                                    f"❌ Payment Rejection: '{acc.name}' mein kafi raqam mojood nahi hai! "
-                                    f"Mojooda Balance: Rs. {acc.current_balance:,.2f}, jabkay Draw/Credit Amount: Rs. {cr_sum:,.2f}."
-                                )
-                            })
 
                 total_voucher_amt = total_dr
 
@@ -799,7 +824,13 @@ def voucher_entry(request):
     # ------------ AJAX: GET VOUCHER DETAILS FOR PRINT / VIEW / EDIT ------------
     if request.method == 'GET' and action == 'get_voucher':
         v_id = request.GET.get('id')
-        voucher = get_object_or_404(Voucher, id=v_id)
+        v_no = (request.GET.get('voucher_no') or '').strip()
+        if v_id:
+            voucher = get_object_or_404(Voucher, id=v_id)
+        elif v_no:
+            voucher = get_object_or_404(Voucher, voucher_no=v_no)
+        else:
+            return JsonResponse({'success': False, 'message': 'Voucher ID or Voucher Number required.'})
         details = []
         dr_line = None
         cr_line = None
@@ -838,6 +869,15 @@ def voucher_entry(request):
             else:
                 discount_type = 'given'
 
+        # Infer bank_id if voucher_type is BPV, BRV, CASH_TO_BANK, BANK_TO_CASH
+        bank_id = None
+        for line in voucher.details.all():
+            acode = str(line.account.code)
+            aname = line.account.name.lower()
+            if ((acode.startswith('010101') or acode.startswith('1110')) and acode not in ['010101001', '1110001']) or ('bank' in aname and 'cash in hand' not in aname):
+                bank_id = line.account.id
+                break
+
         return JsonResponse({
             'success': True,
             'voucher': {
@@ -856,6 +896,7 @@ def voucher_entry(request):
                 'created_at': voucher.created_at.strftime('%d-%b-%Y %I:%M %p') if voucher.created_at else '',
                 'debit_account_id': dr_line.account.id if dr_line else None,
                 'credit_account_id': cr_line.account.id if cr_line else None,
+                'bank_id': bank_id,
                 'party_id': party_id,
                 'details': details,
             }
@@ -866,7 +907,13 @@ def voucher_entry(request):
         try:
             data = json.loads(request.body)
             v_id = data.get('id')
-            voucher = get_object_or_404(Voucher, id=v_id)
+            v_no = (data.get('voucher_no') or '').strip()
+            if v_id:
+                voucher = get_object_or_404(Voucher, id=v_id)
+            elif v_no:
+                voucher = get_object_or_404(Voucher, voucher_no=v_no)
+            else:
+                return JsonResponse({'success': False, 'message': 'Voucher ID or Voucher Number required.'})
 
             with transaction.atomic():
                 # Reverse account balances
@@ -911,7 +958,7 @@ def voucher_entry(request):
     # ------------ AJAX: GET FILTERED VOUCHERS LIST BY DATE ------------
     if request.method == 'GET' and action == 'filter_vouchers':
         filter_date_str = (request.GET.get('date') or '').strip()
-        v_qs = Voucher.objects.all().prefetch_related('details__account', 'details__party')
+        v_qs = Voucher.objects.exclude(voucher_type='JV').prefetch_related('details__account', 'details__party')
         if filter_date_str:
             try:
                 f_date = datetime.strptime(filter_date_str, '%Y-%m-%d').date()
@@ -983,8 +1030,8 @@ def voucher_entry(request):
     pk_now = _get_pk_now()
     today_dt = pk_now.date()
 
-    # Recent Vouchers: By default show ONLY current date's vouchers
-    recent_vouchers = list(Voucher.objects.filter(date=today_dt).prefetch_related('details__account', 'details__party').order_by('-id'))
+    # Recent Vouchers: By default show ONLY current date's vouchers (excluding JV, which has its own page)
+    recent_vouchers = list(Voucher.objects.filter(date=today_dt).exclude(voucher_type='JV').prefetch_related('details__account', 'details__party').order_by('-id'))
 
     context = {
         'level4_accounts': level4_accounts,
@@ -1148,6 +1195,287 @@ def save_discount(request):
 
 
 # ===================================================================
+# 2.6 JOURNAL VOUCHER (JV) DEDICATED VIEW (ALL-IN-ONE VIEW)
+# ===================================================================
+def jv_voucher(request):
+    """
+    Dedicated view for Journal Voucher (JV).
+    Handles:
+    - GET page rendering (with today's JV list, Parties, Accounts).
+    - AJAX search_parties: instant autocomplete search for parties/accounts.
+    - AJAX save_jv: validates Dr == Cr, atomic transaction, balance updates, supports edit via editing_id.
+    - AJAX get_jv: returns voucher data for edit or slip print.
+    - AJAX delete_jv: reverses debit/credit balances and deletes JV voucher.
+    - AJAX filter_jv: filters JV history table by date.
+    """
+    if not request.session.get('user_id'):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('action'):
+            return JsonResponse({'success': False, 'message': 'Session expired'}, status=401)
+        return redirect('login')
+
+    seed_default_chart_of_accounts()
+    sync_all_parties_to_coa()
+    action = request.GET.get('action') or request.POST.get('action')
+
+    # ------------ 1. AJAX: PARTY AUTOCOMPLETE SEARCH ------------
+    if request.method == 'GET' and action == 'search_parties':
+        query = (request.GET.get('q') or '').strip()
+        parties_qs = Parties.objects.all()
+        if query:
+            parties_qs = parties_qs.filter(
+                Q(company_name__icontains=query) |
+                Q(owner_name__icontains=query) |
+                Q(code__icontains=query)
+            )
+        parties_data = []
+        for p in parties_qs[:30]:
+            acc = ChartOfAccount.objects.filter(party=p, level=4).first()
+            if not acc and p.code:
+                acc = ChartOfAccount.objects.filter(code=p.code, level=4).first()
+            if not acc:
+                acc = sync_single_party_to_coa(p)
+
+            parties_data.append({
+                'party_id': p.id,
+                'party_name': p.company_name or p.owner_name or f"Party #{p.id}",
+                'party_code': p.code or (acc.code if acc else ''),
+                'account_id': acc.id if acc else None,
+                'account_code': acc.code if acc else (p.code or ''),
+                'current_balance': str(acc.current_balance) if acc else '0.00',
+            })
+        return JsonResponse({'success': True, 'results': parties_data})
+
+    # ------------ 2. AJAX: GET JV DETAILS FOR EDIT / PRINT SLIP ------------
+    if request.method == 'GET' and action == 'get_jv':
+        v_id = request.GET.get('id')
+        voucher = get_object_or_404(Voucher, id=v_id, voucher_type='JV')
+        details = []
+        for line in voucher.details.all().select_related('account', 'party'):
+            p_obj = line.party or (line.account.party if line.account else None)
+            details.append({
+                'account_id': line.account.id,
+                'account_code': line.account.code,
+                'account_name': line.account.name,
+                'party_id': p_obj.id if p_obj else None,
+                'party_name': p_obj.company_name if p_obj else line.account.name,
+                'narration': line.narration or '',
+                'debit': float(line.debit or 0),
+                'credit': float(line.credit or 0),
+            })
+        return JsonResponse({
+            'success': True,
+            'voucher': {
+                'id': voucher.id,
+                'voucher_no': voucher.voucher_no,
+                'date': voucher.date.strftime('%d-%b-%Y'),
+                'raw_date': voucher.date.strftime('%Y-%m-%d'),
+                'reference_no': voucher.reference_no or '',
+                'total_amount': f"{voucher.total_amount:,.2f}",
+                'remarks': voucher.remarks or '',
+                'details': details,
+            }
+        })
+
+    # ------------ 3. AJAX: SAVE / UPDATE JV ------------
+    if request.method == 'POST' and action == 'save_jv':
+        try:
+            data = json.loads(request.body)
+            date_str = (data.get('date') or '').strip()
+            remarks = (data.get('remarks') or '').strip()
+            entries = data.get('entries') or []
+            editing_id = data.get('editing_id')
+
+            if not entries or len(entries) < 2:
+                return JsonResponse({'success': False, 'message': 'Kam az kam 2 lines (aik Debit aur aik Credit) hona zaroori hain!'})
+
+            if date_str:
+                try:
+                    voucher_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    voucher_date = date.today()
+            else:
+                voucher_date = date.today()
+
+            total_dr = Decimal('0')
+            total_cr = Decimal('0')
+            cleaned_lines = []
+
+            for row in entries:
+                acc_id = row.get('account_id')
+                party_id = row.get('party_id') or None
+                narration = (row.get('narration') or '').strip()
+                dr = _to_decimal(row.get('debit') or 0)
+                cr = _to_decimal(row.get('credit') or 0)
+
+                if dr > 0 and cr > 0:
+                    return JsonResponse({'success': False, 'message': 'Aik hi line mein Debit aur Credit dono nahi ho saktay!'})
+                if dr <= 0 and cr <= 0:
+                    continue
+
+                account = None
+                if acc_id:
+                    account = ChartOfAccount.objects.filter(id=acc_id, level=4).first()
+                if not account and party_id:
+                    party = Parties.objects.filter(id=party_id).first()
+                    if party:
+                        account = ChartOfAccount.objects.filter(party=party, level=4).first() or sync_single_party_to_coa(party)
+
+                if not account:
+                    return JsonResponse({'success': False, 'message': f"Account/Party ka valid ledger account nahi mila: {row.get('party_name') or 'Unknown'}"})
+
+                total_dr += dr
+                total_cr += cr
+                cleaned_lines.append({
+                    'account': account,
+                    'party_id': party_id,
+                    'narration': narration,
+                    'debit': dr,
+                    'credit': cr,
+                })
+
+            if total_dr <= 0 or total_cr <= 0:
+                return JsonResponse({'success': False, 'message': 'JV mein Debit aur Credit amount 0 se barhi honi chahiye!'})
+
+            if total_dr != total_cr:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'JV is unbalanced! Total Debit (Rs. {total_dr:,.2f}) aur Total Credit (Rs. {total_cr:,.2f}) barabar hona zaroori hain!'
+                })
+
+            user_name = request.session.get('user_name', 'Admin')
+            existing_voucher = None
+            if editing_id:
+                try:
+                    existing_voucher = Voucher.objects.get(id=int(editing_id), voucher_type='JV')
+                except (Voucher.DoesNotExist, ValueError):
+                    return JsonResponse({'success': False, 'message': 'Editing JV voucher not found.'})
+
+            with transaction.atomic():
+                if existing_voucher:
+                    # Reverse previous account balances
+                    for line in existing_voucher.details.all():
+                        _update_account_balance(line.account, line.credit, line.debit)
+
+                    existing_voucher.details.all().delete()
+                    voucher = existing_voucher
+                    voucher_no = voucher.voucher_no
+                    voucher.date = voucher_date
+                    voucher.total_amount = total_dr
+                    voucher.remarks = remarks or f"JV #{voucher_no}: Adjustment between accounts"
+                    voucher.save()
+                else:
+                    voucher_no = generate_voucher_no('JV')
+                    voucher = Voucher.objects.create(
+                        voucher_no=voucher_no,
+                        voucher_type='JV',
+                        date=voucher_date,
+                        reference_no=voucher_no,
+                        total_amount=total_dr,
+                        remarks=remarks or f"JV #{voucher_no}: Adjustment between accounts",
+                        created_by=user_name,
+                    )
+
+                for item in cleaned_lines:
+                    VoucherDetail.objects.create(
+                        voucher=voucher,
+                        account=item['account'],
+                        debit=item['debit'],
+                        credit=item['credit'],
+                        narration=item['narration'],
+                        party_id=item['party_id'],
+                    )
+                    _update_account_balance(item['account'], item['debit'], item['credit'])
+
+            return JsonResponse({
+                'success': True,
+                'message': f"Journal Voucher #{voucher_no} kamyabi se save ho gaya! Total: Rs. {total_dr:,.2f}",
+                'voucher_no': voucher_no,
+                'voucher_id': voucher.id,
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+    # ------------ 4. AJAX: DELETE JV ------------
+    if request.method == 'POST' and action == 'delete_jv':
+        try:
+            data = json.loads(request.body)
+            v_id = data.get('id')
+            voucher = get_object_or_404(Voucher, id=v_id, voucher_type='JV')
+
+            with transaction.atomic():
+                for line in voucher.details.all():
+                    _update_account_balance(line.account, line.credit, line.debit)
+                v_no = voucher.voucher_no
+                voucher.delete()
+
+            return JsonResponse({'success': True, 'message': f"Journal Voucher #{v_no} reversed aur delete ho gaya!"})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+    # ------------ 5. AJAX: FILTER JV TABLE BY DATE ------------
+    if request.method == 'GET' and action == 'filter_jv':
+        f_date_str = (request.GET.get('date') or '').strip()
+        v_qs = Voucher.objects.filter(voucher_type='JV').prefetch_related('details__account', 'details__party')
+        if f_date_str:
+            try:
+                f_date = datetime.strptime(f_date_str, '%Y-%m-%d').date()
+                v_qs = v_qs.filter(date=f_date)
+            except ValueError:
+                pass
+        else:
+            v_qs = v_qs.filter(date=date.today())
+
+        v_list = []
+        for v in v_qs.order_by('-id')[:100]:
+            debit_lines = []
+            credit_lines = []
+            for d in v.details.all():
+                p_name = d.party.company_name if d.party else (d.account.party.company_name if d.account.party else '')
+                if d.debit > 0:
+                    debit_lines.append({
+                        'account_code': d.account.code,
+                        'account_name': d.account.name,
+                        'party_name': p_name,
+                        'narration': d.narration or '',
+                        'amount': f"{d.debit:,.2f}",
+                    })
+                if d.credit > 0:
+                    credit_lines.append({
+                        'account_code': d.account.code,
+                        'account_name': d.account.name,
+                        'party_name': p_name,
+                        'narration': d.narration or '',
+                        'amount': f"{d.credit:,.2f}",
+                    })
+
+            v_list.append({
+                'id': v.id,
+                'voucher_no': v.voucher_no,
+                'date': v.date.strftime('%d-%b-%Y'),
+                'total_amount': f"{v.total_amount:,.2f}",
+                'remarks': v.remarks or '-',
+                'debit_lines': debit_lines,
+                'credit_lines': credit_lines,
+            })
+        return JsonResponse({'success': True, 'vouchers': v_list, 'count': len(v_list)})
+
+    # ------------ 6. DEFAULT PAGE LOAD (RENDER TEMPLATE) ------------
+    pk_now = _get_pk_now()
+    today_dt = pk_now.date()
+
+    # Preload today's JV vouchers (by default current date)
+    today_jvs = list(Voucher.objects.filter(voucher_type='JV', date=today_dt).prefetch_related('details__account', 'details__party').order_by('-id'))
+
+    # All parties for initial suggestion
+    parties = Parties.objects.all().order_by('company_name')
+
+    context = {
+        'today_date': today_dt.strftime('%Y-%m-%d'),
+        'next_jv': generate_voucher_no('JV'),
+        'recent_jvs': today_jvs,
+        'parties': parties,
+    }
+    return render(request, 'accounts/jv_voucher.html', context)
 # 3. GENERAL ACCOUNT LEDGER VIEW & DATA HELPER
 # ===================================================================
 def _get_account_ledger_context(acc_id, from_date_str, to_date_str):
