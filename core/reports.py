@@ -106,14 +106,37 @@ def get_party_ledger(request):
         combined = []
         for inv in SellsInvoice.objects.filter(sales_q, entry_date__date__gte=from_date, entry_date__date__lte=to_date).order_by('entry_date', 'id'):
             sale_desc = f"Vehicle: {inv.vehicle_no.strip()}" if (inv.vehicle_no and str(inv.vehicle_no).strip()) else "Sale"
+
+            # Market rate for sale: from linked purchase or date BroilerRate
+            sale_mr_val = 0.0
+            if inv.purchase_number:
+                linked_pur = PurchaseReceiving.objects.filter(purchase_number=inv.purchase_number).first()
+                if linked_pur:
+                    sale_mr_val = safe_decimal(linked_pur.market_rate)
+            if sale_mr_val <= 0:
+                inv_date = inv.entry_date.date() if hasattr(inv.entry_date, 'date') else inv.entry_date
+                b_rate = BroilerRate.objects.filter(date=inv_date).first()
+                if not b_rate:
+                    b_rate = BroilerRate.objects.filter(date__lte=inv_date).order_by('-date').first()
+                if not b_rate:
+                    b_rate = BroilerRate.objects.order_by('-date', '-id').first()
+                if b_rate and b_rate.rate:
+                    sale_mr_val = safe_decimal(b_rate.rate)
+
+            sale_mr_display = f"{sale_mr_val:g}" if sale_mr_val > 0 else "-"
+            sale_vr_val = safe_decimal(inv.rate)
+            sale_vr_display = f"{sale_vr_val:g}" if sale_vr_val > 0 else "-"
+            sale_w_val = safe_decimal(inv.weight)
+            sale_w_display = f"{sale_w_val:g}" if sale_w_val > 0 else "-"
+
             combined.append({
                 'dt': inv.entry_date,
                 'id': inv.id or 0,
                 'priority': 1,
                 'desc': sale_desc,
-                'w': inv.weight,
-                'mr': '-',
-                'vr': inv.rate,
+                'w': sale_w_display,
+                'mr': sale_mr_display,
+                'vr': sale_vr_display,
                 'dr': safe_decimal(inv.amount),
                 'cr': 0.0
             })
@@ -3344,29 +3367,50 @@ def get_net_position_data(to_date=None):
     debit_parties.sort(key=lambda x: x['amount'], reverse=True)
     credit_parties.sort(key=lambda x: x['amount'], reverse=True)
 
-    cash_qs = CashRecord.objects.all()
-    if to_date:
-        to_dt = datetime.combine(to_date, time.max)
-        last_cash = cash_qs.filter(date__lte=to_dt).order_by('-date', '-id').first()
-    else:
-        last_cash = cash_qs.order_by('-id').first()
+    # -------------------------------------------------------------
+    # Cash in Hand & Cash in Bank calculated directly from Account Ledger / COA
+    # Exactly like Account General Ledger closing balance
+    # -------------------------------------------------------------
+    cash_acc = ChartOfAccount.objects.filter(level=4, code__in=['010101001', '1110001']).first() or ChartOfAccount.objects.filter(level=4, name__icontains='Cash in Hand').first()
+    cash_in_hand = 0.0
+    if cash_acc:
+        c_op = float(cash_acc.opening_balance or 0)
+        c_lines = VoucherDetail.objects.filter(account=cash_acc)
+        if to_date:
+            c_lines = c_lines.filter(voucher__date__lte=to_date)
+        c_dr = float(c_lines.aggregate(s=Sum('debit'))['s'] or 0)
+        c_cr = float(c_lines.aggregate(s=Sum('credit'))['s'] or 0)
+        cash_in_hand = c_op + c_dr - c_cr
 
-    cash_in_hand = safe_decimal(last_cash.cash_in_hand) if (last_cash and last_cash.cash_in_hand is not None) else 0.0
-    cash_in_bank = safe_decimal(last_cash.cash_in_bank) if (last_cash and last_cash.cash_in_bank is not None) else 0.0
+    bank_accs = ChartOfAccount.objects.filter(level=4, is_active=True).filter(
+        Q(parent__code__in=['010101', '1110']) | Q(name__icontains='bank')
+    ).exclude(code__in=['010101001', '1110001'])
 
-    # Fallback to Level 4 Chart of Accounts if CashRecord is empty
-    if not last_cash or (cash_in_hand == 0.0 and cash_in_bank == 0.0):
-        cash_acc = ChartOfAccount.objects.filter(level=4, code__in=['010101001', '1110001']).first() or ChartOfAccount.objects.filter(level=4, name__icontains='Cash in Hand').first()
-        bank_accs = ChartOfAccount.objects.filter(level=4, is_active=True).filter(Q(parent__code__in=['010101', '1110']) | Q(name__icontains='bank')).exclude(code__in=['010101001', '1110001'])
-        if cash_acc and safe_decimal(cash_acc.current_balance) > 0:
-            cash_in_hand = safe_decimal(cash_acc.current_balance)
-        coa_bank_total = sum(safe_decimal(b.current_balance) for b in bank_accs)
-        if coa_bank_total > 0:
-            cash_in_bank = coa_bank_total
+    cash_in_bank = 0.0
+    for b in bank_accs:
+        b_op = float(b.opening_balance or 0)
+        b_lines = VoucherDetail.objects.filter(account=b)
+        if to_date:
+            b_lines = b_lines.filter(voucher__date__lte=to_date)
+        b_dr = float(b_lines.aggregate(s=Sum('debit'))['s'] or 0)
+        b_cr = float(b_lines.aggregate(s=Sum('credit'))['s'] or 0)
+        cash_in_bank += (b_op + b_dr - b_cr)
+
+    # Fallback to CashRecord only if both COA balances are zero
+    if cash_in_hand == 0.0 and cash_in_bank == 0.0:
+        cash_qs = CashRecord.objects.all()
+        if to_date:
+            to_dt = datetime.combine(to_date, time.max)
+            last_cash = cash_qs.filter(date__lte=to_dt).order_by('-date', '-id').first()
+        else:
+            last_cash = cash_qs.order_by('-id').first()
+        if last_cash:
+            cash_in_hand = safe_decimal(last_cash.cash_in_hand) or 0.0
+            cash_in_bank = safe_decimal(last_cash.cash_in_bank) or 0.0
 
     total_cash = cash_in_hand + cash_in_bank
-    cash_date = last_cash.date if last_cash else None
-    cash_desc = (last_cash.discription if last_cash else '') or ''
+    cash_date = None
+    cash_desc = "From Chart of Accounts Ledger (Cash in Hand & Banks)"
 
     total_debit = round(total_debit, 2)
     total_credit = round(total_credit, 2)
