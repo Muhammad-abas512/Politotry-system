@@ -264,8 +264,8 @@
                 <select class="form-select fw-semibold" id="vBankSelect" disabled onchange="onBankSelectionChanged()">
                     <option value="">-- Select Bank --</option>
                     {% for b in bank_accounts %}
-                    <option value="{{ b.id }}" data-code="{{ b.code }}" data-name="{{ b.name }}" data-balance="{{ b.current_balance }}">
-                        [{{ b.code }}] {{ b.name }} (Bal: Rs. {{ b.current_balance|floatformat:2 }})
+                    <option value="{{ b.id }}" data-code="{{ b.code }}" data-name="{{ b.name }}" data-balance="{{ b.ledger_closing|default:b.current_balance }}">
+                        [{{ b.code }}] {{ b.name }} (Bal: Rs. {{ b.ledger_closing|default:b.current_balance|floatformat:2 }})
                     </option>
                     {% endfor %}
                 </select>

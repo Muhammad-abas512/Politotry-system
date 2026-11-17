@@ -1014,6 +1014,17 @@ def voucher_entry(request):
         level=4, is_active=True
     ).filter(Q(parent__code__in=['010101', '1110']) | Q(name__icontains='bank')).exclude(code__in=['010101001', '1110001']).order_by('code')
 
+    # Dynamically compute exact Ledger closing balance for each Bank Account & Cash in Hand
+    for b in bank_accounts:
+        b_dr = VoucherDetail.objects.filter(account=b).aggregate(s=Sum('debit'))['s'] or Decimal('0')
+        b_cr = VoucherDetail.objects.filter(account=b).aggregate(s=Sum('credit'))['s'] or Decimal('0')
+        b.ledger_closing = (b.opening_balance or Decimal('0')) + b_dr - b_cr
+
+    if cash_account:
+        c_dr = VoucherDetail.objects.filter(account=cash_account).aggregate(s=Sum('debit'))['s'] or Decimal('0')
+        c_cr = VoucherDetail.objects.filter(account=cash_account).aggregate(s=Sum('credit'))['s'] or Decimal('0')
+        cash_account.ledger_closing = (cash_account.opening_balance or Decimal('0')) + c_dr - c_cr
+
     # Party Accounts (Level 4 under 010102 or 1120 or with party linked)
     party_accounts = ChartOfAccount.objects.filter(
         level=4, is_active=True
